@@ -44,16 +44,12 @@ function Inicio() {
 
       <div className="relative mt-8 space-y-3">
         <Bloque
-          icon={<Plane className="h-5 w-5" />}
-          titulo="Llegadas de Barajas"
-          texto="Vuelos por terminal: T1, T2 y T4 con T4S."
-        />
-        <Bloque
-          icon={<TrainFront className="h-5 w-5" />}
-          titulo="Alta velocidad"
-          texto="Llegadas de AVE y compañías a Atocha y Chamartín."
+          icon={<ShieldCheck className="h-5 w-5" />}
+          titulo="Tus cuentas al día"
+          texto="Ingresos, gastos y el neto de tu jornada, siempre a mano."
         />
       </div>
+
 
       <div className="relative mt-8 space-y-3">
         <Link
