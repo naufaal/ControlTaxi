@@ -1,39 +1,24 @@
-export type Jornada = {
+export type Movimiento = {
   id: string;
   fecha: string;
-  ingresos: number;
-  gastos: number;
-  horas: number;
-  km: number;
+  tipo: "ingreso" | "gasto";
+  concepto: string;
+  importe: number;
 };
 
-const KEY = "taxihoja:jornadas";
-const USER_KEY = "taxihoja:usuario";
+const KEY = "taxihoja:movimientos";
 
-export function getUsuario(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(USER_KEY);
-}
-
-export function setUsuario(nombre: string) {
-  window.localStorage.setItem(USER_KEY, nombre);
-}
-
-export function cerrarSesion() {
-  window.localStorage.removeItem(USER_KEY);
-}
-
-export function getJornadas(): Jornada[] {
+export function getMovimientos(): Movimiento[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Jornada[]) : [];
+    return raw ? (JSON.parse(raw) as Movimiento[]) : [];
   } catch {
     return [];
   }
 }
 
-export function saveJornadas(list: Jornada[]) {
+export function saveMovimientos(list: Movimiento[]) {
   window.localStorage.setItem(KEY, JSON.stringify(list));
 }
 
