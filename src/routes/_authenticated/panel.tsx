@@ -17,6 +17,7 @@ import {
 import { eur, getMovimientos, saveMovimientos, type Movimiento } from "@/lib/taxihoja";
 import { getLlegadasBarajas, getLlegadasTrenes } from "@/lib/transporte.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { Documentos } from "@/components/documentos";
 
 export const Route = createFileRoute("/_authenticated/panel")({
   head: () => ({
@@ -201,7 +202,10 @@ function Panel() {
         )}
       </section>
 
+      <Documentos />
+
       <section className="px-5 pt-8">
+
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-foreground">
             Llegadas a Barajas
