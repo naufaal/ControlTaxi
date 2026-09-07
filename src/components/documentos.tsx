@@ -64,7 +64,7 @@ export function Documentos() {
 
       const { error: errSubida } = await supabase.storage
         .from("documentos")
-        .upload(ruta, archivo, { contentType: archivo.type || undefined });
+        .upload(ruta, archivo, { contentType: archivo.type || "application/octet-stream" });
       if (errSubida) {
         setAviso("No hemos podido guardar el archivo. Inténtalo otra vez.");
         return;
