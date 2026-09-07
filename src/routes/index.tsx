@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CarTaxiFront, ArrowRight, Plane, TrainFront, ShieldCheck } from "lucide-react";
+import { CarTaxiFront, ArrowRight, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -8,13 +8,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "TaxiHoja: controla tus ingresos y gastos de taxi, consulta llegadas de Barajas por terminal y trenes de alta velocidad de Atocha y Chamartín.",
+          "TaxiHoja: controla los ingresos, gastos y el neto de tu jornada de taxi desde el móvil.",
       },
       { property: "og:title", content: "TaxiHoja — Tu hoja de ruta diaria en el móvil" },
       {
         property: "og:description",
-        content:
-          "Ingresos, gastos, llegadas de Barajas por terminal y AVE de Atocha y Chamartín.",
+        content: "Ingresos, gastos y el neto de tu jornada de taxi, siempre a mano.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -37,23 +36,18 @@ function Inicio() {
           TaxiHoja
         </h1>
         <p className="mt-3 max-w-xs text-base text-muted-foreground">
-          Tus cuentas del día y, además, cuántos vuelos y trenes están llegando ahora
-          mismo a Madrid.
+          Lleva las cuentas de tu jornada desde el móvil. Entra para ver tu panel.
         </p>
       </header>
 
       <div className="relative mt-8 space-y-3">
         <Bloque
-          icon={<Plane className="h-5 w-5" />}
-          titulo="Llegadas de Barajas"
-          texto="Vuelos por terminal: T1, T2 y T4 con T4S."
-        />
-        <Bloque
-          icon={<TrainFront className="h-5 w-5" />}
-          titulo="Alta velocidad"
-          texto="Llegadas de AVE y compañías a Atocha y Chamartín."
+          icon={<ShieldCheck className="h-5 w-5" />}
+          titulo="Tus cuentas al día"
+          texto="Ingresos, gastos y el neto de tu jornada, siempre a mano."
         />
       </div>
+
 
       <div className="relative mt-8 space-y-3">
         <Link
