@@ -14,7 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      documentos: {
+        Row: {
+          categoria: string
+          created_at: string
+          id: string
+          nombre: string
+          ruta: string
+          tamano: number
+          tipo: string | null
+          user_id: string
+        }
+        Insert: {
+          categoria?: string
+          created_at?: string
+          id?: string
+          nombre: string
+          ruta: string
+          tamano?: number
+          tipo?: string | null
+          user_id: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          id?: string
+          nombre?: string
+          ruta?: string
+          tamano?: number
+          tipo?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
