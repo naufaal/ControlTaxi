@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   BookOpenCheck,
@@ -17,8 +17,6 @@ import {
 } from "lucide-react";
 import {
   eur,
-  getMovimientos,
-  saveMovimientos,
   cargarMovimientos,
   guardarMovimiento,
   borrarMovimiento,
@@ -87,11 +85,38 @@ export const Route = createFileRoute("/_authenticated/panel")({
 
 function Panel() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [correo, setCorreo] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
-  const [movs, setMovs] = useState<Movimiento[]>([]);
   const [form, setForm] = useState<"ingreso" | "gasto" | null>(null);
   const [periodo, setPeriodo] = useState<Periodo>("dia");
+
+  // Obtener el usuario autenticado al cargar la vista
+  const usuarioQuery = useQuery({
+    queryKey: ["auth-user"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getUser();
+      return data.user;
+    },
+    staleTime: Infinity,
+  });
+
+  const currentUserId = usuarioQuery.data?.id ?? null;
+  const currentCorreo = usuarioQuery.data?.email ?? "";
+
+  // Consulta de movimientos gestionada por React Query (se actualiza sola al enfocar la app o invalidar)
+  const movimientosQuery = useQuery({
+    queryKey: ["movimientos", currentUserId],
+    queryFn: async () => {
+      if (!currentUserId) return [];
+      void supabase.rpc("registrar_uso", { p_event: "panel_view", p_path: "/panel" });
+      return await cargarMovimientos(currentUserId);
+    },
+    enabled: !!currentUserId,
+    refetchOnWindowFocus: true,
+  });
+
+  const movs = movimientosQuery.data ?? [];
 
   const vuelosFn = useServerFn(getLlegadasBarajas);
   const trenesFn = useServerFn(getLlegadasTrenes);
@@ -111,30 +136,6 @@ function Panel() {
     void Promise.all([vuelos.refetch(), trenes.refetch()]);
   }
 
-  useEffect(() => {
-    // 1. Cargar datos locales primero para una respuesta visual rápida
-    const local = getMovimientos();
-    setMovs(local);
-
-    // 2. Obtener usuario de Supabase y sincronizar con la nube
-    supabase.auth.getUser().then(({ data }) => {
-      const uId = data.user?.id ?? null;
-      setUserId(uId);
-      setCorreo(data.user?.email ?? "");
-
-      if (uId) {
-        cargarMovimientos(uId)
-          .then((remoteMovs) => {
-            setMovs(remoteMovs);
-            saveMovimientos(remoteMovs);
-          })
-          .catch((err) => console.error("Error al sincronizar con Supabase:", err));
-      }
-    });
-
-    void supabase.rpc("registrar_uso", { p_event: "panel_view", p_path: "/panel" });
-  }, []);
-
   const movsFiltrados = useMemo(
     () => movs.filter((movimiento) => perteneceAlPeriodo(movimiento.fecha, periodo)),
     [movs, periodo],
@@ -153,40 +154,29 @@ function Panel() {
   const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : "del mes";
 
   async function guardar(m: Movimiento) {
-    if (userId) {
+    if (currentUserId) {
       try {
-        await guardarMovimiento(userId, m);
-        const list = [m, ...movs];
-        setMovs(list);
-        saveMovimientos(list);
+        await guardarMovimiento(currentUserId, m);
+        // Fuerza la recarga inmediata de la lista desde Supabase
+        await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
         setForm(null);
       } catch (error) {
         console.error("Error al guardar:", error);
         alert("No se pudo guardar en Supabase. Comprueba las políticas RLS.");
       }
-    } else {
-      const list = [m, ...movs];
-      setMovs(list);
-      saveMovimientos(list);
-      setForm(null);
     }
   }
 
   async function borrar(id: string) {
-    if (userId) {
+    if (currentUserId) {
       try {
-        await borrarMovimiento(userId, id);
-        const list = movs.filter((m) => m.id !== id);
-        setMovs(list);
-        saveMovimientos(list);
+        await borrarMovimiento(currentUserId, id);
+        // Fuerza la recarga inmediata de la lista tras borrar
+        await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
       } catch (error) {
         console.error("Error al borrar:", error);
         alert("Error al eliminar el registro en Supabase.");
       }
-    } else {
-      const list = movs.filter((m) => m.id !== id);
-      setMovs(list);
-      saveMovimientos(list);
     }
   }
 
@@ -203,7 +193,7 @@ function Panel() {
           <div className="min-w-0">
             <Marca oscuro />
             <h1 className="mt-1 truncate font-display text-2xl font-bold text-white">
-              {correo || "Tu cuenta"}
+              {currentCorreo || "Tu cuenta"}
             </h1>
           </div>
           <button
@@ -264,13 +254,15 @@ function Panel() {
         <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
         <button
           type="button"
-          onClick={() => abrirInforme(movsFiltrados, correo, periodoLabel)}
+          onClick={() => abrirInforme(movsFiltrados, currentCorreo, periodoLabel)}
           className="mt-3 flex h-14 w-full items-center gap-3 rounded-2xl bg-foreground px-4 text-left text-base font-semibold text-background transition-transform active:scale-[0.98]"
         >
           <FileDown className="h-5 w-5 shrink-0" />
           Exportar a PDF (para imprimir)
         </button>
-        {movsFiltrados.length === 0 ? (
+        {movimientosQuery.isLoading ? (
+          <Cargando texto="Cargando movimientos..." />
+        ) : movsFiltrados.length === 0 ? (
           <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center">
             <CarTaxiFront className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className="mt-3 text-sm text-muted-foreground">
@@ -543,9 +535,9 @@ function Formulario({
           e.preventDefault();
           const valor = Number(importe.replace(",", "."));
           if (!valor || valor <= 0) return;
-          const ahora = new Date();
+          const hora = new Date();
           const fechaMovimiento = new Date(
-            `${fecha}T${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}:${String(ahora.getSeconds()).padStart(2, "0")}`,
+            `${fecha}T${String(hora.getHours()).padStart(2, "0")}:${String(hora.getMinutes()).padStart(2, "0")}:${String(hora.getSeconds()).padStart(2, "0")}`,
           );
           onGuardar({
             id: crypto.randomUUID(),
