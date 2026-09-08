@@ -143,33 +143,13 @@ function Panel() {
 
   const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : "del mes";
 
-  async function guardar(m: Movimiento) {
-  const list = [m, ...movs];
-
-  // Actualiza la UI al instante
-  setMovs(list);
-  saveMovimientos(list);
-
-  if (userId) {
-    try {
-      await guardarMovimiento(userId, m);
-
-      console.log("✅ Movimiento guardado en Supabase");
-    } catch (error) {
-      console.error("❌ Error guardando en Supabase:", error);
-
-      alert(
-        `Error al guardar en Supabase:\n${
-          error instanceof Error ? error.message : JSON.stringify(error)
-        }`,
-      );
-    }
-  } else {
-    console.warn("⚠️ No hay usuario autenticado");
+  function guardar(m: Movimiento) {
+    const list = [m, ...movs];
+    setMovs(list);
+    saveMovimientos(list);
+    if (userId) void guardarMovimiento(userId, m);
+    setForm(null);
   }
-
-  setForm(null);
-}
 
   function borrar(id: string) {
     const list = movs.filter((m) => m.id !== id);
