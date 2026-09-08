@@ -318,7 +318,7 @@ function Panel() {
                     Sin llegadas próximas.
                   </p>
                 ) : (
-                  <ul className="mt-3 space-y-2">
+                  <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto overscroll-contain pr-1">
                     {e.trenes.map((t) => (
                       <li key={t.id} className="flex items-center gap-3 text-sm">
                         <span className="w-11 shrink-0 font-display font-bold text-foreground">
@@ -328,14 +328,15 @@ function Panel() {
                           {t.origen}
                           <span className="text-muted-foreground"> · {t.tipo}</span>
                         </span>
-                        {t.via && (
+                        {(t.via || t.estado) && (
                           <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                            Vía {t.via}
+                            {t.via ? `Vía ${t.via}` : t.estado}
                           </span>
                         )}
                       </li>
                     ))}
                   </ul>
+
                 )}
               </div>
             ))}
