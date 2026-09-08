@@ -101,106 +101,120 @@ function Auth() {
   }
 
   return (
-    <main className="relative flex min-h-dvh flex-col overflow-hidden bg-background px-6 pb-10 pt-12">
-      <div className="pointer-events-none absolute -top-28 -right-16 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-3 bg-[image:var(--gradient-taxi)]" />
+    <main className="relative flex min-h-dvh flex-col overflow-hidden bg-background pb-10">
+      {/* Encabezado Oscuro Nocturno */}
+      <header className="relative overflow-hidden rounded-b-[2.5rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8 shadow-md">
+        <div className="pointer-events-none absolute -top-28 -right-16 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-[image:var(--gradient-taxi)]" />
 
-      <Link
-        to="/"
-        className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-foreground"
-        aria-label="Volver"
-      >
-        <ArrowLeft className="h-5 w-5" />
-      </Link>
+        <div className="relative">
+          <Link
+            to="/"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white backdrop-blur-sm"
+            aria-label="Volver"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
 
-      <header className="relative mt-6">
-        <Marca oscuro />
-        <h1 className="mt-5 font-display text-3xl font-bold tracking-tight text-foreground">
-          {registro ? "Crear cuenta" : "Iniciar sesión"}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {registro
-            ? "Registra tu correo para guardar tus cuentas."
-            : "Entra con el correo que registraste."}
-        </p>
+          <div className="mt-5">
+            <Marca oscuro />
+          </div>
+          <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-white">
+            {registro ? "Crear cuenta" : "Iniciar sesión"}
+          </h1>
+          <p className="mt-1 text-sm text-white/80">
+            {registro
+              ? "Registra tu correo para guardar tus cuentas."
+              : "Entra con el correo que registraste."}
+          </p>
+        </div>
       </header>
 
-      <div className="relative mt-6 grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1">
-        <button
-          onClick={() => cambiar("acceso")}
-          className={`h-11 rounded-xl text-sm font-semibold ${
-            registro ? "text-muted-foreground" : "bg-card text-foreground shadow-sm"
-          }`}
-        >
-          Entrar
-        </button>
-        <button
-          onClick={() => cambiar("registro")}
-          className={`h-11 rounded-xl text-sm font-semibold ${
-            registro ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-          }`}
-        >
-          Registrarme
-        </button>
+      {/* Selector de Entrar / Registrarme */}
+      <div className="relative mt-6 px-6">
+        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1">
+          <button
+            type="button"
+            onClick={() => cambiar("acceso")}
+            className={`h-11 rounded-xl text-sm font-semibold transition-colors ${
+              registro ? "text-muted-foreground" : "bg-card text-foreground shadow-sm"
+            }`}
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            onClick={() => cambiar("registro")}
+            className={`h-11 rounded-xl text-sm font-semibold transition-colors ${
+              registro ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            Registrarme
+          </button>
+        </div>
       </div>
 
-      <form
-        onSubmit={enviar}
-        className="relative mt-5 rounded-3xl border border-border bg-card p-5 shadow-[var(--shadow-card)]"
-      >
-        <Etiqueta>Correo</Etiqueta>
-        <input
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="tucorreo@ejemplo.com"
-          className="mt-2 h-13 w-full rounded-2xl border border-input bg-secondary px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
-        />
-
-        <div className="mt-5">
-          <Etiqueta>Contraseña</Etiqueta>
-        </div>
-        <input
-          type="password"
-          autoComplete={registro ? "new-password" : "current-password"}
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
-          placeholder="••••••••"
-          className="mt-2 h-13 w-full rounded-2xl border border-input bg-secondary px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
-        />
-
-        {registro && (
-          <>
-            <div className="mt-5">
-              <Etiqueta>Repite la contraseña</Etiqueta>
-            </div>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={pass2}
-              onChange={(e) => setPass2(e.target.value)}
-              placeholder="••••••••"
-              className="mt-2 h-13 w-full rounded-2xl border border-input bg-secondary px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
-            />
-          </>
-        )}
-
-        {error && (
-          <p className="mt-4 rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={cargando}
-          className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+      {/* Formulario */}
+      <div className="px-6">
+        <form
+          onSubmit={enviar}
+          className="relative mt-5 rounded-3xl border border-border bg-card p-5 shadow-[var(--shadow-card)]"
         >
-          {cargando ? "Un momento…" : registro ? "Crear mi cuenta" : "Entrar"}
-          <ArrowRight className="h-5 w-5" />
-        </button>
-      </form>
+          <Etiqueta>Correo</Etiqueta>
+          <input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tucorreo@ejemplo.com"
+            className="mt-2 h-13 w-full rounded-2xl border border-input bg-secondary px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+          />
+
+          <div className="mt-5">
+            <Etiqueta>Contraseña</Etiqueta>
+          </div>
+          <input
+            type="password"
+            autoComplete={registro ? "new-password" : "current-password"}
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            placeholder="••••••••"
+            className="mt-2 h-13 w-full rounded-2xl border border-input bg-secondary px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+          />
+
+          {registro && (
+            <>
+              <div className="mt-5">
+                <Etiqueta>Repite la contraseña</Etiqueta>
+              </div>
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={pass2}
+                onChange={(e) => setPass2(e.target.value)}
+                placeholder="••••••••"
+                className="mt-2 h-13 w-full rounded-2xl border border-input bg-secondary px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+              />
+            </>
+          )}
+
+          {error && (
+            <p className="mt-4 rounded-2xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={cargando}
+            className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+          >
+            {cargando ? "Un momento…" : registro ? "Crear mi cuenta" : "Entrar"}
+            <ArrowRight className="h-5 w-5" />
+          </button>
+        </form>
+      </div>
+
       <PieMarca />
     </main>
   );

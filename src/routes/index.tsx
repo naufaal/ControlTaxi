@@ -25,18 +25,22 @@ export const Route = createFileRoute("/")({
 
 function Inicio() {
   return (
-    <main className="relative flex min-h-dvh flex-col overflow-hidden bg-background px-6 pb-10 pt-14">
-      <div className="pointer-events-none absolute -top-28 -right-16 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-3 bg-[image:var(--gradient-taxi)]" />
-
-      <header className="relative">
-        <Marca oscuro />
-        <p className="mt-3 max-w-xs text-base text-muted-foreground">
-          Lleva las cuentas de tu jornada desde el móvil. Entra para ver tu panel.
-        </p>
+    <main className="relative flex min-h-dvh flex-col overflow-hidden bg-background pb-10">
+      {/* Encabezado Nocturno/Oscuro igual que en el Panel */}
+      <header className="relative overflow-hidden rounded-b-[2.5rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8 shadow-md">
+        <div className="pointer-events-none absolute -top-28 -right-16 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-[image:var(--gradient-taxi)]" />
+        
+        <div className="relative">
+          <Marca oscuro />
+          <p className="mt-3 max-w-xs text-base text-white/80">
+            Lleva las cuentas de tu jornada desde el móvil. Entra para ver tu panel.
+          </p>
+        </div>
       </header>
 
-      <div className="relative mt-8 space-y-3">
+      {/* Bloques de características */}
+      <div className="relative mt-8 px-6 space-y-3">
         <Bloque
           icon={<ShieldCheck className="h-5 w-5" />}
           titulo="Tus cuentas al día"
@@ -54,8 +58,8 @@ function Inicio() {
         />
       </div>
 
-
-      <div className="relative mt-8 space-y-3">
+      {/* Botones de acción */}
+      <div className="relative mt-8 px-6 space-y-3">
         <Link
           to="/auth"
           search={{ modo: "registro" }}
@@ -77,7 +81,7 @@ function Inicio() {
         </p>
       </div>
 
-      <div className="mt-auto pt-10 text-center text-xs text-muted-foreground">
+      <div className="mt-auto pt-10 px-6 text-center text-xs text-muted-foreground">
         Hecho por un taxista (Naufal) para los taxistas 2027®
       </div>
     </main>
