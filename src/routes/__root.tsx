@@ -5,7 +5,6 @@ import {
   createRootRouteWithContext,
   useRouter,
   useLocation,
-  useBlocker,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -14,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ConsentimientoCookies } from "@/components/consentimiento-cookies";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -125,53 +125,29 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const location = useLocation();
 
-  // Comprobar si estamos en la raíz o en la pantalla del panel
-  const isDashboard = location.pathname === "/" || location.pathname === "/dashboard";
+  useEffect(() => {
+    const handleBackButton = async () => {
+      // Verificamos si hay un usuario logueado en Supabase
+      const { data } = await supabase.auth.getSession();
+      const isAuthenticated = !!data.session;
+      const isDashboardPath = location.pathname === "/" || location.pathname === "/dashboard";
 
-  // 1. Bloquea la navegación interna de TanStack Router al pulsar atrás desde el panel
-  useBlocker({
-    shouldBlockFn: () => isDashboard,
-    withResolver: true,
-    blockerFn: ({ proceed }) => {
       // @ts-ignore
       const medianApp = typeof window !== "undefined" && (window.median || window.gonative);
-      if (medianApp) {
+
+      // Si el usuario tiene sesión iniciada y está en el panel, cerramos la app al dar atrás
+      if (isAuthenticated && isDashboardPath && medianApp) {
         try {
-          // Cierra la APK de Median
           medianApp.app.exit();
         } catch (e) {
           console.error(e);
         }
-      } else {
-        // En un navegador web estándar permite navegar normalmente
-        proceed();
-      }
-    },
-  });
-
-  // 2. Interceptor preventivo para la pila de historial del navegador WebView
-  useEffect(() => {
-    const handleHistoryPop = () => {
-      if (isDashboard) {
-        window.history.pushState(null, "", window.location.href);
-
-        // @ts-ignore
-        const medianApp = typeof window !== "undefined" && (window.median || window.gonative);
-        if (medianApp) {
-          medianApp.app.exit();
-        }
       }
     };
 
-    if (isDashboard) {
-      window.history.pushState(null, "", window.location.href);
-      window.addEventListener("popstate", handleHistoryPop);
-    }
-
-    return () => {
-      window.removeEventListener("popstate", handleHistoryPop);
-    };
-  }, [isDashboard]);
+    window.addEventListener("popstate", handleBackButton);
+    return () => window.removeEventListener("popstate", handleBackButton);
+  }, [location.pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>
