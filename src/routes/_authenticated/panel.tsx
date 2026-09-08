@@ -249,7 +249,7 @@ function Panel() {
                     Sin llegadas próximas.
                   </p>
                 ) : (
-                  <ul className="mt-3 space-y-2">
+                  <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto overscroll-contain pr-1">
                     {t.vuelos.map((v) => (
                       <li key={v.id} className="flex items-center gap-3 text-sm">
                         <span className="w-11 shrink-0 font-display font-bold text-foreground">
@@ -257,8 +257,8 @@ function Panel() {
                         </span>
                         <span className="min-w-0 flex-1 truncate text-foreground">
                           {v.origen}
-                          <span className="text-muted-foreground"> · {v.numero}</span>
                         </span>
+
                         {v.retrasoMin > 0 && (
                           <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                             +{v.retrasoMin}′
