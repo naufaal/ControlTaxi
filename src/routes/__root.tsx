@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useLocation,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -121,6 +122,23 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleBackButton = () => {
+      // Lista de rutas raíz/dashboard donde debe cerrar la app en lugar de ir al login
+      const isDashboardPath = location.pathname === "/" || location.pathname === "/dashboard";
+
+      // @ts-ignore
+      if (isDashboardPath && typeof window !== "undefined" && window.median) {
+        // @ts-ignore
+        window.median.app.exit();
+      }
+    };
+
+    window.addEventListener("popstate", handleBackButton);
+    return () => window.removeEventListener("popstate", handleBackButton);
+  }, [location.pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>
