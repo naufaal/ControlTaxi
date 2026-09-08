@@ -288,7 +288,7 @@ function Panel() {
           </button>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Llegadas a Atocha y Chamartín, según Adif.
+          Llegadas de larga distancia a Atocha y Chamartín.
         </p>
 
         {trenes.isLoading ? (
