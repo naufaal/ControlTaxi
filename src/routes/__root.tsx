@@ -125,22 +125,33 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const location = useLocation();
 
+  // 1. Recargar datos automáticamente cuando la app vuelve a primer plano
   useEffect(() => {
-    // Comprobamos la ruta exacta de tu proyecto (/panel o /)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        queryClient.invalidateQueries();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [queryClient]);
+
+  // 2. Controlar el botón de retroceso (Atrás) de Android
+  useEffect(() => {
     const isPanelPath = location.pathname === "/" || location.pathname === "/panel";
 
     if (isPanelPath) {
-      // Inyectamos un estado para impedir que el retroceso cargue la pantalla anterior
       window.history.pushState(null, "", window.location.href);
 
       const handleBackButton = async () => {
         const { data } = await supabase.auth.getSession();
         
         if (data.session) {
-          // Mantener la URL en /panel si el evento ocurre en web
           window.history.pushState(null, "", window.location.href);
 
-          // Cierre nativo de la app en Median
           // @ts-ignore
           const medianApp = typeof window !== "undefined" && (window.median || window.gonative);
           if (medianApp) {
@@ -160,7 +171,6 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <ConsentimientoCookies />
     </QueryClientProvider>
