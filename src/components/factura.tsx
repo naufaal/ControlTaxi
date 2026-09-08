@@ -7,7 +7,9 @@ import {
   emisorVacio,
   getEmisor,
   saveEmisor,
+  guardarFactura,
   siguienteNumero,
+  siguienteNumeroCentralizado,
   type Emisor,
 } from "@/lib/factura";
 
@@ -18,17 +20,15 @@ export function FacturaCliente() {
     <section className="px-5 pt-8">
       <button
         onClick={() => setAbierto(true)}
-        className="flex w-full items-center gap-3 rounded-3xl border border-border bg-card p-5 text-left shadow-[var(--shadow-card)] transition-transform active:scale-[0.98]"
+        className="flex w-full items-center gap-3 rounded-3xl bg-primary p-5 text-left text-primary-foreground shadow-[var(--shadow-glow)] transition-transform active:scale-[0.98]"
       >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-foreground">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/15 text-primary-foreground">
           <FileText className="h-5 w-5" />
         </span>
         <span className="min-w-0">
-          <span className="block font-display text-base font-bold text-foreground">
-            Crear factura a cliente
-          </span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            Base imponible e IVA del 10% calculados automáticamente.
+          <span className="block font-display text-base font-bold">Factura</span>
+          <span className="mt-0.5 block text-xs opacity-80">
+            Crea y descarga una factura con IVA del 10%.
           </span>
         </span>
       </button>
@@ -43,6 +43,8 @@ function Ventana({ onCerrar }: { onCerrar: () => void }) {
   const [cliente, setCliente] = useState({ nombre: "", cif: "", domicilio: "" });
   const [concepto, setConcepto] = useState("Servicio de taxi");
   const [importe, setImporte] = useState("");
+  const [generando, setGenerando] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setEmisor(getEmisor());
@@ -55,16 +57,26 @@ function Ventana({ onCerrar }: { onCerrar: () => void }) {
     <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
       <form
         onClick={(e) => e.stopPropagation()}
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           if (total <= 0) return;
+          setGenerando(true);
+          setError("");
           saveEmisor(emisor);
-          abrirFactura(emisor, cliente, {
-            numero: siguienteNumero(),
+          const numero = await siguienteNumeroCentralizado().catch(() => siguienteNumero());
+          const factura = {
+            numero,
             fecha: new Date().toISOString(),
             concepto: concepto.trim(),
             total,
-          });
+          };
+          try {
+            await guardarFactura(emisor, cliente, factura);
+          } catch {
+            setError("No se pudo guardar en Supabase. La factura se descargará igualmente.");
+          }
+          abrirFactura(emisor, cliente, factura);
+          setGenerando(false);
           onCerrar();
         }}
         className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8"
@@ -142,10 +154,12 @@ function Ventana({ onCerrar }: { onCerrar: () => void }) {
 
         <button
           type="submit"
+          disabled={generando}
           className="mt-6 h-14 w-full rounded-2xl bg-primary text-base font-semibold text-primary-foreground active:scale-[0.98]"
         >
-          Generar factura
+          {generando ? "Guardando factura…" : "Generar factura"}
         </button>
+        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       </form>
     </div>
   );

@@ -147,7 +147,7 @@ export function Documentos() {
           ) : (
             <Upload className="h-5 w-5" />
           )}
-          {subiendo ? "Subiendo…" : `Adjuntar en ${etiqueta(categoria)}`}
+          {subiendo ? "Subiendo…" : "Adjuntar"}
         </button>
 
         {aviso && (

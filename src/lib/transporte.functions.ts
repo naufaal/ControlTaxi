@@ -66,6 +66,10 @@ function normalizaCiudad(texto: string): string {
     .trim();
 }
 
+function trenPendiente(hora: string): boolean {
+  return aMinutos(hora) >= minutosMadridAhora();
+}
+
 export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   async (): Promise<TerminalResumen[]> => {
     const base: Record<"T1" | "T2" | "T4", TerminalResumen> = {
@@ -110,9 +114,6 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 
         const origen = v["ciudadIataOtro"] ?? v["iataOtro"] ?? "";
         if (!origen) continue;
-
-        // Un vuelo compartido aparece varias veces con distintos números:
-        // se muestra una sola vez por ciudad y hora de llegada.
         const huella = `${clave}|${estimada}|${normalizaCiudad(origen)}`;
         if (vistos.has(huella)) continue;
         vistos.add(huella);
@@ -141,73 +142,94 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   },
 );
 
-function limpia(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&aacute;/g, "á")
-    .replace(/&eacute;/g, "é")
-    .replace(/&iacute;/g, "í")
-    .replace(/&oacute;/g, "ó")
-    .replace(/&uacute;/g, "ú")
-    .replace(/&ntilde;/g, "ñ")
-    .replace(/&amp;/g, "&")
-    .replace(/&#039;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+type AdifHorario = {
+  hora?: string;
+  horaEstado?: string;
+  estacion?: string;
+  estacionEstado?: string;
+  trenDatosOp?: string;
+  tren?: string;
+  via?: string;
+};
 
-async function leerEstacion(slug: string, nombre: string): Promise<EstacionResumen> {
+async function leerEstacionAdif(
+  pagina: string,
+  codigo: string,
+  nombre: string,
+): Promise<EstacionResumen> {
   const vacia: EstacionResumen = { nombre, total: 0, trenes: [] };
   try {
-    const res = await fetch(`https://www.trainoclock.com/es-ES/estacion/${slug}/llegadas`, {
-      headers: { "User-Agent": UA, "Accept-Language": "es-ES,es;q=0.9" },
+    const res = await fetch(`${pagina}?actualizado=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" },
     });
     if (!res.ok) return vacia;
     const html = await res.text();
+    const endpointConfig = html.match(/url:\s*"([^"]+consultarHorario[^"]+)"/)?.[1] ?? "";
+    const assetEntryId = endpointConfig.match(/assetEntryId=(\d+)/)?.[1];
+    const auth = endpointConfig.match(/p_p_auth=([A-Za-z0-9]+)/)?.[1];
+    if (!assetEntryId || !auth) return vacia;
 
-    const inicio = html.indexOf("<table");
-    if (inicio === -1) return vacia;
-    const bloque = html.slice(inicio, html.indexOf("</table>", inicio));
-
-    const filas = bloque.match(/<tr[^>]*TrainTrip[\s\S]*?<\/tr>/g) ?? [];
+    const cookie = res.headers.get("set-cookie")?.split(";")[0] ?? "";
     const trenes: TrenLlegada[] = [];
     const vistos = new Set<string>();
 
-    for (const fila of filas) {
-      const tipo = limpia(
-        fila.match(/time-board-carrier-line-icon"[^>]*>([\s\S]*?)<\/td>/)?.[1] ?? "",
-      ).toUpperCase();
-      const numero = limpia(fila.match(/tb-train-number[^>]*>([\s\S]*?)<\/td>/)?.[1] ?? "");
-      const bloqueHora = fila.match(/tb-time"[\s\S]*?<\/td>/)?.[0] ?? "";
-      const horas = [...bloqueHora.matchAll(/>(\d{1,2}:\d{2})</g)].map((m) => m[1] ?? "");
-      const hora = horas[0] ?? "";
-      const origen = limpia(
-        fila.match(/departureStation[^>]*>([\s\S]*?)<\/span>/)?.[1] ?? "",
-      );
-      const estado = limpia(fila.match(/tb-train-status[^>]*>([\s\S]*?)<\/td>/)?.[1] ?? "");
-      const via = limpia(fila.match(/tb-platform[^>]*>([\s\S]*?)<\/td>/)?.[1] ?? "");
-
-      if (!hora || !origen) continue;
-      if (/CERCAN|REGIONAL|MEDIA DIST/.test(tipo)) continue;
-
-      const huella = `${hora}|${normalizaCiudad(origen)}`;
-      if (vistos.has(huella)) continue;
-      vistos.add(huella);
-
-      trenes.push({
-        id: `${slug}-${numero || huella}`,
-        tipo,
-        numero,
-        origen,
-        hora,
-        horaEstado: horas[1] ?? "",
-        via,
-        estado,
+    for (let paginaActual = 0; paginaActual < 50; paginaActual += 1) {
+      const params = new URLSearchParams({
+        p_p_id: "servicios_estacion_ServiciosEstacionPortlet",
+        p_p_lifecycle: "2",
+        p_p_state: "normal",
+        p_p_mode: "view",
+        p_p_resource_id: "/consultarHorario",
+        p_p_cacheability: "cacheLevelPage",
+        assetEntryId,
+        p_p_auth: auth,
+        _servicios_estacion_ServiciosEstacionPortlet_searchType: "proximasLlegadas",
+        _servicios_estacion_ServiciosEstacionPortlet_trafficType: "avldmd",
+        _servicios_estacion_ServiciosEstacionPortlet_numPage: String(paginaActual),
+        _servicios_estacion_ServiciosEstacionPortlet_commuterNetwork: "",
+        _servicios_estacion_ServiciosEstacionPortlet_stationCode: codigo,
       });
+      const datos = await fetch(`${pagina}?${params}`, {
+        cache: "no-store",
+        headers: {
+          "User-Agent": UA,
+          Accept: "application/json, text/javascript, */*; q=0.01",
+          "X-Requested-With": "XMLHttpRequest",
+          Referer: pagina,
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+      });
+      if (!datos.ok) break;
+      const json = (await datos.json()) as { horarios?: AdifHorario[] };
+      const horarios = json.horarios ?? [];
+      if (horarios.length === 0) break;
+
+      for (const horario of horarios) {
+        const hora = horario.hora ?? "";
+        const horaEstado = horario.horaEstado ?? "";
+        const origen = horario.estacion ?? "";
+        if (!hora || !origen || !trenPendiente(horaEstado || hora)) continue;
+
+        const numero = horario.tren ?? "";
+        const huella = `${hora}|${numero}|${normalizaCiudad(origen)}`;
+        if (vistos.has(huella)) continue;
+        vistos.add(huella);
+        trenes.push({
+          id: `${codigo}-${huella}`,
+          tipo: (horario.trenDatosOp ?? "").toUpperCase(),
+          numero,
+          origen,
+          hora,
+          horaEstado,
+          via: horario.via ?? "",
+          estado: horario.estacionEstado ?? "",
+        });
+      }
     }
 
-    return { nombre, total: trenes.length, trenes: trenes.slice(0, 20) };
+    trenes.sort((a, b) => aMinutos(a.horaEstado || a.hora) - aMinutos(b.horaEstado || b.hora));
+    return { nombre, total: trenes.length, trenes };
   } catch {
     return vacia;
   }
@@ -216,8 +238,8 @@ async function leerEstacion(slug: string, nombre: string): Promise<EstacionResum
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const [atocha, chamartin] = await Promise.all([
-      leerEstacion("madridpuertadeatocha", "Atocha"),
-      leerEstacion("chamartin", "Chamartín"),
+      leerEstacionAdif("https://www.adif.es/w/60000-madrid-pta-de-atocha", "60000", "Atocha"),
+      leerEstacionAdif("https://www.adif.es/w/17000-madrid-chamartin", "17000", "Chamartín"),
     ]);
     return [atocha, chamartin];
   },

@@ -46,13 +46,70 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      },
+      facturas: {
+        Row: {
+          base: number
+          cliente: Json
+          concepto: string
+          created_at: string
+          emisor: Json
+          fecha: string
+          id: string
+          iva: number
+          numero: string
+          total: number
+          user_id: string
+        }
+        Insert: {
+          base: number
+          cliente: Json
+          concepto: string
+          created_at?: string
+          emisor: Json
+          fecha: string
+          id?: string
+          iva: number
+          numero: string
+          total: number
+          user_id: string
+        }
+        Update: {
+          base?: number
+          cliente?: Json
+          concepto?: string
+          created_at?: string
+          emisor?: Json
+          fecha?: string
+          id?: string
+          iva?: number
+          numero?: string
+          total?: number
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      es_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      metricas_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      registrar_uso: {
+        Args: { p_event: string; p_path: string }
+        Returns: undefined
+      }
+      siguiente_numero_factura: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

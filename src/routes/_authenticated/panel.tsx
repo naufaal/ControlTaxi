@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   BookOpenCheck,
   CarTaxiFront,
+  FileDown,
   ExternalLink,
   LogOut,
   Minus,
@@ -18,17 +19,53 @@ import { eur, getMovimientos, saveMovimientos, type Movimiento } from "@/lib/tax
 import { getLlegadasBarajas, getLlegadasTrenes } from "@/lib/transporte.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Documentos } from "@/components/documentos";
+import { FacturaCliente } from "@/components/factura";
+import { abrirInforme } from "@/lib/informe";
+import { Marca, PieMarca } from "@/components/marca";
+
+type Periodo = "dia" | "semana" | "mes";
+
+function fechaLocalInput(fecha: Date): string {
+  const año = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  return `${año}-${mes}-${dia}`;
+}
+
+function perteneceAlPeriodo(fechaMovimiento: string, periodo: Periodo): boolean {
+  const fecha = new Date(fechaMovimiento);
+  const hoy = new Date();
+  const inicio = new Date(hoy);
+  inicio.setHours(0, 0, 0, 0);
+
+  if (periodo === "dia") {
+    return fecha >= inicio && fecha < new Date(inicio.getTime() + 86_400_000);
+  }
+
+  if (periodo === "semana") {
+    const diasDesdeLunes = (inicio.getDay() + 6) % 7;
+    inicio.setDate(inicio.getDate() - diasDesdeLunes);
+    const fin = new Date(inicio);
+    fin.setDate(fin.getDate() + 7);
+    return fecha >= inicio && fecha < fin;
+  }
+
+  inicio.setDate(1);
+  const fin = new Date(inicio);
+  fin.setMonth(fin.getMonth() + 1);
+  return fecha >= inicio && fecha < fin;
+}
 
 export const Route = createFileRoute("/_authenticated/panel")({
   head: () => ({
     meta: [
-      { title: "Mi panel — TaxiHoja" },
+      { title: "Mi panel — ControlTaxi" },
       {
         name: "description",
         content:
           "Ingresos y gastos del día, llegadas de Barajas por terminal (T1, T2, T4 y T4S) y trenes de alta velocidad a Atocha y Chamartín.",
       },
-      { property: "og:title", content: "Mi panel — TaxiHoja" },
+      { property: "og:title", content: "Mi panel — ControlTaxi" },
       {
         property: "og:description",
         content: "Cuentas del día, llegadas de Barajas y AVE de Atocha y Chamartín.",
@@ -45,6 +82,7 @@ function Panel() {
   const [correo, setCorreo] = useState("");
   const [movs, setMovs] = useState<Movimiento[]>([]);
   const [form, setForm] = useState<"ingreso" | "gasto" | null>(null);
+  const [periodo, setPeriodo] = useState<Periodo>("dia");
 
   const vuelosFn = useServerFn(getLlegadasBarajas);
   const trenesFn = useServerFn(getLlegadasTrenes);
@@ -60,18 +98,32 @@ function Panel() {
     refetchInterval: 180_000,
   });
 
+  function actualizarTransportes() {
+    void Promise.all([vuelos.refetch(), trenes.refetch()]);
+  }
+
   useEffect(() => {
     setMovs(getMovimientos());
     supabase.auth.getUser().then(({ data }) => setCorreo(data.user?.email ?? ""));
+    void supabase.rpc("registrar_uso", { p_event: "panel_view", p_path: "/panel" });
   }, []);
 
+  const movsFiltrados = useMemo(
+    () => movs.filter((movimiento) => perteneceAlPeriodo(movimiento.fecha, periodo)),
+    [movs, periodo],
+  );
+
   const totales = useMemo(() => {
-    const ingresos = movs
+    const ingresos = movsFiltrados
       .filter((m) => m.tipo === "ingreso")
       .reduce((s, m) => s + m.importe, 0);
-    const gastos = movs.filter((m) => m.tipo === "gasto").reduce((s, m) => s + m.importe, 0);
+    const gastos = movsFiltrados
+      .filter((m) => m.tipo === "gasto")
+      .reduce((s, m) => s + m.importe, 0);
     return { ingresos, gastos, neto: ingresos - gastos };
-  }, [movs]);
+  }, [movsFiltrados]);
+
+  const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : "del mes";
 
   function guardar(m: Movimiento) {
     const list = [m, ...movs];
@@ -97,9 +149,7 @@ function Panel() {
         <div className="pointer-events-none absolute -top-20 -right-10 h-52 w-52 rounded-full bg-primary/25 blur-3xl" />
         <div className="relative flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-widest text-primary uppercase">
-              TaxiHoja
-            </p>
+            <Marca oscuro />
             <h1 className="mt-1 truncate font-display text-2xl font-bold text-white">
               {correo || "Tu cuenta"}
             </h1>
@@ -113,7 +163,25 @@ function Panel() {
           </button>
         </div>
 
-        <div className="relative mt-7 rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+        <div className="relative mt-7 flex justify-center gap-2" role="group" aria-label="Periodo">
+          {(["dia", "semana", "mes"] as const).map((opcion) => (
+            <button
+              key={opcion}
+              type="button"
+              aria-pressed={periodo === opcion}
+              onClick={() => setPeriodo(opcion)}
+              className={`h-10 min-w-20 rounded-xl px-4 text-sm font-semibold transition-colors ${
+                periodo === opcion
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-white/20 bg-white/10 text-white"
+              }`}
+            >
+              {opcion === "dia" ? "Día" : opcion === "semana" ? "Semana" : "Mes"}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
           <p className="text-xs tracking-wide text-white/70 uppercase">Neto acumulado</p>
           <p className="mt-1 font-display text-4xl font-bold text-white">
             {eur(totales.neto)}
@@ -142,16 +210,26 @@ function Panel() {
 
       <section className="px-5 pt-7">
         <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
-        {movs.length === 0 ? (
+        <button
+          type="button"
+          onClick={() => abrirInforme(movsFiltrados, correo, periodoLabel)}
+          className="mt-3 flex h-14 w-full items-center gap-3 rounded-2xl bg-foreground px-4 text-left text-base font-semibold text-background transition-transform active:scale-[0.98]"
+        >
+          <FileDown className="h-5 w-5 shrink-0" />
+          Exportar a PDF (para imprimir)
+        </button>
+        {movsFiltrados.length === 0 ? (
           <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center">
             <CarTaxiFront className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className="mt-3 text-sm text-muted-foreground">
-              Todavía no has apuntado ningún ingreso ni gasto.
+              {movs.length === 0
+                ? "Todavía no has apuntado ningún ingreso ni gasto."
+                : "No hay movimientos en este periodo."}
             </p>
           </div>
         ) : (
           <ul className="mt-3 space-y-3">
-            {movs.map((m) => (
+            {movsFiltrados.map((m) => (
               <li
                 key={m.id}
                 className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
@@ -211,11 +289,14 @@ function Panel() {
             Llegadas a Barajas
           </h2>
           <button
-            onClick={() => vuelos.refetch()}
+            onClick={actualizarTransportes}
+            disabled={vuelos.isFetching || trenes.isFetching}
             aria-label="Actualizar vuelos"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`}
+            />
           </button>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -240,9 +321,6 @@ function Panel() {
                       {t.etiqueta}
                     </span>
                   </div>
-                  <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
-                    {t.total} vuelos
-                  </span>
                 </div>
                 {t.vuelos.length === 0 ? (
                   <p className="mt-3 text-sm text-muted-foreground">
@@ -280,15 +358,18 @@ function Panel() {
             Alta velocidad
           </h2>
           <button
-            onClick={() => trenes.refetch()}
+            onClick={actualizarTransportes}
+            disabled={vuelos.isFetching || trenes.isFetching}
             aria-label="Actualizar trenes"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <RefreshCw className={`h-4 w-4 ${trenes.isFetching ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`}
+            />
           </button>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Llegadas de larga distancia a Atocha y Chamartín.
+          Llegadas de larga distancia de hoy a Atocha y Chamartín. Desliza para verlas todas.
         </p>
 
         {trenes.isLoading ? (
@@ -309,9 +390,6 @@ function Panel() {
                       {e.nombre}
                     </span>
                   </div>
-                  <span className="rounded-full bg-foreground px-3 py-1 text-xs font-bold text-background">
-                    {e.total} trenes
-                  </span>
                 </div>
                 {e.trenes.length === 0 ? (
                   <p className="mt-3 text-sm text-muted-foreground">
@@ -326,7 +404,6 @@ function Panel() {
                         </span>
                         <span className="min-w-0 flex-1 truncate text-foreground">
                           {t.origen}
-                          <span className="text-muted-foreground"> · {t.tipo}</span>
                         </span>
                         {(t.via || t.estado) && (
                           <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-muted-foreground">
@@ -343,6 +420,8 @@ function Panel() {
           </div>
         )}
       </section>
+
+      <FacturaCliente />
 
       <section className="px-5 pt-8">
         <a
@@ -364,6 +443,9 @@ function Panel() {
       {form && (
         <Formulario tipo={form} onCerrar={() => setForm(null)} onGuardar={guardar} />
       )}
+      <div className="px-5 pt-8">
+        <PieMarca oscuro />
+      </div>
     </main>
   );
 }
@@ -396,6 +478,7 @@ function Formulario({
 }) {
   const [importe, setImporte] = useState("");
   const [concepto, setConcepto] = useState("");
+  const [fecha, setFecha] = useState(() => fechaLocalInput(new Date()));
 
   const sugerencias =
     tipo === "ingreso"
@@ -410,9 +493,13 @@ function Formulario({
           e.preventDefault();
           const valor = Number(importe.replace(",", "."));
           if (!valor || valor <= 0) return;
+          const ahora = new Date();
+          const fechaMovimiento = new Date(
+            `${fecha}T${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}:${String(ahora.getSeconds()).padStart(2, "0")}`,
+          );
           onGuardar({
             id: crypto.randomUUID(),
-            fecha: new Date().toISOString(),
+            fecha: fechaMovimiento.toISOString(),
             tipo,
             concepto: concepto.trim(),
             importe: valor,
@@ -436,6 +523,18 @@ function Formulario({
             onChange={(e) => setImporte(e.target.value)}
             placeholder="0,00"
             className="mt-1.5 h-14 w-full rounded-2xl border border-input bg-secondary px-4 font-display text-2xl font-bold text-foreground outline-none focus:border-primary"
+          />
+        </label>
+
+        <label className="mt-4 block">
+          <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Fecha
+          </span>
+          <input
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            className="mt-1.5 h-12 w-full rounded-2xl border border-input bg-secondary px-4 text-base text-foreground outline-none focus:border-primary"
           />
         </label>
 

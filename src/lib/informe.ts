@@ -25,7 +25,7 @@ export function abrirInforme(
     .join("");
 
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8">
-<title>TaxiHoja — Informe ${periodoLabel}</title>
+<title>ControlTaxi — Informe ${periodoLabel}</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:28px;color:#111}
@@ -45,7 +45,7 @@ export function abrirInforme(
   .ingreso{color:#12894f}.gasto{color:#c0392b}
   @media print{body{margin:14mm}}
 </style></head><body>
-<h1>Hoja<span>Taxi</span></h1>
+<h1>Control<span>Taxi</span></h1>
 <p class="sub">Informe ${periodoLabel}${correo ? ` · ${correo}` : ""}<br>Generado el ${new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })}</p>
 <div class="cards">
   <div class="card"><p class="lbl">Ingresos</p><p class="val in">${eur(ingresos)}</p></div>

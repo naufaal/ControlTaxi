@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { CarTaxiFront, ArrowRight, ArrowLeft } from "lucide-react";
+import { ArrowRight, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Marca, PieMarca } from "@/components/marca";
 
 type Modo = "acceso" | "registro";
 
@@ -11,16 +12,16 @@ export const Route = createFileRoute("/auth")({
   }),
   head: () => ({
     meta: [
-      { title: "Acceder o crear cuenta — TaxiHoja" },
+      { title: "Acceder o crear cuenta — ControlTaxi" },
       {
         name: "description",
         content:
-          "Entra en TaxiHoja con tu correo registrado o crea una cuenta nueva para llevar tus cuentas de taxi.",
+          "Entra en ControlTaxi con tu correo registrado o crea una cuenta nueva para llevar tus cuentas de taxi.",
       },
-      { property: "og:title", content: "Acceder o crear cuenta — TaxiHoja" },
+      { property: "og:title", content: "Acceder o crear cuenta — ControlTaxi" },
       {
         property: "og:description",
-        content: "Entra con tu correo registrado o crea tu cuenta de TaxiHoja.",
+        content: "Entra con tu correo registrado o crea tu cuenta de ControlTaxi.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -80,11 +81,11 @@ function Auth() {
           return;
         }
         if (!data.session) {
-          setError("Revisa tu correo para confirmar la cuenta y luego entra.");
+          setError("La cuenta se creó, pero Supabase todavía exige confirmación de correo.");
           return;
         }
       } else {
-        const { error: err } = await supabase.auth.signInWithPassword({
+        const { data, error: err } = await supabase.auth.signInWithPassword({
           email: correo,
           password: pass,
         });
@@ -113,9 +114,7 @@ function Auth() {
       </Link>
 
       <header className="relative mt-6">
-        <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-glow)]">
-          <CarTaxiFront className="h-6 w-6" />
-        </div>
+        <Marca oscuro />
         <h1 className="mt-5 font-display text-3xl font-bold tracking-tight text-foreground">
           {registro ? "Crear cuenta" : "Iniciar sesión"}
         </h1>
@@ -202,6 +201,7 @@ function Auth() {
           <ArrowRight className="h-5 w-5" />
         </button>
       </form>
+      <PieMarca />
     </main>
   );
 }
