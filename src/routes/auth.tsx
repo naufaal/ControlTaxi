@@ -41,12 +41,15 @@ function Auth() {
 
   const registro = modo === "registro";
 
-  // Redirigir inmediatamente al panel si el usuario ya está autenticado
+  // Si ya hay sesión activa al entrar, redirige al panel reemplazando el historial
   useEffect(() => {
     const comprobarSesion = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        navigate({ to: "/panel" });
+        if (typeof window !== "undefined") {
+          window.history.replaceState(null, "", "/panel");
+        }
+        navigate({ to: "/panel", replace: true });
       }
     };
     comprobarSesion();
@@ -54,7 +57,7 @@ function Auth() {
 
   function cambiar(nuevo: Modo) {
     setError("");
-    navigate({ to: "/auth", search: { modo: nuevo } });
+    navigate({ to: "/auth", search: { modo: nuevo }, replace: true });
   }
 
   async function enviar(e: React.FormEvent) {
@@ -105,7 +108,12 @@ function Auth() {
           return;
         }
       }
-      navigate({ to: "/panel" });
+
+      // Reemplazamos la pila del navegador y redirigimos
+      if (typeof window !== "undefined") {
+        window.history.replaceState(null, "", "/panel");
+      }
+      navigate({ to: "/panel", replace: true });
     } finally {
       setCargando(false);
     }
