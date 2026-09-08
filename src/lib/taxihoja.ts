@@ -51,12 +51,25 @@ export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
   return resultado;
 }
 
-export async function guardarMovimiento(userId: string, movimiento: Movimiento) {
-  const { error } = await supabase.from("movimientos").upsert({
-    ...movimiento,
-    user_id: userId,
-  });
+export async function guardarMovimiento(
+  userId: string,
+  movimiento: Movimiento,
+) {
+  const { data, error } = await supabase
+    .from("movimientos")
+    .insert({
+      ...movimiento,
+      user_id: userId,
+    })
+    .select();
+
+  console.log("SUPABASE DATA:", data);
+  console.log("SUPABASE ERROR:", error);
+  console.log("USER ID:", userId);
+
   if (error) throw error;
+
+  return data;
 }
 
 export async function borrarMovimiento(userId: string, id: string) {
