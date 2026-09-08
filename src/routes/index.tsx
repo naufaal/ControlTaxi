@@ -1,5 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ArrowRight, FileText, Plane, ShieldCheck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Marca } from "@/components/marca";
 
 export const Route = createFileRoute("/")({
@@ -24,13 +26,38 @@ export const Route = createFileRoute("/")({
 });
 
 function Inicio() {
+  const navigate = useNavigate();
+  const [comprobando, setComprobando] = useState(true);
+
+  useEffect(() => {
+    const comprobarSesion = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        // Si el usuario ya está autenticado, redirige al panel directamente
+        navigate({ to: "/panel", replace: true });
+      } else {
+        setComprobando(false);
+      }
+    };
+    comprobarSesion();
+  }, [navigate]);
+
+  // Spinner de carga mientras verifica si hay sesión previa
+  if (comprobando) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
   return (
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-background pb-10">
       {/* Encabezado Nocturno/Oscuro igual que en el Panel */}
       <header className="relative overflow-hidden rounded-b-[2.5rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8 shadow-md">
         <div className="pointer-events-none absolute -top-28 -right-16 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-[image:var(--gradient-taxi)]" />
-        
+
         <div className="relative">
           <Marca oscuro />
           <p className="mt-3 max-w-xs text-base text-white/80">
@@ -40,7 +67,7 @@ function Inicio() {
       </header>
 
       {/* Bloques de características */}
-      <div className="relative mt-8 px-6 space-y-3">
+      <div className="relative mt-8 space-y-3 px-6">
         <Bloque
           icon={<ShieldCheck className="h-5 w-5" />}
           titulo="Tus cuentas al día"
@@ -59,7 +86,7 @@ function Inicio() {
       </div>
 
       {/* Botones de acción */}
-      <div className="relative mt-8 px-6 space-y-3">
+      <div className="relative mt-8 space-y-3 px-6">
         <Link
           to="/auth"
           search={{ modo: "registro" }}
@@ -81,7 +108,7 @@ function Inicio() {
         </p>
       </div>
 
-      <div className="mt-auto pt-10 px-6 text-center text-xs text-muted-foreground">
+      <div className="mt-auto px-6 pt-10 text-center text-xs text-muted-foreground">
         Hecho por un taxista (Naufal) para los taxistas 2027®
       </div>
     </main>
