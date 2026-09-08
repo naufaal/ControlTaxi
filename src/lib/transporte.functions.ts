@@ -26,6 +26,7 @@ export type TrenLlegada = {
   hora: string;
   horaEstado: string;
   via: string;
+  estado: string;
 };
 
 export type EstacionResumen = {
@@ -57,6 +58,14 @@ function recortaHora(hora: string): string {
   return hora.slice(0, 5);
 }
 
+function normalizaCiudad(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   async (): Promise<TerminalResumen[]> => {
     const base: Record<"T1" | "T2" | "T4", TerminalResumen> = {
@@ -79,6 +88,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
       if (!res.ok) return Object.values(base);
       const datos = (await res.json()) as Array<Record<string, string>>;
       const ahora = minutosMadridAhora();
+      const vistos = new Set<string>();
 
       for (const v of datos) {
         const term = (v["terminal"] ?? "").toUpperCase();
@@ -98,12 +108,21 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
         const min = aMinutos(estimada);
         if (min < ahora - 20 || min > ahora + 300) continue;
 
+        const origen = v["ciudadIataOtro"] ?? v["iataOtro"] ?? "";
+        if (!origen) continue;
+
+        // Un vuelo compartido aparece varias veces con distintos números:
+        // se muestra una sola vez por ciudad y hora de llegada.
+        const huella = `${clave}|${estimada}|${normalizaCiudad(origen)}`;
+        if (vistos.has(huella)) continue;
+        vistos.add(huella);
+
         base[clave].total += 1;
         base[clave].vuelos.push({
-          id: `${v["numVuelo"]}-${v["iataCompania"]}-${programada}`,
+          id: huella,
           numero: `${v["iataCompania"] ?? ""}${(v["numVuelo"] ?? "").replace(/^0+/, "")}`,
           compania: v["nombreCompania"] ?? "",
-          origen: v["ciudadIataOtro"] ?? v["iataOtro"] ?? "",
+          origen,
           horaProgramada: programada,
           horaEstimada: estimada,
           retrasoMin: Math.max(0, aMinutos(estimada) - aMinutos(programada)),
@@ -116,13 +135,11 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 
     for (const t of Object.values(base)) {
       t.vuelos.sort((a, b) => aMinutos(a.horaEstimada) - aMinutos(b.horaEstimada));
-      t.vuelos = t.vuelos.slice(0, 6);
+      t.vuelos = t.vuelos.slice(0, 20);
     }
     return Object.values(base);
   },
 );
-
-const ALTA_VELOCIDAD = ["AVE", "AVLO", "OUIGO", "IRYO", "AVANT", "ALVIA"];
 
 function limpia(html: string): string {
   return html
@@ -135,6 +152,7 @@ function limpia(html: string): string {
     .replace(/&uacute;/g, "ú")
     .replace(/&ntilde;/g, "ñ")
     .replace(/&amp;/g, "&")
+    .replace(/&#039;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -142,57 +160,54 @@ function limpia(html: string): string {
 async function leerEstacion(slug: string, nombre: string): Promise<EstacionResumen> {
   const vacia: EstacionResumen = { nombre, total: 0, trenes: [] };
   try {
-    const res = await fetch(`https://www.adif.es/w/${slug}`, {
+    const res = await fetch(`https://www.trainoclock.com/es-ES/estacion/${slug}/llegadas`, {
       headers: { "User-Agent": UA, "Accept-Language": "es-ES,es;q=0.9" },
     });
     if (!res.ok) return vacia;
     const html = await res.text();
 
-    const inicio = html.indexOf('id="horas-trenes-estacion-llegadas"');
+    const inicio = html.indexOf("<table");
     if (inicio === -1) return vacia;
     const bloque = html.slice(inicio, html.indexOf("</table>", inicio));
 
-    const filas = bloque.match(/<tr class=['"]horario-row[\s\S]*?<\/tr>/g) ?? [];
+    const filas = bloque.match(/<tr[^>]*TrainTrip[\s\S]*?<\/tr>/g) ?? [];
     const trenes: TrenLlegada[] = [];
+    const vistos = new Set<string>();
 
     for (const fila of filas) {
-      const horas = [...fila.matchAll(/<span[^>]*>([^<]*)<\/span>/g)].map((m) =>
-        limpia(m[1] ?? ""),
+      const tipo = limpia(
+        fila.match(/time-board-carrier-line-icon"[^>]*>([\s\S]*?)<\/td>/)?.[1] ?? "",
+      ).toUpperCase();
+      const numero = limpia(fila.match(/tb-train-number[^>]*>([\s\S]*?)<\/td>/)?.[1] ?? "");
+      const bloqueHora = fila.match(/tb-time"[\s\S]*?<\/td>/)?.[0] ?? "";
+      const horas = [...bloqueHora.matchAll(/>(\d{1,2}:\d{2})</g)].map((m) => m[1] ?? "");
+      const hora = horas[0] ?? "";
+      const origen = limpia(
+        fila.match(/departureStation[^>]*>([\s\S]*?)<\/span>/)?.[1] ?? "",
       );
-      const hora = horas.find((h) => /^\d{1,2}:\d{2}$/.test(h)) ?? "";
-      const estado = horas.filter((h) => h && h !== hora)[0] ?? "";
-
-      const origenMatch = fila.match(/col-destino"[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/);
-      const origen = limpia(origenMatch?.[1] ?? "");
-
-      const trenMatch = fila.match(/col-tren"[\s\S]*?<div>([\s\S]*?)<\/div>/);
-      const trenTexto = limpia(trenMatch?.[1] ?? "");
-      const tipo = (trenTexto.split("-").pop() ?? "").trim().split(" ")[0] ?? "";
-      const numero = (trenTexto.match(/(\d{4,5})\s*$/)?.[1] ?? "").trim();
-
-      const viaMatch = fila.match(/col-via"[\s\S]*?<span[^>]*>([^<]*)<\/span>/);
-      const via = limpia(viaMatch?.[1] ?? "");
+      const estado = limpia(fila.match(/tb-train-status[^>]*>([\s\S]*?)<\/td>/)?.[1] ?? "");
+      const via = limpia(fila.match(/tb-platform[^>]*>([\s\S]*?)<\/td>/)?.[1] ?? "");
 
       if (!hora || !origen) continue;
-      if (!ALTA_VELOCIDAD.includes(tipo.toUpperCase())) continue;
+      if (/CERCAN|REGIONAL|MEDIA DIST/.test(tipo)) continue;
+
+      const huella = `${hora}|${normalizaCiudad(origen)}`;
+      if (vistos.has(huella)) continue;
+      vistos.add(huella);
 
       trenes.push({
-        id: `${slug}-${numero}-${hora}`,
-        tipo: tipo.toUpperCase(),
+        id: `${slug}-${numero || huella}`,
+        tipo,
         numero,
         origen,
         hora,
-        horaEstado: /^\d{1,2}:\d{2}$/.test(estado) ? estado : "",
+        horaEstado: horas[1] ?? "",
         via,
+        estado,
       });
     }
 
-    const ahora = minutosMadridAhora();
-    const proximos = trenes
-      .filter((t) => aMinutos(t.hora) >= ahora - 20)
-      .sort((a, b) => aMinutos(a.hora) - aMinutos(b.hora));
-
-    return { nombre, total: proximos.length, trenes: proximos.slice(0, 6) };
+    return { nombre, total: trenes.length, trenes: trenes.slice(0, 20) };
   } catch {
     return vacia;
   }
@@ -201,8 +216,8 @@ async function leerEstacion(slug: string, nombre: string): Promise<EstacionResum
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const [atocha, chamartin] = await Promise.all([
-      leerEstacion("60000-madrid-pta-de-atocha", "Atocha"),
-      leerEstacion("17000-madrid-chamartin", "Chamartín"),
+      leerEstacion("madridpuertadeatocha", "Atocha"),
+      leerEstacion("chamartin", "Chamartín"),
     ]);
     return [atocha, chamartin];
   },
