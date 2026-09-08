@@ -13,7 +13,7 @@ const KEY = "taxihoja:movimientos";
 // --- FUNCIONES CONECTADAS A SUPABASE ---
 
 export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("movimientos")
     .select("id, fecha, tipo, concepto, importe")
     .eq("user_id", userId)
@@ -24,7 +24,7 @@ export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
     throw error;
   }
 
-  return (data || []).map((m) => ({
+  return (data || []).map((m: any) => ({
     id: m.id,
     fecha: m.fecha,
     tipo: m.tipo as "ingreso" | "gasto",
@@ -34,7 +34,7 @@ export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
 }
 
 export async function guardarMovimiento(userId: string, m: Movimiento) {
-  const { error } = await supabase.from("movimientos").insert([
+  const { error } = await (supabase as any).from("movimientos").insert([
     {
       id: m.id,
       user_id: userId,
@@ -52,7 +52,7 @@ export async function guardarMovimiento(userId: string, m: Movimiento) {
 }
 
 export async function borrarMovimiento(userId: string, id: string) {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("movimientos")
     .delete()
     .eq("id", id)
