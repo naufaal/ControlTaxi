@@ -1,0 +1,197 @@
+import { useEffect, useState } from "react";
+import { FileText } from "lucide-react";
+import { eur } from "@/lib/taxihoja";
+import {
+  abrirFactura,
+  desglose,
+  emisorVacio,
+  getEmisor,
+  saveEmisor,
+  siguienteNumero,
+  type Emisor,
+} from "@/lib/factura";
+
+export function FacturaCliente() {
+  const [abierto, setAbierto] = useState(false);
+
+  return (
+    <section className="px-5 pt-8">
+      <button
+        onClick={() => setAbierto(true)}
+        className="flex w-full items-center gap-3 rounded-3xl border border-border bg-card p-5 text-left shadow-[var(--shadow-card)] transition-transform active:scale-[0.98]"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-foreground">
+          <FileText className="h-5 w-5" />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-display text-base font-bold text-foreground">
+            Crear factura a cliente
+          </span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Base imponible e IVA del 10% calculados automáticamente.
+          </span>
+        </span>
+      </button>
+
+      {abierto && <Ventana onCerrar={() => setAbierto(false)} />}
+    </section>
+  );
+}
+
+function Ventana({ onCerrar }: { onCerrar: () => void }) {
+  const [emisor, setEmisor] = useState<Emisor>(emisorVacio);
+  const [cliente, setCliente] = useState({ nombre: "", cif: "", domicilio: "" });
+  const [concepto, setConcepto] = useState("Servicio de taxi");
+  const [importe, setImporte] = useState("");
+
+  useEffect(() => {
+    setEmisor(getEmisor());
+  }, []);
+
+  const total = Number(importe.replace(",", ".")) || 0;
+  const d = desglose(total);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (total <= 0) return;
+          saveEmisor(emisor);
+          abrirFactura(emisor, cliente, {
+            numero: siguienteNumero(),
+            fecha: new Date().toISOString(),
+            concepto: concepto.trim(),
+            total,
+          });
+          onCerrar();
+        }}
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8"
+      >
+        <div className="mx-auto h-1.5 w-12 rounded-full bg-border" />
+        <h3 className="mt-5 font-display text-xl font-bold text-foreground">Nueva factura</h3>
+
+        <Grupo titulo="Datos del emisor">
+          <Campo label="Nombre" valor={emisor.nombre} set={(v) => setEmisor({ ...emisor, nombre: v })} />
+          <Campo
+            label="Apellidos"
+            valor={emisor.apellidos}
+            set={(v) => setEmisor({ ...emisor, apellidos: v })}
+          />
+          <Campo label="DNI / NIF" valor={emisor.dni} set={(v) => setEmisor({ ...emisor, dni: v })} />
+          <Campo
+            label="Domicilio fiscal"
+            valor={emisor.domicilio}
+            set={(v) => setEmisor({ ...emisor, domicilio: v })}
+            area
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Campo
+              label="Licencia"
+              valor={emisor.licencia}
+              set={(v) => setEmisor({ ...emisor, licencia: v })}
+            />
+            <Campo
+              label="Teléfono"
+              valor={emisor.telefono}
+              set={(v) => setEmisor({ ...emisor, telefono: v })}
+            />
+          </div>
+        </Grupo>
+
+        <Grupo titulo="Datos del cliente">
+          <Campo
+            label="Nombre o razón social"
+            valor={cliente.nombre}
+            set={(v) => setCliente({ ...cliente, nombre: v })}
+          />
+          <Campo label="CIF o DNI" valor={cliente.cif} set={(v) => setCliente({ ...cliente, cif: v })} />
+          <Campo
+            label="Domicilio fiscal"
+            valor={cliente.domicilio}
+            set={(v) => setCliente({ ...cliente, domicilio: v })}
+            area
+          />
+        </Grupo>
+
+        <Grupo titulo="Servicio">
+          <Campo label="Concepto" valor={concepto} set={setConcepto} />
+          <label className="block">
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Importe total € (IVA incluido)
+            </span>
+            <input
+              inputMode="decimal"
+              value={importe}
+              onChange={(e) => setImporte(e.target.value)}
+              placeholder="0,00"
+              className="mt-1.5 h-14 w-full rounded-2xl border border-input bg-secondary px-4 font-display text-2xl font-bold text-foreground outline-none focus:border-primary"
+            />
+          </label>
+
+          <div className="rounded-2xl bg-secondary p-4 text-sm">
+            <Linea label="Base imponible" valor={eur(d.base)} />
+            <Linea label="IVA (10%)" valor={eur(d.iva)} />
+            <div className="mt-2 flex justify-between border-t border-border pt-2 font-display text-base font-bold text-foreground">
+              <span>Total</span>
+              <span>{eur(d.total)}</span>
+            </div>
+          </div>
+        </Grupo>
+
+        <button
+          type="submit"
+          className="mt-6 h-14 w-full rounded-2xl bg-primary text-base font-semibold text-primary-foreground active:scale-[0.98]"
+        >
+          Generar factura
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-6 space-y-3">
+      <p className="font-display text-sm font-bold tracking-wide text-primary uppercase">{titulo}</p>
+      {children}
+    </div>
+  );
+}
+
+function Campo({
+  label,
+  valor,
+  set,
+  area,
+}: {
+  label: string;
+  valor: string;
+  set: (v: string) => void;
+  area?: boolean;
+}) {
+  const clase =
+    "mt-1.5 w-full rounded-2xl border border-input bg-secondary px-4 py-3 text-base text-foreground outline-none focus:border-primary";
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        {label}
+      </span>
+      {area ? (
+        <textarea rows={2} value={valor} onChange={(e) => set(e.target.value)} className={clase} />
+      ) : (
+        <input value={valor} onChange={(e) => set(e.target.value)} className={`${clase} h-12 py-0`} />
+      )}
+    </label>
+  );
+}
+
+function Linea({ label, valor }: { label: string; valor: string }) {
+  return (
+    <div className="flex justify-between text-muted-foreground">
+      <span>{label}</span>
+      <span className="font-semibold text-foreground">{valor}</span>
+    </div>
+  );
+}
