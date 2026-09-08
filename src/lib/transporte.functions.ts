@@ -26,6 +26,7 @@ export type TrenLlegada = {
   hora: string;
   horaEstado: string;
   via: string;
+  estado: string;
 };
 
 export type EstacionResumen = {
@@ -33,6 +34,7 @@ export type EstacionResumen = {
   total: number;
   trenes: TrenLlegada[];
 };
+
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36";
