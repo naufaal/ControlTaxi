@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Marca, PieMarca } from "@/components/marca";
@@ -40,6 +40,17 @@ function Auth() {
   const [cargando, setCargando] = useState(false);
 
   const registro = modo === "registro";
+
+  // Redirigir inmediatamente al panel si el usuario ya está autenticado
+  useEffect(() => {
+    const comprobarSesion = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        navigate({ to: "/panel" });
+      }
+    };
+    comprobarSesion();
+  }, [navigate]);
 
   function cambiar(nuevo: Modo) {
     setError("");
