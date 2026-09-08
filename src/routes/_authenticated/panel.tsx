@@ -15,7 +15,15 @@ import {
   TrainFront,
   Trash2,
 } from "lucide-react";
-import { eur, getMovimientos, saveMovimientos, type Movimiento } from "@/lib/taxihoja";
+import {
+  eur,
+  getMovimientos,
+  saveMovimientos,
+  cargarMovimientos,
+  guardarMovimiento,
+  borrarMovimiento,
+  type Movimiento,
+} from "@/lib/taxihoja";
 import { getLlegadasBarajas, getLlegadasTrenes } from "@/lib/transporte.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Documentos } from "@/components/documentos";
@@ -80,6 +88,7 @@ export const Route = createFileRoute("/_authenticated/panel")({
 function Panel() {
   const navigate = useNavigate();
   const [correo, setCorreo] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
   const [movs, setMovs] = useState<Movimiento[]>([]);
   const [form, setForm] = useState<"ingreso" | "gasto" | null>(null);
   const [periodo, setPeriodo] = useState<Periodo>("dia");
@@ -103,8 +112,26 @@ function Panel() {
   }
 
   useEffect(() => {
-    setMovs(getMovimientos());
-    supabase.auth.getUser().then(({ data }) => setCorreo(data.user?.email ?? ""));
+    // 1. Cargar datos locales primero para una respuesta visual rápida
+    const local = getMovimientos();
+    setMovs(local);
+
+    // 2. Obtener usuario de Supabase y sincronizar con la nube
+    supabase.auth.getUser().then(({ data }) => {
+      const uId = data.user?.id ?? null;
+      setUserId(uId);
+      setCorreo(data.user?.email ?? "");
+
+      if (uId) {
+        cargarMovimientos(uId)
+          .then((remoteMovs) => {
+            setMovs(remoteMovs);
+            saveMovimientos(remoteMovs);
+          })
+          .catch((err) => console.error("Error al sincronizar con Supabase:", err));
+      }
+    });
+
     void supabase.rpc("registrar_uso", { p_event: "panel_view", p_path: "/panel" });
   }, []);
 
@@ -125,17 +152,42 @@ function Panel() {
 
   const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : "del mes";
 
-  function guardar(m: Movimiento) {
-    const list = [m, ...movs];
-    setMovs(list);
-    saveMovimientos(list);
-    setForm(null);
+  async function guardar(m: Movimiento) {
+    if (userId) {
+      try {
+        await guardarMovimiento(userId, m);
+        const list = [m, ...movs];
+        setMovs(list);
+        saveMovimientos(list);
+        setForm(null);
+      } catch (error) {
+        console.error("Error al guardar:", error);
+        alert("No se pudo guardar en Supabase. Comprueba las políticas RLS.");
+      }
+    } else {
+      const list = [m, ...movs];
+      setMovs(list);
+      saveMovimientos(list);
+      setForm(null);
+    }
   }
 
-  function borrar(id: string) {
-    const list = movs.filter((m) => m.id !== id);
-    setMovs(list);
-    saveMovimientos(list);
+  async function borrar(id: string) {
+    if (userId) {
+      try {
+        await borrarMovimiento(userId, id);
+        const list = movs.filter((m) => m.id !== id);
+        setMovs(list);
+        saveMovimientos(list);
+      } catch (error) {
+        console.error("Error al borrar:", error);
+        alert("Error al eliminar el registro en Supabase.");
+      }
+    } else {
+      const list = movs.filter((m) => m.id !== id);
+      setMovs(list);
+      saveMovimientos(list);
+    }
   }
 
   async function salir() {
@@ -283,7 +335,6 @@ function Panel() {
       <Documentos />
 
       <section className="px-5 pt-8">
-
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-foreground">
             Llegadas a Barajas
@@ -413,7 +464,6 @@ function Panel() {
                       </li>
                     ))}
                   </ul>
-
                 )}
               </div>
             ))}
