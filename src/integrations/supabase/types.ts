@@ -14,36 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      movimientos: {
-        Row: {
-          concepto: string
-          created_at: string
-          fecha: string
-          id: string
-          importe: number
-          tipo: "ingreso" | "gasto"
-          user_id: string
-        }
-        Insert: {
-          concepto?: string
-          created_at?: string
-          fecha: string
-          id: string
-          importe: number
-          tipo: "ingreso" | "gasto"
-          user_id: string
-        }
-        Update: {
-          concepto?: string
-          created_at?: string
-          fecha?: string
-          id?: string
-          importe?: number
-          tipo?: "ingreso" | "gasto"
-          user_id?: string
-        }
-        Relationships: []
-      },
       documentos: {
         Row: {
           categoria: string
