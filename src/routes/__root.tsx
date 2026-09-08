@@ -126,27 +126,36 @@ function RootComponent() {
   const location = useLocation();
 
   useEffect(() => {
-    const handleBackButton = async () => {
-      // Verificamos si hay un usuario logueado en Supabase
-      const { data } = await supabase.auth.getSession();
-      const isAuthenticated = !!data.session;
-      const isDashboardPath = location.pathname === "/" || location.pathname === "/dashboard";
+    // Comprobamos la ruta exacta de tu proyecto (/panel o /)
+    const isPanelPath = location.pathname === "/" || location.pathname === "/panel";
 
-      // @ts-ignore
-      const medianApp = typeof window !== "undefined" && (window.median || window.gonative);
+    if (isPanelPath) {
+      // Inyectamos un estado para impedir que el retroceso cargue la pantalla anterior
+      window.history.pushState(null, "", window.location.href);
 
-      // Si el usuario tiene sesión iniciada y está en el panel, cerramos la app al dar atrás
-      if (isAuthenticated && isDashboardPath && medianApp) {
-        try {
-          medianApp.app.exit();
-        } catch (e) {
-          console.error(e);
+      const handleBackButton = async () => {
+        const { data } = await supabase.auth.getSession();
+        
+        if (data.session) {
+          // Mantener la URL en /panel si el evento ocurre en web
+          window.history.pushState(null, "", window.location.href);
+
+          // Cierre nativo de la app en Median
+          // @ts-ignore
+          const medianApp = typeof window !== "undefined" && (window.median || window.gonative);
+          if (medianApp) {
+            try {
+              medianApp.app.exit();
+            } catch (e) {
+              console.error(e);
+            }
+          }
         }
-      }
-    };
+      };
 
-    window.addEventListener("popstate", handleBackButton);
-    return () => window.removeEventListener("popstate", handleBackButton);
+      window.addEventListener("popstate", handleBackButton);
+      return () => window.removeEventListener("popstate", handleBackButton);
+    }
   }, [location.pathname]);
 
   return (
