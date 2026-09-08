@@ -189,6 +189,8 @@ async function leerEstacion(slug: string, nombre: string): Promise<EstacionResum
       const via = limpia(fila.match(/tb-platform[^>]*>([\s\S]*?)<\/td>/)?.[1] ?? "");
 
       if (!hora || !origen) continue;
+      if (/CERCAN|REGIONAL|MEDIA DIST/.test(tipo)) continue;
+
       const huella = `${hora}|${normalizaCiudad(origen)}`;
       if (vistos.has(huella)) continue;
       vistos.add(huella);
