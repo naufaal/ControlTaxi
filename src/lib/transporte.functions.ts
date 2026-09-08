@@ -33,7 +33,6 @@ export type EstacionResumen = {
   nombre: string;
   total: number;
   trenes: TrenLlegada[];
-  error: boolean;
 };
 
 const UA =
@@ -143,65 +142,94 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   },
 );
 
-function decodificaHtml(texto: string): string {
-  return texto
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .trim();
-}
+type AdifHorario = {
+  hora?: string;
+  horaEstado?: string;
+  estacion?: string;
+  estacionEstado?: string;
+  trenDatosOp?: string;
+  tren?: string;
+  via?: string;
+};
 
-async function leerEstacionTreneamos(
+async function leerEstacionAdif(
   pagina: string,
+  codigo: string,
   nombre: string,
 ): Promise<EstacionResumen> {
-  const vacia: EstacionResumen = { nombre, total: 0, trenes: [], error: true };
+  const vacia: EstacionResumen = { nombre, total: 0, trenes: [] };
   try {
-    const res = await fetch(`${pagina}?tab=llegadas&actualizado=${Date.now()}`, {
+    const res = await fetch(`${pagina}?actualizado=${Date.now()}`, {
       cache: "no-store",
       headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" },
     });
     if (!res.ok) return vacia;
     const html = await res.text();
-    const inicioPanel = html.indexOf('<div id="est-panel"');
-    const finPanel = html.indexOf("Rutas desde", inicioPanel);
-    if (inicioPanel < 0 || finPanel < 0) return vacia;
+    const endpointConfig = html.match(/url:\s*"([^"]+consultarHorario[^"]+)"/)?.[1] ?? "";
+    const assetEntryId = endpointConfig.match(/assetEntryId=(\d+)/)?.[1];
+    const auth = endpointConfig.match(/p_p_auth=([A-Za-z0-9]+)/)?.[1];
+    if (!assetEntryId || !auth) return vacia;
 
-    const panel = html.slice(inicioPanel, finPanel);
+    const cookie = res.headers.get("set-cookie")?.split(";")[0] ?? "";
     const trenes: TrenLlegada[] = [];
-    const filas = panel.split('<div class="board__row').slice(1);
+    const vistos = new Set<string>();
 
-    for (const fila of filas) {
-      const etiqueta = fila.match(/aria-label="([^"]+)"/)?.[1] ?? "";
-      const coincidencia = etiqueta.match(/^Tren\s+(.+?)\s+·\s+(.+)\s+(\d{2}:\d{2})$/);
-      if (!coincidencia) continue;
-
-      const [tipoNumero, origen, hora] = coincidencia.slice(1);
-      if (!tipoNumero || !origen || !hora) continue;
-      const tipoYNumero = tipoNumero.match(/^(.+?)\s+(\d+)$/);
-      if (!tipoYNumero) continue;
-
-      const horaEstado = fila.match(/c-eta">→\s*(\d{2}:\d{2})/)?.[1] ?? hora;
-      const estado = decodificaHtml(
-        fila.match(/class="st(?:\s+[^\"]+)?">([^<]+)/)?.[1] ?? "",
-      );
-      const tipo = decodificaHtml(tipoYNumero[1] ?? "").toUpperCase();
-      const numero = tipoYNumero[2] ?? "";
-      trenes.push({
-        id: `${nombre}-${hora}-${numero}-${normalizaCiudad(origen)}`,
-        tipo,
-        numero,
-        origen: decodificaHtml(origen),
-        hora,
-        horaEstado,
-        via: "",
-        estado,
+    for (let paginaActual = 0; paginaActual < 50; paginaActual += 1) {
+      const params = new URLSearchParams({
+        p_p_id: "servicios_estacion_ServiciosEstacionPortlet",
+        p_p_lifecycle: "2",
+        p_p_state: "normal",
+        p_p_mode: "view",
+        p_p_resource_id: "/consultarHorario",
+        p_p_cacheability: "cacheLevelPage",
+        assetEntryId,
+        p_p_auth: auth,
+        _servicios_estacion_ServiciosEstacionPortlet_searchType: "proximasLlegadas",
+        _servicios_estacion_ServiciosEstacionPortlet_trafficType: "avldmd",
+        _servicios_estacion_ServiciosEstacionPortlet_numPage: String(paginaActual),
+        _servicios_estacion_ServiciosEstacionPortlet_commuterNetwork: "",
+        _servicios_estacion_ServiciosEstacionPortlet_stationCode: codigo,
       });
+      const datos = await fetch(`${pagina}?${params}`, {
+        cache: "no-store",
+        headers: {
+          "User-Agent": UA,
+          Accept: "application/json, text/javascript, */*; q=0.01",
+          "X-Requested-With": "XMLHttpRequest",
+          Referer: pagina,
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+      });
+      if (!datos.ok) break;
+      const json = (await datos.json()) as { horarios?: AdifHorario[] };
+      const horarios = json.horarios ?? [];
+      if (horarios.length === 0) break;
+
+      for (const horario of horarios) {
+        const hora = horario.hora ?? "";
+        const horaEstado = horario.horaEstado ?? "";
+        const origen = horario.estacion ?? "";
+        if (!hora || !origen || !trenPendiente(horaEstado || hora)) continue;
+
+        const numero = horario.tren ?? "";
+        const huella = `${hora}|${numero}|${normalizaCiudad(origen)}`;
+        if (vistos.has(huella)) continue;
+        vistos.add(huella);
+        trenes.push({
+          id: `${codigo}-${huella}`,
+          tipo: (horario.trenDatosOp ?? "").toUpperCase(),
+          numero,
+          origen,
+          hora,
+          horaEstado,
+          via: horario.via ?? "",
+          estado: horario.estacionEstado ?? "",
+        });
+      }
     }
 
     trenes.sort((a, b) => aMinutos(a.horaEstado || a.hora) - aMinutos(b.horaEstado || b.hora));
-    return { nombre, total: trenes.length, trenes, error: false };
+    return { nombre, total: trenes.length, trenes };
   } catch {
     return vacia;
   }
@@ -210,8 +238,8 @@ async function leerEstacionTreneamos(
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const [atocha, chamartin] = await Promise.all([
-      leerEstacionTreneamos("https://treneamos.com/estaciones/madrid-atocha/", "Atocha"),
-      leerEstacionTreneamos("https://treneamos.com/estaciones/madrid-chamartin/", "Chamartín"),
+      leerEstacionAdif("https://www.adif.es/w/60000-madrid-pta-de-atocha", "60000", "Atocha"),
+      leerEstacionAdif("https://www.adif.es/w/17000-madrid-chamartin", "17000", "Chamartín"),
     ]);
     return [atocha, chamartin];
   },

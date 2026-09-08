@@ -15,15 +15,7 @@ import {
   TrainFront,
   Trash2,
 } from "lucide-react";
-import {
-  borrarMovimiento,
-  cargarMovimientos,
-  eur,
-  guardarMovimiento,
-  getMovimientos,
-  saveMovimientos,
-  type Movimiento,
-} from "@/lib/taxihoja";
+import { eur, getMovimientos, saveMovimientos, type Movimiento } from "@/lib/taxihoja";
 import { getLlegadasBarajas, getLlegadasTrenes } from "@/lib/transporte.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Documentos } from "@/components/documentos";
@@ -91,7 +83,6 @@ function Panel() {
   const [movs, setMovs] = useState<Movimiento[]>([]);
   const [form, setForm] = useState<"ingreso" | "gasto" | null>(null);
   const [periodo, setPeriodo] = useState<Periodo>("dia");
-  const [userId, setUserId] = useState<string | null>(null);
 
   const vuelosFn = useServerFn(getLlegadasBarajas);
   const trenesFn = useServerFn(getLlegadasTrenes);
@@ -104,8 +95,7 @@ function Panel() {
   const trenes = useQuery({
     queryKey: ["llegadas-trenes"],
     queryFn: () => trenesFn(),
-    refetchInterval: 1_800_000,
-    refetchIntervalInBackground: true,
+    refetchInterval: 180_000,
   });
 
   function actualizarTransportes() {
@@ -113,16 +103,8 @@ function Panel() {
   }
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const user = data.user;
-      setCorreo(user?.email ?? "");
-      setUserId(user?.id ?? null);
-      if (user) {
-        void cargarMovimientos(user.id).then(setMovs).catch(() => setMovs(getMovimientos()));
-      } else {
-        setMovs(getMovimientos());
-      }
-    });
+    setMovs(getMovimientos());
+    supabase.auth.getUser().then(({ data }) => setCorreo(data.user?.email ?? ""));
     void supabase.rpc("registrar_uso", { p_event: "panel_view", p_path: "/panel" });
   }, []);
 
@@ -147,7 +129,6 @@ function Panel() {
     const list = [m, ...movs];
     setMovs(list);
     saveMovimientos(list);
-    if (userId) void guardarMovimiento(userId, m);
     setForm(null);
   }
 
@@ -155,7 +136,6 @@ function Panel() {
     const list = movs.filter((m) => m.id !== id);
     setMovs(list);
     saveMovimientos(list);
-    if (userId) void borrarMovimiento(userId, id);
   }
 
   async function salir() {
@@ -413,7 +393,7 @@ function Panel() {
                 </div>
                 {e.trenes.length === 0 ? (
                   <p className="mt-3 text-sm text-muted-foreground">
-                    La aplicación de ADIF está fallando y no se puede mostrar la información.
+                    Sin llegadas próximas.
                   </p>
                 ) : (
                   <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto overscroll-contain pr-1">
@@ -425,6 +405,11 @@ function Panel() {
                         <span className="min-w-0 flex-1 truncate text-foreground">
                           {t.origen}
                         </span>
+                        {(t.via || t.estado) && (
+                          <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                            {t.via ? `Vía ${t.via}` : t.estado}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>
