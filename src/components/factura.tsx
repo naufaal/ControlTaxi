@@ -50,6 +50,26 @@ function Ventana({ onCerrar }: { onCerrar: () => void }) {
     setEmisor(getEmisor());
   }, []);
 
+  // Efecto para interceptar el botón atrás cuando la ventana de factura esté abierta
+  useEffect(() => {
+    window.history.pushState({ facturaOpen: true }, "");
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.facturaOpen) {
+        onCerrar();
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      if (window.history.state && window.history.state.facturaOpen) {
+        window.history.back();
+      }
+    };
+  }, [onCerrar]);
+
   const total = Number(importe.replace(",", ".")) || 0;
   const d = desglose(total);
 
