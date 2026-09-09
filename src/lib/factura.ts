@@ -17,10 +17,16 @@ export type Cliente = {
   domicilio: string;
 };
 
+export type LineaConcepto = {
+  descripcion: string;
+  importe: number;
+};
+
 export type Factura = {
   numero: string;
   fecha: string;
-  concepto: string;
+  concepto?: string; // Para mantener compatibilidad con facturas antiguas
+  conceptos?: LineaConcepto[]; // Soporte para múltiples líneas
   total: number;
 };
 
@@ -81,13 +87,18 @@ export async function guardarFactura(
   const { data: usuario } = await supabase.auth.getUser();
   if (!usuario.user) throw new Error("Usuario no autenticado");
 
+  // Construimos una representación de texto para Supabase
+  const conceptoTexto = factura.conceptos && factura.conceptos.length > 0
+    ? factura.conceptos.map(c => `${c.descripcion} (${eur(c.importe)})`).join(" / ")
+    : (factura.concepto || "Servicio de taxi");
+
   const { error } = await supabase.from("facturas").insert({
     user_id: usuario.user.id,
     numero: factura.numero,
     fecha: factura.fecha,
     emisor,
     cliente,
-    concepto: factura.concepto,
+    concepto: conceptoTexto,
     base,
     iva,
     total,
@@ -153,6 +164,7 @@ export function abrirFactura(emisor: Emisor, cliente: Cliente, factura: Factura)
   );
   y += 48;
 
+  // Cabecera de la tabla
   doc.setFillColor(247, 247, 247);
   doc.rect(20, y, ancho, 9, "F");
   doc.setFont("helvetica", "bold");
@@ -160,13 +172,32 @@ export function abrirFactura(emisor: Emisor, cliente: Cliente, factura: Factura)
   doc.text("CONCEPTO", 25, y + 6);
   doc.text("BASE", 135, y + 6, { align: "right" });
   doc.text("TOTAL", 185, y + 6, { align: "right" });
-  y += 17;
+  y += 15;
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(doc.splitTextToSize(factura.concepto || "Servicio de taxi", 95), 25, y);
-  doc.text(eur(base), 135, y, { align: "right" });
-  doc.text(eur(total), 185, y, { align: "right" });
-  y += 20;
+
+  // Normalizamos las líneas a pintar (si no hay array de conceptos, usamos el texto clásico)
+  const lineasAPintar: LineaConcepto[] = 
+    factura.conceptos && factura.conceptos.length > 0
+      ? factura.conceptos
+      : [{ descripcion: factura.concepto || "Servicio de taxi", importe: factura.total }];
+
+  // Recorremos y pintamos cada fila de la factura por separado
+  lineasAPintar.forEach((item) => {
+    const itemDesglose = desglose(item.importe);
+    const lineasTexto = doc.splitTextToSize(item.descripcion, 95);
+    
+    doc.text(lineasTexto, 25, y);
+    doc.text(eur(itemDesglose.base), 135, y, { align: "right" });
+    doc.text(eur(itemDesglose.total), 185, y, { align: "right" });
+
+    // Salto de línea dinámico en función de cuántas líneas ocupe la descripción del servicio
+    const alturaFila = Math.max(lineasTexto.length * 6, 8);
+    y += alturaFila;
+  });
+
+  y += 5;
   doc.line(20, y, 190, y);
   y += 10;
   doc.text("Base imponible", 135, y, { align: "right" });
