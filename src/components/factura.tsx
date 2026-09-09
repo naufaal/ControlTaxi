@@ -13,13 +13,12 @@ import {
   type Emisor,
 } from "@/lib/factura";
 
-export function FacturaCliente() {
-  const [abierto, setAbierto] = useState(false);
-
+// Componente para mostrar solo el tarjetón/botón en el panel
+export function FacturaClienteBoton({ onClick }: { onClick: () => void }) {
   return (
     <section className="px-5 pt-8">
       <button
-        onClick={() => setAbierto(true)}
+        onClick={onClick}
         className="flex w-full items-center gap-3 rounded-3xl bg-primary p-5 text-left text-primary-foreground shadow-[var(--shadow-glow)] transition-transform active:scale-[0.98]"
       >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/15 text-primary-foreground">
@@ -32,13 +31,12 @@ export function FacturaCliente() {
           </span>
         </span>
       </button>
-
-      {abierto && <Ventana onCerrar={() => setAbierto(false)} />}
     </section>
   );
 }
 
-function Ventana({ onCerrar }: { onCerrar: () => void }) {
+// Ventana modal de la factura controlada limpiamente por el router
+export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
   const [emisor, setEmisor] = useState<Emisor>(emisorVacio);
   const [cliente, setCliente] = useState({ nombre: "", cif: "", domicilio: "" });
   const [concepto, setConcepto] = useState("Servicio de taxi");
@@ -49,26 +47,6 @@ function Ventana({ onCerrar }: { onCerrar: () => void }) {
   useEffect(() => {
     setEmisor(getEmisor());
   }, []);
-
-  // Efecto para interceptar el botón atrás cuando la ventana de factura esté abierta
-  useEffect(() => {
-    window.history.pushState({ facturaOpen: true }, "");
-
-    const handlePopState = (event: PopStateEvent) => {
-      if (event.state && event.state.facturaOpen) {
-        onCerrar();
-      }
-    };
-
-    window.addEventListener("popstate", handlePopState);
-
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-      if (window.history.state && window.history.state.facturaOpen) {
-        window.history.back();
-      }
-    };
-  }, [onCerrar]);
 
   const total = Number(importe.replace(",", ".")) || 0;
   const d = desglose(total);
