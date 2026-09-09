@@ -40,7 +40,7 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
   const [emisor, setEmisor] = useState<Emisor>(emisorVacio);
   const [cliente, setCliente] = useState({ nombre: "", cif: "", domicilio: "" });
   
-  // Modificado a un array para admitir múltiples conceptos y sus importes independientes
+  // Array de conceptos con su propia descripción e importe independiente
   const [conceptos, setConceptos] = useState([
     { descripcion: "Servicio de taxi", importe: "" }
   ]);
@@ -72,18 +72,17 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
           saveEmisor(emisor);
           const numero = await siguienteNumeroCentralizado().catch(() => siguienteNumero());
           
-          // Unificamos las descripciones de los conceptos para la factura
-          const conceptoUnificado = conceptos
-            .map((c) => c.descripcion.trim())
-            .filter(Boolean)
-            .join(" / ");
-
+          // Enviamos los conceptos como un array para que el PDF dibuje cada línea por separado
           const factura = {
             numero,
             fecha: new Date().toISOString(),
-            concepto: conceptoUnificado || "Servicio de taxi",
+            conceptos: conceptos.map((c) => ({
+              descripcion: c.descripcion.trim() || "Servicio de taxi",
+              importe: Number(c.importe.replace(",", ".")) || 0,
+            })),
             total,
           };
+
           try {
             await guardarFactura(emisor, cliente, factura);
           } catch {
