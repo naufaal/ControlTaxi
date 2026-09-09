@@ -305,6 +305,7 @@ function Panel() {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
+                    {/* Si tiene forma de pago guardada en el concepto o adicional */}
                   </p>
                 </div>
                 <p className="font-display text-lg font-bold text-foreground">
@@ -520,12 +521,15 @@ function Formulario({
 }) {
   const [importe, setImporte] = useState("");
   const [concepto, setConcepto] = useState("");
+  const [formaPago, setFormaPago] = useState<"Efectivo" | "Tarjeta" | "Emisora">("Efectivo");
   const [fecha, setFecha] = useState(() => fechaLocalInput(new Date()));
 
-  const sugerencias =
+  const sugerenciasConcepto =
     tipo === "ingreso"
       ? ["Carrera", "Aeropuerto", "Estación", "Propina"]
       : ["Combustible", "Lavado", "Taller", "Parking"];
+
+  const formasPago = ["Efectivo", "Tarjeta", "Emisora"] as const;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
@@ -539,11 +543,19 @@ function Formulario({
           const fechaMovimiento = new Date(
             `${fecha}T${String(hora.getHours()).padStart(2, "0")}:${String(hora.getMinutes()).padStart(2, "0")}:${String(hora.getSeconds()).padStart(2, "0")}`,
           );
+
+          // Si es ingreso, adjuntamos la forma de pago al concepto para reflejarla con claridad
+          let conceptoFinal = concepto.trim();
+          if (tipo === "ingreso") {
+            const baseConcepto = conceptoFinal || "Carrera";
+            conceptoFinal = `${baseConcepto} (${formaPago})`;
+          }
+
           onGuardar({
             id: crypto.randomUUID(),
             fecha: fechaMovimiento.toISOString(),
             tipo,
-            concepto: concepto.trim(),
+            concepto: conceptoFinal,
             importe: valor,
           });
         }}
@@ -567,6 +579,31 @@ function Formulario({
             className="mt-1.5 h-14 w-full rounded-2xl border border-input bg-secondary px-4 font-display text-2xl font-bold text-foreground outline-none focus:border-primary"
           />
         </label>
+
+        {/* Sección exclusiva de Forma de Pago para Ingresos */}
+        {tipo === "ingreso" && (
+          <div className="mt-4">
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Forma de pago
+            </span>
+            <div className="mt-1.5 flex gap-2">
+              {formasPago.map((fp) => (
+                <button
+                  key={fp}
+                  type="button"
+                  onClick={() => setFormaPago(fp)}
+                  className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-colors ${
+                    formaPago === fp
+                      ? "bg-primary text-primary-foreground shadow"
+                      : "border border-border bg-secondary text-foreground"
+                  }`}
+                >
+                  {fp}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <label className="mt-4 block">
           <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -593,7 +630,7 @@ function Formulario({
         </label>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {sugerencias.map((s) => (
+          {sugerenciasConcepto.map((s) => (
             <button
               key={s}
               type="button"
