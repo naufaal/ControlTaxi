@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -26,7 +26,7 @@ import {
 } from "@/lib/taxihoja";
 import { getLlegadasBarajas, getLlegadasTrenes } from "@/lib/transporte.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { FacturaCliente } from "@/components/factura";
+import { FacturaClienteBoton, VentanaFacturaModal } from "@/components/factura";
 import { abrirInforme } from "@/lib/informe";
 import { Marca, PieMarca } from "@/components/marca";
 
@@ -64,6 +64,9 @@ function perteneceAlPeriodo(fechaMovimiento: string, periodo: Periodo): boolean 
 }
 
 export const Route = createFileRoute("/_authenticated/panel")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    modal: (search.modal as "ingreso" | "gasto" | "factura" | undefined) ?? null,
+  }),
   head: () => ({
     meta: [
       { title: "Mi panel — ControlTaxi" },
@@ -86,33 +89,18 @@ export const Route = createFileRoute("/_authenticated/panel")({
 
 function Panel() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const queryClient = useQueryClient();
-  const [correo, setCorreo] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
-  const [form, setForm] = useState<"ingreso" | "gasto" | null>(null);
   const [periodo, setPeriodo] = useState<Periodo>("dia");
 
-  // Efecto para interceptar el botón atrás cuando el formulario o la factura están abiertos
-  useEffect(() => {
-    if (form !== null) {
-      window.history.pushState({ formOpen: true }, "");
+  const abrirModal = (tipo: "ingreso" | "gasto" | "factura") => {
+    navigate({ search: { modal: tipo } });
+  };
 
-      const handlePopState = (event: PopStateEvent) => {
-        if (event.state && event.state.formOpen) {
-          setForm(null);
-        }
-      };
-
-      window.addEventListener("popstate", handlePopState);
-
-      return () => {
-        window.removeEventListener("popstate", handlePopState);
-        if (window.history.state && window.history.state.formOpen) {
-          window.history.back();
-        }
-      };
-    }
-  }, [form]);
+  const cerrarModal = () => {
+    navigate({ search: { modal: undefined } });
+  };
 
   // Obtener el usuario autenticado al cargar la vista
   const usuarioQuery = useQuery({
@@ -181,7 +169,7 @@ function Panel() {
       try {
         await guardarMovimiento(currentUserId, m);
         await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
-        setForm(null);
+        cerrarModal();
       } catch (error) {
         console.error("Error al guardar:", error);
         alert("No se pudo guardar en Supabase. Comprueba las políticas RLS.");
@@ -257,13 +245,13 @@ function Panel() {
 
         <div className="relative mt-5 grid grid-cols-2 gap-3">
           <button
-            onClick={() => setForm("ingreso")}
+            onClick={() => abrirModal("ingreso")}
             className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-primary text-base font-semibold text-primary-foreground shadow-[var(--shadow-glow)] transition-transform active:scale-[0.97]"
           >
             <Plus className="h-5 w-5" /> Ingreso
           </button>
           <button
-            onClick={() => setForm("gasto")}
+            onClick={() => abrirModal("gasto")}
             className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white transition-transform active:scale-[0.97]"
           >
             <Minus className="h-5 w-5" /> Gasto
@@ -485,7 +473,7 @@ function Panel() {
         )}
       </section>
 
-      <FacturaCliente />
+      <FacturaClienteBoton onClick={() => abrirModal("factura")} />
 
       <section className="px-5 pt-8">
         <a
@@ -504,9 +492,16 @@ function Panel() {
         </a>
       </section>
 
-      {form && (
-        <Formulario tipo={form} onCerrar={() => setForm(null)} onGuardar={guardar} />
+      {search.modal === "ingreso" && (
+        <Formulario tipo="ingreso" onCerrar={cerrarModal} onGuardar={guardar} />
       )}
+      {search.modal === "gasto" && (
+        <Formulario tipo="gasto" onCerrar={cerrarModal} onGuardar={guardar} />
+      )}
+      {search.modal === "factura" && (
+        <VentanaFacturaModal onCerrar={cerrarModal} />
+      )}
+
       <div className="px-5 pt-8">
         <PieMarca oscuro />
       </div>
@@ -531,7 +526,6 @@ function Mini({ label, valor }: { label: string; valor: string }) {
   );
 }
 
-// Componente para manejar documentos y archivos con sincronización instantánea vía React Query
 interface ArchivoDocumento {
   id: string;
   nombre: string;
