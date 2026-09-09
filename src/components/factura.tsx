@@ -39,8 +39,12 @@ export function FacturaClienteBoton({ onClick }: { onClick: () => void }) {
 export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
   const [emisor, setEmisor] = useState<Emisor>(emisorVacio);
   const [cliente, setCliente] = useState({ nombre: "", cif: "", domicilio: "" });
-  const [concepto, setConcepto] = useState("Servicio de taxi");
-  const [importe, setImporte] = useState("");
+  
+  // Modificado a un array para admitir múltiples conceptos y sus importes independientes
+  const [conceptos, setConceptos] = useState([
+    { descripcion: "Servicio de taxi", importe: "" }
+  ]);
+
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState("");
 
@@ -48,7 +52,12 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
     setEmisor(getEmisor());
   }, []);
 
-  const total = Number(importe.replace(",", ".")) || 0;
+  // Cálculo total sumando todos los importes del array de conceptos
+  const total = conceptos.reduce((acc, curr) => {
+    const num = Number(curr.importe.replace(",", ".")) || 0;
+    return acc + num;
+  }, 0);
+
   const d = desglose(total);
 
   return (
@@ -62,10 +71,17 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
           setError("");
           saveEmisor(emisor);
           const numero = await siguienteNumeroCentralizado().catch(() => siguienteNumero());
+          
+          // Unificamos las descripciones de los conceptos para la factura
+          const conceptoUnificado = conceptos
+            .map((c) => c.descripcion.trim())
+            .filter(Boolean)
+            .join(" / ");
+
           const factura = {
             numero,
             fecha: new Date().toISOString(),
-            concepto: concepto.trim(),
+            concepto: conceptoUnificado || "Servicio de taxi",
             total,
           };
           try {
@@ -125,22 +141,59 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
           />
         </Grupo>
 
-        <Grupo titulo="Servicio">
-          <Campo label="Concepto" valor={concepto} set={setConcepto} />
-          <label className="block">
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Importe total € (IVA incluido)
-            </span>
-            <input
-              inputMode="decimal"
-              value={importe}
-              onChange={(e) => setImporte(e.target.value)}
-              placeholder="0,00"
-              className="mt-1.5 h-14 w-full rounded-2xl border border-input bg-secondary px-4 font-display text-2xl font-bold text-foreground outline-none focus:border-primary"
-            />
-          </label>
+        <Grupo titulo="Servicios y Conceptos">
+          {conceptos.map((item, index) => (
+            <div key={index} className="mb-3 rounded-2xl border border-border bg-secondary p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-primary uppercase">Concepto {index + 1}</span>
+                {conceptos.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nuevos = conceptos.filter((_, i) => i !== index);
+                      setConceptos(nuevos);
+                    }}
+                    className="text-xs text-destructive font-semibold hover:underline"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
 
-          <div className="rounded-2xl bg-secondary p-4 text-sm">
+              <input
+                value={item.descripcion}
+                onChange={(e) => {
+                  const nuevos = [...conceptos];
+                  nuevos[index].descripcion = e.target.value;
+                  setConceptos(nuevos);
+                }}
+                placeholder="Descripción del servicio"
+                className="w-full h-12 rounded-xl border border-input bg-card px-4 text-base text-foreground outline-none focus:border-primary"
+              />
+
+              <input
+                inputMode="decimal"
+                value={item.importe}
+                onChange={(e) => {
+                  const nuevos = [...conceptos];
+                  nuevos[index].importe = e.target.value;
+                  setConceptos(nuevos);
+                }}
+                placeholder="Importe € (ej. 25,00)"
+                className="w-full h-12 rounded-xl border border-input bg-card px-4 font-display text-lg font-bold text-foreground outline-none focus:border-primary"
+              />
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setConceptos([...conceptos, { descripcion: "", importe: "" }])}
+            className="w-full h-12 rounded-2xl border border-dashed border-primary text-primary font-semibold text-sm hover:bg-primary/5 transition-colors"
+          >
+            + Añadir otro servicio
+          </button>
+
+          <div className="rounded-2xl bg-secondary p-4 text-sm mt-4">
             <Linea label="Base imponible" valor={eur(d.base)} />
             <Linea label="IVA (10%)" valor={eur(d.iva)} />
             <div className="mt-2 flex justify-between border-t border-border pt-2 font-display text-base font-bold text-foreground">
