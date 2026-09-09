@@ -14,6 +14,8 @@ import {
   RefreshCw,
   TrainFront,
   Trash2,
+  Upload,
+  FileText,
 } from "lucide-react";
 import {
   eur,
@@ -24,7 +26,6 @@ import {
 } from "@/lib/taxihoja";
 import { getLlegadasBarajas, getLlegadasTrenes } from "@/lib/transporte.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { Documentos } from "@/components/documentos";
 import { FacturaCliente } from "@/components/factura";
 import { abrirInforme } from "@/lib/informe";
 import { Marca, PieMarca } from "@/components/marca";
@@ -104,7 +105,7 @@ function Panel() {
   const currentUserId = usuarioQuery.data?.id ?? null;
   const currentCorreo = usuarioQuery.data?.email ?? "";
 
-  // Consulta de movimientos gestionada por React Query (se actualiza sola al enfocar la app o invalidar)
+  // Consulta de movimientos gestionada por React Query
   const movimientosQuery = useQuery({
     queryKey: ["movimientos", currentUserId],
     queryFn: async () => {
@@ -157,7 +158,6 @@ function Panel() {
     if (currentUserId) {
       try {
         await guardarMovimiento(currentUserId, m);
-        // Fuerza la recarga inmediata de la lista desde Supabase
         await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
         setForm(null);
       } catch (error) {
@@ -171,7 +171,6 @@ function Panel() {
     if (currentUserId) {
       try {
         await borrarMovimiento(currentUserId, id);
-        // Fuerza la recarga inmediata de la lista tras borrar
         await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
       } catch (error) {
         console.error("Error al borrar:", error);
@@ -305,7 +304,6 @@ function Panel() {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                    {/* Si tiene forma de pago guardada en el concepto o adicional */}
                   </p>
                 </div>
                 <p className="font-display text-lg font-bold text-foreground">
@@ -325,7 +323,8 @@ function Panel() {
         )}
       </section>
 
-      <Documentos />
+      {/* Componente de documentos sincronizado con React Query */}
+      <DocumentosSincronizados userId={currentUserId} />
 
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
@@ -510,6 +509,162 @@ function Mini({ label, valor }: { label: string; valor: string }) {
   );
 }
 
+// Componente para manejar documentos y archivos con sincronización instantánea vía React Query
+interface ArchivoDocumento {
+  id: string;
+  nombre: string;
+  url: string;
+  created_at?: string;
+}
+
+function DocumentosSincronizados({ userId }: { userId: string | null }) {
+  const queryClient = useQueryClient();
+  const [subiendo, setSubiendo] = useState(false);
+
+  const documentosQuery = useQuery({
+    queryKey: ["documentos", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await supabase
+        .from("documentos")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        // Si la tabla no existe o hay error de permisos, devolvemos un array vacío provisional
+        console.warn("No se pudo cargar la tabla de documentos:", error.message);
+        return [];
+      }
+      return (data ?? []) as ArchivoDocumento[];
+    },
+    enabled: !!userId,
+  });
+
+  async function manejarSubida(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    if (!archivo || !userId) return;
+
+    setSubiendo(true);
+    try {
+      const ruta = `${userId}/${Date.now()}_${archivo.name}`;
+      const { error: errorStorage } = await supabase.storage
+        .from("documentos")
+        .upload(ruta, archivo);
+
+      if (errorStorage) throw errorStorage;
+
+      const { data: publicUrlData } = supabase.storage
+        .from("documentos")
+        .getPublicUrl(ruta);
+
+      const { error: errorDb } = await supabase.from("documentos").insert({
+        user_id: userId,
+        nombre: archivo.name,
+        url: publicUrlData.publicUrl,
+      });
+
+      if (errorDb) throw errorDb;
+
+      // Invalida la caché de documentos para que se actualice de inmediato en pantalla
+      await queryClient.invalidateQueries({ queryKey: ["documentos", userId] });
+    } catch (error: any) {
+      console.error("Error al subir archivo:", error);
+      alert("No se pudo subir el archivo: " + (error.message || "Error desconocido"));
+    } finally {
+      setSubiendo(false);
+      e.target.value = "";
+    }
+  }
+
+  async function borrarDocumento(id: string) {
+    if (!userId) return;
+    try {
+      const { error } = await supabase.from("documentos").delete().eq("id", id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["documentos", userId] });
+    } catch (error: any) {
+      console.error("Error al borrar documento:", error);
+      alert("No se pudo eliminar el archivo.");
+    }
+  }
+
+  const documentos = documentosQuery.data ?? [];
+
+  return (
+    <section className="px-5 pt-8">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg font-semibold text-foreground">
+          Documentos y Archivos
+        </h2>
+        <label className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow transition-transform active:scale-[0.97] ${subiendo ? "opacity-60 cursor-not-allowed" : ""}`}>
+          <Upload className="h-4 w-4" />
+          <span>{subiendo ? "Subiendo..." : "Adjuntar"}</span>
+          <input
+            type="file"
+            onChange={manejarSubida}
+            disabled={subiendo || !userId}
+            className="hidden"
+          />
+        </label>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Guarda tus permisos, seguros o recibos de forma sincronizada.
+      </p>
+
+      {documentosQuery.isLoading ? (
+        <Cargando texto="Cargando documentos..." />
+      ) : documentos.length === 0 ? (
+        <div className="mt-3 rounded-3xl border border-dashed border-border p-6 text-center">
+          <FileText className="mx-auto h-8 w-8 text-muted-foreground" />
+          <p className="mt-2 text-sm text-muted-foreground">
+            No hay ningún archivo adjunto todavía.
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-3 space-y-3">
+          {documentos.map((doc) => (
+            <li
+              key={doc.id}
+              className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-foreground">
+                <FileText className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate font-semibold text-foreground hover:underline block"
+                >
+                  {doc.nombre}
+                </a>
+                <p className="text-xs text-muted-foreground">
+                  {doc.created_at
+                    ? new Date(doc.created_at).toLocaleDateString("es-ES", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "Guardado"}
+                </p>
+              </div>
+              <button
+                onClick={() => borrarDocumento(doc.id)}
+                aria-label="Borrar documento"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function Formulario({
   tipo,
   onCerrar,
@@ -544,7 +699,6 @@ function Formulario({
             `${fecha}T${String(hora.getHours()).padStart(2, "0")}:${String(hora.getMinutes()).padStart(2, "0")}:${String(hora.getSeconds()).padStart(2, "0")}`,
           );
 
-          // Si es ingreso, adjuntamos la forma de pago al concepto para reflejarla con claridad
           let conceptoFinal = concepto.trim();
           if (tipo === "ingreso") {
             const baseConcepto = conceptoFinal || "Carrera";
@@ -580,7 +734,6 @@ function Formulario({
           />
         </label>
 
-        {/* Sección exclusiva de Forma de Pago para Ingresos */}
         {tipo === "ingreso" && (
           <div className="mt-4">
             <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
