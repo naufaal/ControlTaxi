@@ -796,7 +796,7 @@ function Formulario({
         </label>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {sugerenciasConcepto.format((s: string) => (
+          {sugerenciasConcepto.map((s) => (
             <button
               key={s}
               type="button"
