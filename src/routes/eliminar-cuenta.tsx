@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { supabase } from '../../integrations/supabase/client'
+import { supabase } from '@/integrations/supabase/client'
 
 export const Route = createFileRoute('/eliminar-cuenta')({
   component: EliminarCuentaPage,
@@ -20,7 +20,6 @@ function EliminarCuentaPage() {
     setMessage(null)
 
     try {
-      // 1. Verificar credenciales estrictamente (si fallan, salta al catch y muestra el error de login)
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -30,14 +29,12 @@ function EliminarCuentaPage() {
         throw new Error('Correo electrónico o contraseña incorrectos.')
       }
 
-      // 2. Ejecutar la función RPC en Supabase para borrar todos los datos y el usuario
       const { error: rpcError } = await supabase.rpc('delete_user_account')
 
       if (rpcError) {
         throw new Error('Error al eliminar los datos: ' + rpcError.message)
       }
 
-      // 3. Cerrar sesión tras el borrado exitoso
       await supabase.auth.signOut()
 
       setMessage({
