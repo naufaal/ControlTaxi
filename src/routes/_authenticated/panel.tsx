@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -91,6 +91,28 @@ function Panel() {
   const [userId, setUserId] = useState<string | null>(null);
   const [form, setForm] = useState<"ingreso" | "gasto" | null>(null);
   const [periodo, setPeriodo] = useState<Periodo>("dia");
+
+  // Efecto para interceptar el botón atrás cuando el formulario o la factura están abiertos
+  useEffect(() => {
+    if (form !== null) {
+      window.history.pushState({ formOpen: true }, "");
+
+      const handlePopState = (event: PopStateEvent) => {
+        if (event.state && event.state.formOpen) {
+          setForm(null);
+        }
+      };
+
+      window.addEventListener("popstate", handlePopState);
+
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+        if (window.history.state && window.history.state.formOpen) {
+          window.history.back();
+        }
+      };
+    }
+  }, [form]);
 
   // Obtener el usuario autenticado al cargar la vista
   const usuarioQuery = useQuery({
@@ -532,7 +554,6 @@ function DocumentosSincronizados({ userId }: { userId: string | null }) {
         .order("created_at", { ascending: false });
 
       if (error) {
-        // Si la tabla no existe o hay error de permisos, devolvemos un array vacío provisional
         console.warn("No se pudo cargar la tabla de documentos:", error.message);
         return [];
       }
@@ -566,7 +587,6 @@ function DocumentosSincronizados({ userId }: { userId: string | null }) {
 
       if (errorDb) throw errorDb;
 
-      // Invalida la caché de documentos para que se actualice de inmediato en pantalla
       await queryClient.invalidateQueries({ queryKey: ["documentos", userId] });
     } catch (error: any) {
       console.error("Error al subir archivo:", error);
