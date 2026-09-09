@@ -91,7 +91,6 @@ function Panel() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const queryClient = useQueryClient();
-  const [userId, setUserId] = useState<string | null>(null);
   const [periodo, setPeriodo] = useState<Periodo>("dia");
 
   const abrirModal = (tipo: "ingreso" | "gasto" | "factura") => {
@@ -797,7 +796,7 @@ function Formulario({
         </label>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {sugerenciasConcepto.map((s) => (
+          {sugerenciasConcepto.format((s: string) => (
             <button
               key={s}
               type="button"
