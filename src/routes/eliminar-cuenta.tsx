@@ -24,7 +24,6 @@ function EliminarCuentaPage() {
     setMessage(null)
 
     try {
-      // 1. Verificar credenciales iniciando sesión primero
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -34,12 +33,10 @@ function EliminarCuentaPage() {
         throw new Error('Credenciales incorrectas. Verifica tu usuario y contraseña.')
       }
 
-      // 2. Llamar a la función RPC de Supabase para borrar los datos y el usuario
       const { error: rpcError } = await supabase.rpc('delete_user_account')
 
       if (rpcError) throw rpcError
 
-      // 3. Cerrar sesión por seguridad
       await supabase.auth.signOut()
 
       setMessage({
@@ -62,7 +59,6 @@ function EliminarCuentaPage() {
     setEmail('')
     setPassword('')
     setMessage(null)
-    // Opcional: redirigir al inicio o limpiar
     window.location.href = '/'
   }
 
@@ -73,7 +69,6 @@ function EliminarCuentaPage() {
         De acuerdo con las políticas de Google Play, puedes solicitar la eliminación permanente de tu cuenta y todos tus datos asociados. Ingresa tus datos para verificar tu identidad.
       </p>
 
-      {/* Cuadro contenedor del formulario */}
       <div style={{ background: '#f9f9f9', border: '1px solid #ddd', borderRadius: '8px', padding: '20px', marginTop: '20px' }}>
         <form onSubmit={handleDeleteAccount} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
@@ -104,7 +99,6 @@ function EliminarCuentaPage() {
             />
           </div>
 
-          {/* Contenedor de botones */}
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
             <button
               type="submit"
