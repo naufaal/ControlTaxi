@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
+import { supabase } from '../../integrations/supabase/client'
 
 export const Route = createFileRoute('/eliminar-cuenta')({
   component: EliminarCuentaPage,
@@ -19,14 +20,32 @@ function EliminarCuentaPage() {
     setMessage(null)
 
     try {
-      // Intentamos llamar a la API global si está disponible o simulamos la respuesta
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError || !authData.user) {
+        throw new Error('Correo electrónico o contraseña incorrectos.')
+      }
+
+      const { error: rpcError } = await supabase.rpc('delete_user_account')
+
+      if (rpcError) {
+        throw new Error('Error al eliminar los datos de la base de datos: ' + rpcError.message)
+      }
+
+      await supabase.auth.signOut()
+
       setMessage({
-        text: 'Solicitud recibida. Procesando eliminación...',
+        text: 'Tu cuenta y todos tus datos asociados han sido eliminados correctamente.',
         error: false,
       })
+      setEmail('')
+      setPassword('')
     } catch (err: any) {
       setMessage({
-        text: 'Hubo un error al procesar la solicitud.',
+        text: err.message || 'Hubo un error al procesar la solicitud. Inténtalo de nuevo.',
         error: true,
       })
     } finally {
