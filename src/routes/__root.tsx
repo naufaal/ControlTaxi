@@ -165,8 +165,12 @@ function RootComponent() {
       };
 
       window.addEventListener("popstate", handleBackButton);
-      return () => window.removeEventListener("popstate", handleBackButton);
+      return () => {
+        window.removeEventListener("popstate", handleBackButton);
+      };
     }
+
+    return undefined;
   }, [location.pathname]);
 
   return (
