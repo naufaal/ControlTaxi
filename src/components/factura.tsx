@@ -162,9 +162,8 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
               <input
                 value={item.descripcion}
                 onChange={(e) => {
-                  const nuevos = [...conceptos];
-                  nuevos[index].descripcion = e.target.value;
-                  setConceptos(nuevos);
+                  const valor = e.target.value;
+                  setConceptos(conceptos.map((c, i) => (i === index ? { ...c, descripcion: valor } : c)));
                 }}
                 placeholder="Descripción del servicio"
                 className="w-full h-12 rounded-xl border border-input bg-card px-4 text-base text-foreground outline-none focus:border-primary"
@@ -174,9 +173,8 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
                 inputMode="decimal"
                 value={item.importe}
                 onChange={(e) => {
-                  const nuevos = [...conceptos];
-                  nuevos[index].importe = e.target.value;
-                  setConceptos(nuevos);
+                  const valor = e.target.value;
+                  setConceptos(conceptos.map((c, i) => (i === index ? { ...c, importe: valor } : c)));
                 }}
                 placeholder="Importe € (ej. 25,00)"
                 className="w-full h-12 rounded-xl border border-input bg-card px-4 font-display text-lg font-bold text-foreground outline-none focus:border-primary"
