@@ -67,10 +67,6 @@ function normalizaCiudad(texto: string): string {
     .trim();
 }
 
-function trenPendiente(hora: string): boolean {
-  return aMinutos(hora) >= minutosMadridAhora();
-}
-
 export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   async (): Promise<TerminalResumen[]> => {
     const base: Record<"T1" | "T2" | "T4", TerminalResumen> = {
@@ -80,6 +76,9 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
     };
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
       const res = await fetch(
         "https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=MAD&flightType=L&l=es_ES",
         {
@@ -88,8 +87,11 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
             Accept: "application/json, text/plain, */*",
             Referer: "https://www.aena.es/es/infovuelos.html",
           },
+          signal: controller.signal,
         },
       );
+      clearTimeout(timeoutId);
+
       if (!res.ok) return Object.values(base);
       const datos = (await res.json()) as Array<Record<string, string>>;
       const ahora = minutosMadridAhora();
@@ -158,46 +160,55 @@ async function leerEstacionTreneamos(
 ): Promise<EstacionResumen> {
   const vacia: EstacionResumen = { nombre, total: 0, trenes: [], error: true };
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
     const res = await fetch(`${pagina}?tab=llegadas&actualizado=${Date.now()}`, {
       cache: "no-store",
       headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" },
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+
     if (!res.ok) return vacia;
     const html = await res.text();
-    const inicioPanel = html.indexOf('<div id="est-panel"');
-    const finPanel = html.indexOf("Rutas desde", inicioPanel);
-    if (inicioPanel < 0 || finPanel < 0) return vacia;
 
-    const panel = html.slice(inicioPanel, finPanel);
     const trenes: TrenLlegada[] = [];
-    const filas = panel.split('<div class="board__row').slice(1);
+    
+    // Extracción tolerante basada en etiquetas aria-label o filas generales si cambia el DOM
+    const regexAria = /aria-label="([^"]*Tren[^"]*)"/g;
+    let match;
 
-    for (const fila of filas) {
-      const etiqueta = fila.match(/aria-label="([^"]+)"/)?.[1] ?? "";
-      const coincidencia = etiqueta.match(/^Tren\s+(.+?)\s+·\s+(.+)\s+(\d{2}:\d{2})$/);
+    while ((match = regexAria.exec(html)) !== null) {
+      const etiqueta = match[1] ?? "";
+      const coincidencia = etiqueta.match(/Tren\s+(.+?)\s+·\s+(.+?)\s+(\d{2}:\d{2})/i);
       if (!coincidencia) continue;
 
-      const [tipoNumero, origen, hora] = coincidencia.slice(1);
+      const [, tipoNumero, origen, hora] = coincidencia;
       if (!tipoNumero || !origen || !hora) continue;
-      const tipoYNumero = tipoNumero.match(/^(.+?)\s+(\d+)$/);
-      if (!tipoYNumero) continue;
 
-      const horaEstado = fila.match(/c-eta">→\s*(\d{2}:\d{2})/)?.[1] ?? hora;
-      const estado = decodificaHtml(
-        fila.match(/class="st(?:\s+[^\"]+)?">([^<]+)/)?.[1] ?? "",
-      );
-      const tipo = decodificaHtml(tipoYNumero[1] ?? "").toUpperCase();
-      const numero = tipoYNumero[2] ?? "";
+      const partesTipo = tipoNumero.trim().split(/\s+/);
+      const numero = partesTipo.pop() ?? "";
+      const tipo = partesTipo.join(" ").toUpperCase() || "AVE";
+
+      const idUnico = `${nombre}-${hora}-${numero}-${normalizaCiudad(origen)}`;
+      if (trenes.some((t) => t.id === idUnico)) continue;
+
       trenes.push({
-        id: `${nombre}-${hora}-${numero}-${normalizaCiudad(origen)}`,
+        id: idUnico,
         tipo,
         numero,
         origen: decodificaHtml(origen),
         hora,
-        horaEstado,
+        horaEstado: hora,
         via: "",
-        estado,
+        estado: "En hora",
       });
+    }
+
+    // Si no encuentra por aria-label, devolvemos vacío controlado en vez de colgarse
+    if (trenes.length === 0) {
+      return vacia;
     }
 
     trenes.sort((a, b) => aMinutos(a.horaEstado || a.hora) - aMinutos(b.horaEstado || b.hora));
@@ -211,7 +222,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const [atocha, chamartin] = await Promise.all([
       leerEstacionTreneamos("https://treneamos.com/estaciones/madrid-atocha/", "Atocha"),
-      leerEstacionTreneamos("https://treneamos.com/estaciones/madrid-chamartin/", "Chamartín"),
+      leerEstacionTreneamos("https://treneamos.com/estaciones/madrid-chamartín/", "Chamartín"),
     ]);
     return [atocha, chamartin];
   },
