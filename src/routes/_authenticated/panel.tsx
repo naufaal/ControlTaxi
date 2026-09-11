@@ -339,6 +339,7 @@ function Panel() {
           </div>
         </div>
 
+        {/* BOTONES FLOTANTES DE INGRESO/GASTO */}
         <div className="relative mt-5 grid grid-cols-2 gap-3">
           <button
             onClick={() => abrirModal("ingreso")}
@@ -353,34 +354,34 @@ function Panel() {
             <Minus className="h-5 w-5" /> Gasto
           </button>
         </div>
-      </div>
 
-      <section className="px-5 pt-7">
-        <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
-
-        {/* BOTONES FLOTANTES DE FILTRAR Y TURNOS */}
-        <div className="mt-3 flex items-center justify-between gap-3">
+        {/* BOTONES FLOTANTES DE FILTRAR Y TURNOS DENTRO DEL CUADRO NEGRO */}
+        <div className="relative mt-3 grid grid-cols-2 gap-3">
           <button
             onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
-            className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white transition-transform active:scale-[0.97]"
           >
-            <Search className="h-4 w-4 text-primary" /> Filtrar solo
+            <Search className="h-4 w-4 text-primary" /> Filtrar
           </button>
 
           <button
             onClick={() => abrirModal("turnos")}
-            className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white transition-transform active:scale-[0.97]"
           >
             <Lock className="h-4 w-4 text-primary" /> Turnos
           </button>
         </div>
+      </div>
+
+      <section className="px-5 pt-7">
+        <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
 
         {mostrarFiltroAvanzado && (
           <div className="mt-3 animate-in fade-in duration-200">
             <div className="rounded-2xl border border-border bg-card p-4 shadow-md text-foreground">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                  <History className="h-4 w-4 text-primary" /> Histórico y Filtro por Fechas
+                  <History className="h-4 w-4 text-primary" /> Filtrar por Fechas
                 </p>
                 {periodo === "personalizado" && (
                   <button 
@@ -503,7 +504,7 @@ function Panel() {
             </span>
             <div className="min-w-0">
               <h3 className="font-display text-base font-bold text-foreground">
-                Documentación aportar
+                Documentación a aportar
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">
                 Guarda tus permisos, seguros o recibos de forma sincronizada.
@@ -513,7 +514,7 @@ function Panel() {
         </button>
       </div>
 
-      {/* INFORMACIÓN DE TERMINALES DE BARAJAS */}
+      {/* INFORMACIÓN DE TERMINALES DE BARAJAS (CON SCROLL) */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
@@ -614,7 +615,7 @@ function Panel() {
         )}
       </section>
 
-      {/* INFORMACIÓN DE ESTACIONES DE TREN (ALTA VELOCIDAD) */}
+      {/* INFORMACIÓN DE ESTACIONES DE TREN (ATOCHA Y CHAMARTÍN SEPARADAS Y CON SCROLL) */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
@@ -647,7 +648,7 @@ function Panel() {
                         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
                           <Train className="h-4 w-4" />
                         </span>
-                        <span className="font-display text-base font-bold text-foreground">Llegadas a Atocha</span>
+                        <span className="font-display text-base font-bold text-foreground">Atocha</span>
                       </div>
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
                         {(atocha.trenes ?? []).map((tr: any) => (
@@ -669,7 +670,7 @@ function Panel() {
                         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
                           <Train className="h-4 w-4" />
                         </span>
-                        <span className="font-display text-base font-bold text-foreground">Llegadas Chamartín</span>
+                        <span className="font-display text-base font-bold text-foreground">Chamartín</span>
                       </div>
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
                         {(chamartin.trenes ?? []).map((tr: any) => (
