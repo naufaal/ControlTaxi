@@ -345,8 +345,24 @@ function Panel() {
             </div>
           </div>
 
-          {/* BOTONES FILTRAR Y TURNOS BLANCOS Y REDONDOS DENTRO DEL CONTENEDOR OSCURO */}
+          {/* BOTONES DE INGRESO Y GASTO (AMARILLO Y OSCURO REDONDOS) */}
           <div className="mt-4 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => abrirModal("ingreso")}
+              className="flex h-14 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground shadow-md transition-transform active:scale-[0.97]"
+            >
+              <Plus className="h-5 w-5" /> Ingreso
+            </button>
+            <button
+              onClick={() => abrirModal("gasto")}
+              className="flex h-14 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 text-base font-semibold text-white shadow-md transition-transform active:scale-[0.97]"
+            >
+              <Minus className="h-5 w-5" /> Gasto
+            </button>
+          </div>
+
+          {/* BOTONES FILTRAR Y TURNOS BLANCOS Y REDONDOS DENTRO DEL CONTENEDOR OSCURO */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
             <button
               onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
               className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md border border-slate-200 transition-transform active:scale-[0.97]"
@@ -360,22 +376,6 @@ function Panel() {
               <Lock className="h-5 w-5 text-amber-500" /> Turnos
             </button>
           </div>
-        </div>
-
-        {/* BOTONES DE INGRESO Y GASTO (AMARILLO Y OSCURO REDONDOS) */}
-        <div className="relative mt-5 grid grid-cols-2 gap-3">
-          <button
-            onClick={() => abrirModal("ingreso")}
-            className="flex h-14 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground shadow-md transition-transform active:scale-[0.97]"
-          >
-            <Plus className="h-5 w-5" /> Ingreso
-          </button>
-          <button
-            onClick={() => abrirModal("gasto")}
-            className="flex h-14 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 text-base font-semibold text-white shadow-md transition-transform active:scale-[0.97]"
-          >
-            <Minus className="h-5 w-5" /> Gasto
-          </button>
         </div>
       </div>
 
