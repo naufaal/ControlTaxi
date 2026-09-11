@@ -1,4 +1,4 @@
-ñimport { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
 
 export type VueloLlegada = {
   id: string;
@@ -172,7 +172,6 @@ function generarHoraRelativa(minutosOffset: number): string {
 
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
-    // Generación directa y ultra-rápida sin bloqueos de red externos
     const todosAtocha: TrenLlegada[] = [
       { id: "at-1", tipo: "AVE", numero: "03181", origen: "Barcelona-Sants", hora: generarHoraRelativa(-20), horaEstado: generarHoraRelativa(-20), via: "1", estado: "Realizado" },
       { id: "at-2", tipo: "Iryo", numero: "6042", origen: "Sevilla-Santa Justa", hora: generarHoraRelativa(-5), horaEstado: generarHoraRelativa(-5), via: "2", estado: "Recién llegado" },
