@@ -334,7 +334,6 @@ function Panel() {
             {eur(totales.neto)}
           </p>
           
-          {/* INGRESOS Y GASTOS DENTRO DEL CUADRO, POSICIÓN ESTILO FOTO */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-black/20 py-2.5 px-3 text-center">
               <p className="text-[10px] tracking-wide text-white/60 uppercase">Ingresos</p>
@@ -344,6 +343,22 @@ function Panel() {
               <p className="text-[10px] tracking-wide text-white/60 uppercase">Gastos</p>
               <p className="text-sm font-semibold text-white mt-0.5">{eur(totales.gastos)}</p>
             </div>
+          </div>
+
+          {/* BOTONES FILTRAR Y TURNOS BLANCOS Y REDONDOS DENTRO DEL CONTENEDOR OSCURO */}
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
+              className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md border border-slate-200 transition-transform active:scale-[0.97]"
+            >
+              <Search className="h-5 w-5 text-amber-500" /> Filtrar
+            </button>
+            <button
+              onClick={() => abrirModal("turnos")}
+              className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md border border-slate-200 transition-transform active:scale-[0.97]"
+            >
+              <Lock className="h-5 w-5 text-amber-500" /> Turnos
+            </button>
           </div>
         </div>
 
@@ -424,22 +439,6 @@ function Panel() {
           <FileDown className="h-5 w-5 shrink-0" />
           Exportar a PDF (para imprimir)
         </button>
-
-        {/* BOTONES FILTRAR Y TURNOS BLANCOS Y REDONDOS ESTILO FOTO */}
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <button
-            onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
-            className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md border border-slate-200 transition-transform active:scale-[0.97]"
-          >
-            <Search className="h-5 w-5 text-amber-500" /> Filtrar
-          </button>
-          <button
-            onClick={() => abrirModal("turnos")}
-            className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md border border-slate-200 transition-transform active:scale-[0.97]"
-          >
-            <Lock className="h-5 w-5 text-amber-500" /> Turnos
-          </button>
-        </div>
 
         {movimientosQuery.isLoading ? (
           <Cargando texto="Cargando movimientos..." />
