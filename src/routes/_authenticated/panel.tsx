@@ -1,4 +1,4 @@
-Import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -344,7 +344,6 @@ function Panel() {
             </div>
           </div>
 
-          {/* BOTONES DE INGRESO Y GASTO */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <button
               onClick={() => abrirModal("ingreso")}
@@ -360,7 +359,6 @@ function Panel() {
             </button>
           </div>
 
-          {/* BOTONES FILTRAR Y TURNOS */}
           <div className="mt-3 grid grid-cols-2 gap-3">
             <button
               onClick={() => abrirModal("filtros")}
@@ -449,7 +447,6 @@ function Panel() {
         )}
       </section>
 
-      {/* DOCUMENTACIÓN APORTAR */}
       <div className="px-5 pt-7">
         <button
           onClick={() => abrirModal("documentos")}
@@ -471,7 +468,6 @@ function Panel() {
         </button>
       </div>
 
-      {/* INFORMACIÓN DE TERMINALES DE BARAJAS */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
@@ -512,6 +508,11 @@ function Panel() {
                           <li key={v.id} className="flex items-center gap-3 text-sm">
                             <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
                             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                            {v.estadoVuelo && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                                {v.estadoVuelo}
+                              </span>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -531,9 +532,9 @@ function Panel() {
                           <li key={v.id} className="flex items-center gap-3 text-sm">
                             <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
                             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                            {v.retraso && (
-                              <span className="text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-md shrink-0 font-semibold">
-                                {v.retraso}
+                            {v.estadoVuelo && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                                {v.estadoVuelo}
                               </span>
                             )}
                           </li>
@@ -555,9 +556,9 @@ function Panel() {
                           <li key={v.id} className="flex items-center gap-3 text-sm">
                             <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
                             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                            {v.retraso && (
-                              <span className="text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-md shrink-0 font-semibold">
-                                {v.retraso}
+                            {v.estadoVuelo && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                                {v.estadoVuelo}
                               </span>
                             )}
                           </li>
@@ -572,7 +573,6 @@ function Panel() {
         )}
       </section>
 
-      {/* INFORMACIÓN DE ESTACIONES DE TREN (ADIF: ATOCHA 60000, CHAMARTÍN 17000) */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
@@ -665,7 +665,6 @@ function Panel() {
         )}
       </section>
 
-      {/* BOTÓN AMARILLO: FACTURA */}
       <div className="px-5 mt-8">
         <button
           onClick={() => abrirModal("factura")}
@@ -687,7 +686,6 @@ function Panel() {
         </button>
       </div>
 
-      {/* BOTÓN AMARILLO: TEMARIO EXAMEN TAXI */}
       <div className="px-5 mt-3">
         <div className="rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
