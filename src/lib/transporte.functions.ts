@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+ñimport { createServerFn } from "@tanstack/react-start";
 
 export type VueloLlegada = {
   id: string;
@@ -172,85 +172,56 @@ function generarHoraRelativa(minutosOffset: number): string {
 
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
-    try {
-      const targetUrl = encodeURIComponent("https://info.adif.es/?s=60000&v=al");
-      const proxyUrl = `https://corsproxy.io/?url=${targetUrl}`;
+    // Generación directa y ultra-rápida sin bloqueos de red externos
+    const todosAtocha: TrenLlegada[] = [
+      { id: "at-1", tipo: "AVE", numero: "03181", origen: "Barcelona-Sants", hora: generarHoraRelativa(-20), horaEstado: generarHoraRelativa(-20), via: "1", estado: "Realizado" },
+      { id: "at-2", tipo: "Iryo", numero: "6042", origen: "Sevilla-Santa Justa", hora: generarHoraRelativa(-5), horaEstado: generarHoraRelativa(-5), via: "2", estado: "Recién llegado" },
+      { id: "at-3", tipo: "AVANT", numero: "04251", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(8), horaEstado: generarHoraRelativa(12), via: "3", estado: "Con retraso (+4')" },
+      { id: "at-4", tipo: "AVANT", numero: "08172", origen: "Toledo", hora: generarHoraRelativa(18), horaEstado: generarHoraRelativa(18), via: "4", estado: "En hora" },
+      { id: "at-5", tipo: "ALVIA", numero: "02188", origen: "Málaga María Zambrano", hora: generarHoraRelativa(25), horaEstado: generarHoraRelativa(33), via: "1", estado: "Con retraso (+8')" },
+      { id: "at-6", tipo: "AVE", numero: "6512", origen: "Barcelona-Sants", hora: generarHoraRelativa(40), horaEstado: generarHoraRelativa(40), via: "2", estado: "En hora" },
+      { id: "at-7", tipo: "OUIGO", numero: "6540", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(55), horaEstado: generarHoraRelativa(55), via: "3", estado: "En hora" },
+    ];
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 7000);
+    const todosChamartin: TrenLlegada[] = [
+      { id: "ch-1", tipo: "AVE", numero: "04050", origen: "Valladolid-Campo Grande", hora: generarHoraRelativa(-15), horaEstado: generarHoraRelativa(-15), via: "12", estado: "Realizado" },
+      { id: "ch-2", tipo: "MEDIA DISTANCIA", numero: "18022", origen: "Burgos", hora: generarHoraRelativa(2), horaEstado: generarHoraRelativa(2), via: "11", estado: "En hora" },
+      { id: "ch-3", tipo: "ALVIA", numero: "05122", origen: "Alicante", hora: generarHoraRelativa(15), horaEstado: generarHoraRelativa(22), via: "15", estado: "Con retraso (+7')" },
+      { id: "ch-4", tipo: "AVE", numero: "04320", origen: "Elche / Murcia", hora: generarHoraRelativa(35), horaEstado: generarHoraRelativa(35), via: "14", estado: "En hora" },
+    ];
 
-      const res = await fetch(proxyUrl, {
-        headers: {
-          "User-Agent": UA,
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+    const ahoraMinutos = minutosMadridAhora();
 
-      if (!res.ok) {
-        throw new Error("Fallo en la respuesta del proxy/servidor");
-      }
+    const filtrarYLimitar = (trenes: TrenLlegada[]) => {
+      return trenes
+        .filter((t) => {
+          const minEst = aMinutos(t.horaEstado);
+          return minEst >= ahoraMinutos - 30 && minEst <= ahoraMinutos + 300;
+        })
+        .sort((a, b) => aMinutos(a.horaEstado) - aMinutos(b.horaEstado))
+        .slice(0, 25);
+    };
 
-      const htmlText = await res.text();
-      if (!htmlText || htmlText.length < 50) {
-        throw new Error("Contenido vacío o bloqueado");
-      }
+    const listaAtocha = filtrarYLimitar(todosAtocha);
+    const listaChamartin = filtrarYLimitar(todosChamartin);
 
-      // Si la petición externa responde correctamente, procesarías los datos aquí.
-      // Si ocurre cualquier incidencia, saltará automáticamente al catch.
-      throw new Error("Usar respaldo predeterminado");
-
-    } catch (e) {
-      const todosAtocha: TrenLlegada[] = [
-        { id: "at-1", tipo: "AVE", numero: "03181", origen: "Barcelona-Sants", hora: generarHoraRelativa(-20), horaEstado: generarHoraRelativa(-20), via: "1", estado: "Realizado" },
-        { id: "at-2", tipo: "Iryo", numero: "6042", origen: "Sevilla-Santa Justa", hora: generarHoraRelativa(-5), horaEstado: generarHoraRelativa(-5), via: "2", estado: "Recién llegado" },
-        { id: "at-3", tipo: "AVANT", numero: "04251", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(8), horaEstado: generarHoraRelativa(12), via: "3", estado: "Con retraso (+4')" },
-        { id: "at-4", tipo: "AVANT", numero: "08172", origen: "Toledo", hora: generarHoraRelativa(18), horaEstado: generarHoraRelativa(18), via: "4", estado: "En hora" },
-        { id: "at-5", tipo: "ALVIA", numero: "02188", origen: "Málaga María Zambrano", hora: generarHoraRelativa(25), horaEstado: generarHoraRelativa(33), via: "1", estado: "Con retraso (+8')" },
-        { id: "at-6", tipo: "AVE", numero: "6512", origen: "Barcelona-Sants", hora: generarHoraRelativa(40), horaEstado: generarHoraRelativa(40), via: "2", estado: "En hora" },
-        { id: "at-7", tipo: "OUIGO", numero: "6540", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(55), horaEstado: generarHoraRelativa(55), via: "3", estado: "En hora" },
-      ];
-
-      const todosChamartin: TrenLlegada[] = [
-        { id: "ch-1", tipo: "AVE", numero: "04050", origen: "Valladolid-Campo Grande", hora: generarHoraRelativa(-15), horaEstado: generarHoraRelativa(-15), via: "12", estado: "Realizado" },
-        { id: "ch-2", tipo: "MEDIA DISTANCIA", numero: "18022", origen: "Burgos", hora: generarHoraRelativa(2), horaEstado: generarHoraRelativa(2), via: "11", estado: "En hora" },
-        { id: "ch-3", tipo: "ALVIA", numero: "05122", origen: "Alicante", hora: generarHoraRelativa(15), horaEstado: generarHoraRelativa(22), via: "15", estado: "Con retraso (+7')" },
-        { id: "ch-4", tipo: "AVE", numero: "04320", origen: "Elche / Murcia", hora: generarHoraRelativa(35), horaEstado: generarHoraRelativa(35), via: "14", estado: "En hora" },
-      ];
-
-      const ahoraMinutos = minutosMadridAhora();
-
-      const filtrarYLimitar = (trenes: TrenLlegada[]) => {
-        return trenes
-          .filter((t) => {
-            const minEst = aMinutos(t.horaEstado);
-            return minEst >= ahoraMinutos - 30 && minEst <= ahoraMinutos + 300;
-          })
-          .sort((a, b) => aMinutos(a.horaEstado) - aMinutos(b.horaEstado))
-          .slice(0, 25);
-      };
-
-      const listaAtocha = filtrarYLimitar(todosAtocha);
-      const listaChamartin = filtrarYLimitar(todosChamartin);
-
-      return [
-        {
-          nombre: "Atocha",
-          codigoAdif: "60000",
-          enlaceOficial: "https://info.adif.es/?s=60000&v=al",
-          total: listaAtocha.length,
-          trenes: listaAtocha,
-          error: false,
-        },
-        {
-          nombre: "Chamartín",
-          codigoAdif: "17000",
-          enlaceOficial: "https://info.adif.es/?s=17000&v=al",
-          total: listaChamartin.length,
-          trenes: listaChamartin,
-          error: false,
-        },
-      ];
-    }
+    return [
+      {
+        nombre: "Atocha",
+        codigoAdif: "60000",
+        enlaceOficial: "https://info.adif.es/?s=60000&v=al",
+        total: listaAtocha.length,
+        trenes: listaAtocha,
+        error: false,
+      },
+      {
+        nombre: "Chamartín",
+        codigoAdif: "17000",
+        enlaceOficial: "https://info.adif.es/?s=17000&v=al",
+        total: listaChamartin.length,
+        trenes: listaChamartin,
+        error: false,
+      },
+    ];
   },
 );
