@@ -19,7 +19,6 @@ import {
   ArrowLeft,
   Lock,
   Search,
-  Calendar,
 } from "lucide-react";
 import {
   eur,
@@ -182,14 +181,14 @@ function Panel() {
     return { ingresos, gastos, neto: ingresos - gastos };
   }, [movsFiltrados]);
 
-  // Totales generales para el cierre de turno (sin filtrar por periodo)
+  // Totales generales para el cierre de turno
   const totalesGenerales = useMemo(() => {
     const ingresos = movs.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + m.importe, 0);
     const gastos = movs.filter((m) => m.tipo === "gasto").reduce((s, m) => s + m.importe, 0);
     return { ingresos, gastos, neto: ingresos - gastos };
   }, [movs]);
 
-  const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "del periodo seleccionado";
+  const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "filtrado";
 
   async function guardar(m: Movimiento) {
     if (currentUserId) {
@@ -216,7 +215,6 @@ function Panel() {
     }
   }
 
-  // Función para cerrar turno (borrar todos los movimientos o marcarlos)
   async function cerrarTurnoCompleto() {
     const seguro = window.confirm(
       "¿Está usted seguro de poner a cero los contadores? Esta operación no se puede deshacer."
@@ -225,7 +223,6 @@ function Panel() {
 
     if (currentUserId) {
       try {
-        // Borramos todos los movimientos actuales de la base de datos para poner a cero
         for (const m of movs) {
           await borrarMovimiento(currentUserId, m.id);
         }
@@ -255,34 +252,17 @@ function Panel() {
               {currentCorreo || "Tu cuenta"}
             </h1>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => abrirModal("parciales")}
-              className="flex h-11 px-4 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-sm font-semibold text-white"
-            >
-              Parciales
-            </button>
-            <button
-              onClick={salir}
-              aria-label="Cerrar sesión"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
-          </div>
+          <button
+            onClick={salir}
+            aria-label="Cerrar sesión"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
         </div>
 
-        <div className="relative mt-7 flex flex-wrap justify-center gap-2" role="group" aria-label="Periodo">
-          <button
-            type="button"
-            onClick={() => {
-              setMostrarFiltroAvanzado(!mostrarFiltroAvanzado);
-            }}
-            className={`h-10 px-4 rounded-xl text-sm font-semibold transition-colors border border-white/20 bg-white/10 text-white flex items-center gap-1.5`}
-          >
-            <Search className="h-4 w-4" /> Filtrar
-          </button>
-
+        {/* Selector de Periodo perfectamente centrado */}
+        <div className="relative mt-7 flex justify-center gap-2" role="group" aria-label="Periodo">
           {(["dia", "semana", "mes"] as const).map((opcion) => (
             <button
               key={opcion}
@@ -303,51 +283,9 @@ function Panel() {
           ))}
         </div>
 
-        {/* Panel desplegable de filtro avanzado */}
-        {mostrarFiltroAvanzado && (
-          <div className="relative mx-auto mt-3 max-w-sm rounded-2xl border border-white/15 bg-black/40 p-4 text-white backdrop-blur">
-            <p className="text-xs font-semibold text-white/80 mb-2">Seleccionar día o rango:</p>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div>
-                <span className="text-[10px] text-white/60">Desde / Día</span>
-                <input
-                  type="date"
-                  value={rangoFechas.inicio}
-                  onChange={(e) => {
-                    setRangoFechas({ ...rangoFechas, inicio: e.target.value });
-                    setPeriodo("personalizado");
-                  }}
-                  className="w-full h-9 rounded-lg bg-white/10 border border-white/20 px-2 text-xs text-white"
-                />
-              </div>
-              <div>
-                <span className="text-[10px] text-white/60">Hasta (opcional)</span>
-                <input
-                  type="date"
-                  value={rangoFechas.fin}
-                  onChange={(e) => {
-                    setRangoFechas({ ...rangoFechas, fin: e.target.value });
-                    setPeriodo("personalizado");
-                  }}
-                  className="w-full h-9 rounded-lg bg-white/10 border border-white/20 px-2 text-xs text-white"
-                />
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                setPeriodo("personalizado");
-                setMostrarFiltroAvanzado(false);
-              }}
-              className="w-full h-9 rounded-xl bg-primary text-primary-foreground text-xs font-semibold"
-            >
-              Aplicar filtro
-            </button>
-          </div>
-        )}
-
         <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
           <p className="text-xs tracking-wide text-white/70 uppercase">
-            Neto acumulado {periodo === "personalizado" ? "(Personalizado)" : periodoLabel}
+            Neto acumulado {periodo === "personalizado" ? "filtrado" : periodoLabel}
           </p>
           <p className="mt-1 font-display text-4xl font-bold text-white">
             {eur(totales.neto)}
@@ -373,6 +311,67 @@ function Panel() {
           </button>
         </div>
       </div>
+
+      {/* Botones de Filtrar (izquierda) y Parciales (derecha) saliendo del fondo negro */}
+      <div className="px-5 -mt-4 relative z-10 flex items-center justify-between gap-3">
+        <button
+          onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
+          className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
+        >
+          <Search className="h-4 w-4 text-primary" /> Filtrar
+        </button>
+
+        <button
+          onClick={() => abrirModal("parciales")}
+          className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
+        >
+          <Lock className="h-4 w-4 text-primary" /> Parciales
+        </button>
+      </div>
+
+      {/* Panel desplegable de filtro avanzado (independiente de los modales de ingreso/gasto) */}
+      {mostrarFiltroAvanzado && (
+        <div className="px-5 mt-3">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-md text-foreground">
+            <p className="text-xs font-semibold text-muted-foreground mb-2">Seleccionar día o rango:</p>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div>
+                <span className="text-[10px] text-muted-foreground">Desde / Día</span>
+                <input
+                  type="date"
+                  value={rangoFechas.inicio}
+                  onChange={(e) => {
+                    setRangoFechas({ ...rangoFechas, inicio: e.target.value });
+                    setPeriodo("personalizado");
+                  }}
+                  className="w-full h-9 rounded-lg bg-secondary border border-input px-2 text-xs text-foreground"
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-muted-foreground">Hasta (opcional)</span>
+                <input
+                  type="date"
+                  value={rangoFechas.fin}
+                  onChange={(e) => {
+                    setRangoFechas({ ...rangoFechas, fin: e.target.value });
+                    setPeriodo("personalizado");
+                  }}
+                  className="w-full h-9 rounded-lg bg-secondary border border-input px-2 text-xs text-foreground"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setPeriodo("personalizado");
+                setMostrarFiltroAvanzado(false);
+              }}
+              className="w-full h-9 rounded-xl bg-primary text-primary-foreground text-xs font-semibold"
+            >
+              Aplicar filtro
+            </button>
+          </div>
+        </div>
+      )}
 
       <section className="px-5 pt-7">
         <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
