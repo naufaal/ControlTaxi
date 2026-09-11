@@ -355,20 +355,20 @@ function Panel() {
           </button>
         </div>
 
-        {/* BOTONES FLOTANTES DE FILTRAR Y TURNOS DENTRO DEL CUADRO NEGRO */}
+        {/* BOTONES FLOTANTES DE FILTRAR Y TURNOS */}
         <div className="relative mt-3 grid grid-cols-2 gap-3">
           <button
             onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
-            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white transition-transform active:scale-[0.97]"
+            className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white transition-transform active:scale-[0.97]"
           >
-            <Search className="h-4 w-4 text-primary" /> Filtrar
+            <Search className="h-5 w-5 text-primary" /> Filtrar
           </button>
 
           <button
             onClick={() => abrirModal("turnos")}
-            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white transition-transform active:scale-[0.97]"
+            className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white transition-transform active:scale-[0.97]"
           >
-            <Lock className="h-4 w-4 text-primary" /> Turnos
+            <Lock className="h-5 w-5 text-primary" /> Turnos
           </button>
         </div>
       </div>
@@ -740,7 +740,7 @@ function Panel() {
 
       {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
-      {search.modal === "factura" && <VentanaFacturaModal onCerrar={cerrarModal} />}
+      {search.modal === "factura" && <VentanaFacturaModalPersonalizada onCerrar={cerrarModal} />}
       {search.modal === "turnos" && (
         <VentanaTurnosModal 
           totalesGenerales={totalesGenerales} 
@@ -775,6 +775,38 @@ function BookOpenIcon(props: React.SVGProps<SVGSVGElement>) {
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
     </svg>
+  );
+}
+
+function VentanaFacturaModalPersonalizada({ onCerrar }: { onCerrar: () => void }) {
+  // Versión adaptada con diseño idéntico a Ingreso/Gasto (cuadrada, botón X arriba a la derecha)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-bold flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" /> Factura
+          </h3>
+          <button
+            onClick={onCerrar}
+            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Cerrar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Genera y descarga tu factura oficial con el desglose de IVA (10%).
+          </p>
+          {/* Componente original de la factura adaptado o incrustado */}
+          <VentanaFacturaModal onCerrar={onCerrar} />
+        </div>
+      </div>
+    </div>
   );
 }
 
