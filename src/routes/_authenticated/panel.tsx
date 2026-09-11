@@ -43,11 +43,14 @@ type Periodo = "dia" | "semana" | "mes" | "personalizado";
 
 function obtenerDiaLaboral(fechaStr: string): string {
   const fecha = new Date(fechaStr);
-  const hora = fecha.getHours();
-  if (hora < 6) {
+  const horaLocal = parseInt(
+    fecha.toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "numeric", hour12: false }),
+    10
+  );
+  if (horaLocal < 6) {
     fecha.setDate(fecha.getDate() - 1);
   }
-  return fecha.toISOString().slice(0, 10);
+  return fecha.toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
 }
 
 function perteneceAlPeriodo(
@@ -108,6 +111,7 @@ function Panel() {
   const queryClient = useQueryClient();
   const [periodo, setPeriodo] = useState<Periodo>("dia");
   const [rangoFechas, setRangoFechas] = useState({ inicio: "", fin: "" });
+  const [filtroTipo, setFiltroTipo] = useState<"todos" | "ingresos" | "gastos">("todos");
   
   const ultimoCorte = obtenerUltimoCorteTurno();
 
@@ -192,9 +196,12 @@ function Panel() {
         if (periodo === "dia" && ultimoCorte && movimiento.fecha <= ultimoCorte) {
           return false;
         }
+        if (filtroTipo === "ingresos" && movimiento.tipo !== "ingreso") return false;
+        if (filtroTipo === "gastos" && movimiento.tipo !== "gasto") return false;
+
         return perteneceAlPeriodo(movimiento.fecha, periodo, rangoFechas);
       }),
-    [movs, periodo, rangoFechas, ultimoCorte]
+    [movs, periodo, rangoFechas, ultimoCorte, filtroTipo]
   );
 
   const totales = useMemo(() => {
@@ -377,7 +384,45 @@ function Panel() {
       </div>
 
       <section className="px-5 pt-7">
-        <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 mb-4" role="group" aria-label="Filtro de movimientos">
+          <button
+            type="button"
+            onClick={() => setFiltroTipo("todos")}
+            className={`h-10 rounded-xl text-xs font-semibold transition-colors ${
+              filtroTipo === "todos"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Neto / Todos
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroTipo("ingresos")}
+            className={`h-10 rounded-xl text-xs font-semibold transition-colors ${
+              filtroTipo === "ingresos"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Solo Ingresos
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroTipo("gastos")}
+            className={`h-10 rounded-xl text-xs font-semibold transition-colors ${
+              filtroTipo === "gastos"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Solo Gastos
+          </button>
+        </div>
 
         <button
           type="button"
