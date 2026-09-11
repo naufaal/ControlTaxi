@@ -42,9 +42,9 @@ export type EstacionResumen = {
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
-// Caché en servidor robusta: almacena los resultados durante 8 minutos para evitar bloqueos por exceso de peticiones (Rate Limit / Anti-bots)
+let ultimosDatosValidosEstaciones: EstacionResumen[] | null = null;
 let cacheEstaciones: { timestamp: number; data: EstacionResumen[] } | null = null;
-const TTL_CACHE = 8 * 60 * 1000;
+const TTL_CACHE = 5 * 60 * 1000; // Reducido a 5 minutos para refrescar antes
 
 function minutosMadridAhora(): number {
   const partes = new Intl.DateTimeFormat("es-ES", {
@@ -75,7 +75,7 @@ function normalizaCiudad(texto: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// VUELOS BARAJAS CON ENDPOINTS EN CASCADA
+// VUELOS BARAJAS
 // ---------------------------------------------------------------------------
 export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   async (): Promise<TerminalResumen[]> => {
@@ -116,7 +116,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
           }
         }
       } catch {
-        // Intenta con el siguiente
+        // Siguiente endpoint
       }
     }
 
@@ -146,7 +146,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
         const retrasoMin = Math.max(0, minEst - minProg);
         const diffMin = minEst - ahora;
 
-        if (diffMin > 30 || diffMin < -15) continue;
+        if (diffMin > 60 || diffMin < -30) continue;
 
         const origen = v["ciudadIataOtro"] ?? v["iataOtro"] ?? v["origen"] ?? "";
         if (!origen) continue;
@@ -161,7 +161,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
           estadoVuelo = `Aterriza en ${diffMin} min`;
         } else if (diffMin <= 0 && diffMin >= -5) {
           estadoVuelo = "En tierra / Aterrizando";
-        } else if (diffMin < -5 && diffMin >= -15) {
+        } else if (diffMin < -5 && diffMin >= -30) {
           estadoVuelo = "Entrega de equipaje";
         } else {
           continue;
@@ -192,11 +192,10 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 );
 
 // ---------------------------------------------------------------------------
-// TRENES CON CACHÉ ESTABLE Y RESPALDO ANTIBLOQUEO
+// TRENES CON FILTRADO AMPLIO Y SIN LÍMITES ARTIFICIALES
 // ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
-    // Si la caché sigue activa, se sirve inmediatamente sin realizar peticiones externas que provoquen bloqueos
     if (cacheEstaciones && Date.now() - cacheEstaciones.timestamp < TTL_CACHE) {
       return cacheEstaciones.data;
     }
@@ -210,26 +209,26 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       let conError = true;
 
       const fuentesTrenes = [
-        // 1. Radar de Trenes API oficial
+        // 1. API de Adif Info Widget directo (Suele traer el listado completo oficial)
         async () => {
-          const res = await fetch(`https://radardetrenes.com/api/v1/stations/${codigoAdif}`, {
-            headers: { "User-Agent": UA, Accept: "application/json" },
+          const res = await fetch(`https://info.adif.es/api/v1/stations/${codigoAdif}/arrivals`, {
+            headers: { "User-Agent": UA, Accept: "application/json", Referer: "https://info.adif.es/" },
           });
           if (!res.ok) throw new Error();
           const data = await res.json();
-          const items = data.arrivals || data.llegadas || [];
+          const items = data.llegadas || data.arrivals || [];
           return items.map((t: any, index: number) => ({
-            id: `${codigoAdif}-${t.trainNumber || index}`,
-            tipo: t.serviceType || t.tipo || "AVE",
-            numero: String(t.trainNumber || t.numero || ""),
-            origen: t.origin || t.origen || "Origen desconocido",
-            hora: recortaHora(t.scheduledTime || t.hora || "00:00"),
-            horaEstado: recortaHora(t.estimatedTime || t.horaEstado || t.scheduledTime || "00:00"),
-            via: String(t.track || t.via || "-"),
-            estado: (t.delayMinutes || t.retraso || 0) > 0 ? `Con retraso (+${t.delayMinutes || t.retraso}')` : (t.status || "En hora"),
+            id: `${codigoAdif}-adif-${index}`,
+            tipo: t.tipo || t.serviceType || "AVE",
+            numero: String(t.numero || t.trainNumber || ""),
+            origen: t.origen || t.origin || "Desconocido",
+            hora: recortaHora(t.hora || t.scheduledTime || "00:00"),
+            horaEstado: recortaHora(t.horaEstimada || t.estimatedTime || t.hora || "00:00"),
+            via: String(t.via || t.track || "-"),
+            estado: t.estado || t.status || "En hora",
           }));
         },
-        // 2. Renfe Flota Larga Distancia Directo con timestamp dinámico
+        // 2. Renfe Flota Larga Distancia Directo
         async () => {
           const timestamp = Date.now();
           const res = await fetch(`https://tiempo-real.largorecorrido.renfe.com/renfe-visor/flotaLD.json?v=${timestamp}`, {
@@ -263,26 +262,26 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
           });
           return filtrados;
         },
-        // 3. API de Adif Info Widget directo
+        // 3. Radar de Trenes API oficial
         async () => {
-          const res = await fetch(`https://info.adif.es/api/v1/stations/${codigoAdif}/arrivals`, {
-            headers: { "User-Agent": UA, Accept: "application/json", Referer: "https://info.adif.es/" },
+          const res = await fetch(`https://radardetrenes.com/api/v1/stations/${codigoAdif}`, {
+            headers: { "User-Agent": UA, Accept: "application/json" },
           });
           if (!res.ok) throw new Error();
           const data = await res.json();
-          const items = data.llegadas || data.arrivals || [];
+          const items = data.arrivals || data.llegadas || [];
           return items.map((t: any, index: number) => ({
-            id: `${codigoAdif}-adif-${index}`,
-            tipo: t.tipo || t.serviceType || "AVE",
-            numero: String(t.numero || t.trainNumber || ""),
-            origen: t.origen || t.origin || "Desconocido",
-            hora: recortaHora(t.hora || t.scheduledTime || "00:00"),
-            horaEstado: recortaHora(t.horaEstimada || t.estimatedTime || t.hora || "00:00"),
-            via: String(t.via || t.track || "-"),
-            estado: t.estado || t.status || "En hora",
+            id: `${codigoAdif}-${t.trainNumber || index}`,
+            tipo: t.serviceType || t.tipo || "AVE",
+            numero: String(t.trainNumber || t.numero || ""),
+            origen: t.origin || t.origen || "Origen desconocido",
+            hora: recortaHora(t.scheduledTime || t.hora || "00:00"),
+            horaEstado: recortaHora(t.estimatedTime || t.horaEstado || t.scheduledTime || "00:00"),
+            via: String(t.track || t.via || "-"),
+            estado: (t.delayMinutes || t.retraso || 0) > 0 ? `Con retraso (+${t.delayMinutes || t.retraso}')` : (t.status || "En hora"),
           }));
         },
-        // 4. Alternativa auxiliar de Treneamos API
+        // 4. Treneamos API
         async () => {
           const res = await fetch(`https://api.treneamos.com/v1/estaciones/${codigoAdif}/llegadas`, {
             headers: { "User-Agent": UA, Accept: "application/json" },
@@ -311,63 +310,32 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
           const resultado = await fuente();
           clearTimeout(timeoutId);
 
-          if (resultado && resultado.length > 0) {
+          if (resultado && resultado.length > 2) {
             listaTrenes = resultado;
             conError = false;
             break;
           }
         } catch {
-          // Continúa probando la siguiente alternativa si hay bloqueo
+          // Siguiente fuente
         }
       }
 
       const ahoraMinutos = minutosMadridAhora();
-      let trenesFiltrados = listaTrenes
+      // Ventana ampliada: desde 60 minutos antes hasta 8 horas después (480 minutos)
+      const trenesFiltrados = listaTrenes
         .filter((t) => {
           const minEst = aMinutos(t.horaEstado);
-          return minEst >= ahoraMinutos - 45 && minEst <= ahoraMinutos + 360;
-        });
-
-      // RESPALDO DE EMERGENCIA ESTABLE: Si todas las APIs externas bloquean las peticiones temporalmente,
-      // se inyectan patrones dinámicos coherentes para que la web nunca se quede en blanco ni rompa la UI.
-      if (trenesFiltrados.length === 0) {
-        conError = false;
-        const hBase = Math.floor(ahoraMinutos / 60);
-        const mBase = ahoraMinutos % 60;
-        const hora1 = String((hBase + 1) % 24).padStart(2, '0') + ":" + String(mBase).padStart(2, '0');
-        const hora2 = String((hBase + 2) % 24).padStart(2, '0') + ":" + String(mBase).padStart(2, '0');
-
-        trenesFiltrados = [
-          {
-            id: `${codigoAdif}-fallback-1`,
-            tipo: "AVE",
-            numero: nombre === "Atocha" ? "03141" : "05120",
-            origen: nombre === "Atocha" ? "Barcelona Sants" : "Málaga María Zambrano",
-            hora: hora1,
-            horaEstado: hora1,
-            via: "2",
-            estado: "En hora",
-          },
-          {
-            id: `${codigoAdif}-fallback-2`,
-            tipo: "AVLO",
-            numero: nombre === "Atocha" ? "06214" : "06482",
-            origen: nombre === "Atocha" ? "Valencia-Joaquín Sorolla" : "Alicante",
-            hora: hora2,
-            horaEstado: hora2,
-            via: "5",
-            estado: "En hora",
-          }
-        ];
-      }
+          return minEst >= ahoraMinutos - 60 && minEst <= ahoraMinutos + 480;
+        })
+        .sort((a, b) => aMinutos(a.horaEstado) - aMinutos(b.horaEstado));
 
       return {
         nombre,
         codigoAdif,
         enlaceOficial: enlace,
         total: trenesFiltrados.length,
-        trenes: trenesFiltrados.sort((a, b) => aMinutos(a.horaEstado) - aMinutos(b.horaEstado)),
-        error: conError,
+        trenes: trenesFiltrados,
+        error: conError && trenesFiltrados.length === 0,
       };
     };
 
@@ -376,9 +344,18 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       consultarEstacionSegura("17000", "Chamartín", "https://info.adif.es/?s=17000&v=al"),
     ]);
 
-    const resultadoFinal = [atocha, chamartin];
+    const resultadoActual = [atocha, chamartin];
+    const totalTrenesEncontrados = resultadoActual.reduce((acc, est) => acc + est.trenes.length, 0);
 
-    // Guarda el resultado en la caché del servidor
+    let resultadoFinal = resultadoActual;
+
+    // Solo usa respaldo si realmente viene completamente vacío, y prioriza fuentes ricas
+    if (totalTrenesEncontrados === 0 && ultimosDatosValidosEstaciones) {
+      resultadoFinal = ultimosDatosValidosEstaciones;
+    } else if (totalTrenesEncontrados > 0) {
+      ultimosDatosValidosEstaciones = resultadoActual;
+    }
+
     cacheEstaciones = {
       timestamp: Date.now(),
       data: resultadoFinal,
