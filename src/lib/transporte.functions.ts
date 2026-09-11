@@ -9,6 +9,7 @@ export type VueloLlegada = {
   horaEstimada: string;
   retrasoMin: number;
   terminal: "T1" | "T2" | "T4";
+  estadoVuelo: string; // "En hora", "Aterrizando / En tierra", "Entrega de equipaje", etc.
 };
 
 export type TerminalResumen = {
@@ -114,13 +115,31 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
         if (!programada) continue;
 
         const min = aMinutos(estimada);
-        if (min < ahora || min > ahora + 300) continue;
+        const diffMin = min - ahora; // Negativo si ya pasó, positivo si falta para aterrizar
+
+        // FILTRO ESTRICTO:
+        // - Aparecen cuando falten 30 minutos o menos para aterrizar (diffMin <= 30)
+        // - Se mantienen mientras estén aterrizando, en tierra o en entrega de equipaje
+        // - Desaparecen en cuanto finaliza (más de 15 min desde la hora estimada)
+        if (diffMin > 30 || diffMin < -15) continue;
 
         const origen = v["ciudadIataOtro"] ?? v["iataOtro"] ?? "";
         if (!origen) continue;
         const huella = `${clave}|${estimada}|${normalizaCiudad(origen)}`;
         if (vistos.has(huella)) continue;
         vistos.add(huella);
+
+        // Asignación de estados según el tiempo transcurrido o próximo
+        let estadoVuelo = v["estadoVuelo"] ?? "En hora";
+        if (diffMin > 0 && diffMin <= 30) {
+          estadoVuelo = `Aterriza en ${diffMin} min`;
+        } else if (diffMin <= 0 && diffMin >= -5) {
+          estadoVuelo = "En tierra / Aterrizando";
+        } else if (diffMin < -5 && diffMin >= -15) {
+          estadoVuelo = "Entrega de equipaje";
+        } else {
+          estadoVuelo = "Finalizado";
+        }
 
         base[clave].total += 1;
         base[clave].vuelos.push({
@@ -132,6 +151,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
           horaEstimada: estimada,
           retrasoMin: Math.max(0, aMinutos(estimada) - aMinutos(programada)),
           terminal: clave,
+          estadoVuelo,
         });
       }
     } catch {
@@ -155,38 +175,17 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const todosAtocha: TrenLlegada[] = [
       { id: "at-1", tipo: "", numero: "03181", origen: "Barcelona-Sants", hora: generarHoraRelativa(-15), horaEstado: generarHoraRelativa(-15), via: "1", estado: "Realizado" },
-      { id: "at-2", tipo: "", numero: "6042", origen: "Sevilla-Santa Justa", hora: generarHoraRelativa(-5), horaEstado: generarHoraRelativa(-2), via: "2", estado: "Recién llegado" },
+      { id: "at-2", tipo: "", numero: "6042", origen: "Sevilla-Santa Justa", hora: generarHoraRelativa(-2), horaEstado: generarHoraRelativa(-2), via: "2", estado: "Recién llegado" },
       { id: "at-3", tipo: "", numero: "04251", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(8), horaEstado: generarHoraRelativa(12), via: "3", estado: "Con retraso (+4')" },
       { id: "at-4", tipo: "", numero: "08172", origen: "Toledo", hora: generarHoraRelativa(18), horaEstado: generarHoraRelativa(18), via: "4", estado: "En hora" },
       { id: "at-5", tipo: "", numero: "02188", origen: "Málaga María Zambrano", hora: generarHoraRelativa(25), horaEstado: generarHoraRelativa(33), via: "1", estado: "Con retraso (+8')" },
       { id: "at-6", tipo: "", numero: "6512", origen: "Barcelona-Sants", hora: generarHoraRelativa(40), horaEstado: generarHoraRelativa(40), via: "2", estado: "En hora" },
-      { id: "at-7", tipo: "", numero: "18032", origen: "Jaén", hora: generarHoraRelativa(55), horaEstado: generarHoraRelativa(55), via: "5", estado: "En hora" },
-      { id: "at-8", tipo: "", numero: "03421", origen: "Granada", hora: generarHoraRelativa(70), horaEstado: generarHoraRelativa(70), via: "3", estado: "En hora" },
-      { id: "at-9", tipo: "", numero: "08210", origen: "Ciudad Real", hora: generarHoraRelativa(85), horaEstado: generarHoraRelativa(90), via: "4", estado: "Con retraso (+5')" },
-      { id: "at-10", tipo: "", numero: "05114", origen: "Almería", hora: generarHoraRelativa(110), horaEstado: generarHoraRelativa(110), via: "5", estado: "En hora" },
-      { id: "at-11", tipo: "", numero: "03221", origen: "Barcelona-Sants", hora: generarHoraRelativa(135), horaEstado: generarHoraRelativa(135), via: "1", estado: "En hora" },
-      { id: "at-12", tipo: "", numero: "06150", origen: "Sevilla-Santa Justa", hora: generarHoraRelativa(160), horaEstado: generarHoraRelativa(160), via: "2", estado: "En hora" },
-      { id: "at-13", tipo: "", numero: "08412", origen: "Puertollano", hora: generarHoraRelativa(190), horaEstado: generarHoraRelativa(190), via: "4", estado: "En hora" },
-      { id: "at-14", tipo: "", numero: "04331", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(220), horaEstado: generarHoraRelativa(225), via: "3", estado: "Con retraso (+5')" },
-      { id: "at-15", tipo: "", numero: "02340", origen: "Huelva", hora: generarHoraRelativa(260), horaEstado: generarHoraRelativa(260), via: "1", estado: "En hora" },
-      { id: "at-16", tipo: "", numero: "08552", origen: "Toledo", hora: generarHoraRelativa(290), horaEstado: generarHoraRelativa(290), via: "4", estado: "En hora" },
     ];
 
     const todosChamartin: TrenLlegada[] = [
       { id: "ch-1", tipo: "", numero: "04050", origen: "Valladolid-Campo Grande", hora: generarHoraRelativa(-10), horaEstado: generarHoraRelativa(-10), via: "12", estado: "Realizado" },
       { id: "ch-2", tipo: "", numero: "05122", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(5), horaEstado: generarHoraRelativa(5), via: "14", estado: "En hora" },
       { id: "ch-3", tipo: "", numero: "06210", origen: "Alicante", hora: generarHoraRelativa(15), horaEstado: generarHoraRelativa(22), via: "15", estado: "Con retraso (+7')" },
-      { id: "ch-4", tipo: "", numero: "17054", origen: "Segovia", hora: generarHoraRelativa(30), horaEstado: generarHoraRelativa(30), via: "10", estado: "En hora" },
-      { id: "ch-5", tipo: "", numero: "04120", origen: "Burgos Rosa Manzano", hora: generarHoraRelativa(45), horaEstado: generarHoraRelativa(45), via: "11", estado: "En hora" },
-      { id: "ch-6", tipo: "", numero: "04322", origen: "León", hora: generarHoraRelativa(60), horaEstado: generarHoraRelativa(60), via: "16", estado: "En hora" },
-      { id: "ch-7", tipo: "", numero: "6248", origen: "Alicante", hora: generarHoraRelativa(80), horaEstado: generarHoraRelativa(80), via: "14", estado: "En hora" },
-      { id: "ch-8", tipo: "", numero: "04182", origen: "Santander", hora: generarHoraRelativa(100), horaEstado: generarHoraRelativa(108), via: "12", estado: "Con retraso (+8')" },
-      { id: "ch-9", tipo: "", numero: "18120", origen: "Salamanca", hora: generarHoraRelativa(125), horaEstado: generarHoraRelativa(125), via: "10", estado: "En hora" },
-      { id: "ch-10", tipo: "", numero: "04224", origen: "Gijón", hora: generarHoraRelativa(150), horaEstado: generarHoraRelativa(150), via: "16", estado: "En hora" },
-      { id: "ch-11", tipo: "", numero: "04350", origen: "Valladolid-Campo Grande", hora: generarHoraRelativa(180), horaEstado: generarHoraRelativa(180), via: "12", estado: "En hora" },
-      { id: "ch-12", tipo: "", numero: "05410", origen: "Murcia del Carmen", hora: generarHoraRelativa(210), horaEstado: generarHoraRelativa(215), via: "14", estado: "Con retraso (+5')" },
-      { id: "ch-13", tipo: "", numero: "04502", origen: "Ourense", hora: generarHoraRelativa(250), horaEstado: generarHoraRelativa(250), via: "15", estado: "En hora" },
-      { id: "ch-14", tipo: "", numero: "17210", origen: "Segovia", hora: generarHoraRelativa(285), horaEstado: generarHoraRelativa(285), via: "10", estado: "En hora" },
     ];
 
     const ahoraMinutos = minutosMadridAhora();
@@ -195,29 +194,25 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       return trenes
         .filter((t) => {
           const minEst = aMinutos(t.horaEstado);
-          // minEst >= ahoraMinutos filtra los pasados de inmediato; minEst <= ahoraMinutos + 300 mantiene las próximas 5h
           return minEst >= ahoraMinutos && minEst <= ahoraMinutos + 300;
         })
         .sort((a, b) => aMinutos(a.horaEstado) - aMinutos(b.horaEstado))
         .slice(0, 20);
     };
 
-    const atochaFiltrados = filtrarYLimitar(todosAtocha);
-    const chamartinFiltrados = filtrarYLimitar(todosChamartin);
-
     return [
       {
         nombre: "Atocha",
         codigoAdif: "60000",
-        total: atochaFiltrados.length,
-        trenes: atochaFiltrados,
+        total: filtrarYLimitar(todosAtocha).length,
+        trenes: filtrarYLimitar(todosAtocha),
         error: false,
       },
       {
         nombre: "Chamartín",
         codigoAdif: "17000",
-        total: chamartinFiltrados.length,
-        trenes: chamartinFiltrados,
+        total: filtrarYLimitar(todosChamartin).length,
+        trenes: filtrarYLimitar(todosChamartin),
         error: false,
       },
     ];
