@@ -1,3 +1,4 @@
+
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -572,12 +573,12 @@ function Panel() {
         )}
       </section>
 
-      {/* INFORMACIÓN DE ESTACIONES DE TREN */}
+      {/* INFORMACIÓN DE ESTACIONES DE TREN (ADIF: ATOCHA 60000, CHAMARTÍN 17000) */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Llegadas de larga distancia de hoy a Atocha y Chamartín.</p>
+            <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad y Larga Distancia</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Llegadas oficiales (Adif) a Atocha (60000) y Chamartín (17000).</p>
           </div>
           <button
             onClick={actualizarTransportes}
@@ -594,24 +595,32 @@ function Panel() {
           <div className="mt-3 space-y-3">
             {(() => {
               const listaEstaciones = trenes.data ?? [];
-              const atocha = listaEstaciones.find((e: any) => e.estacion?.toLowerCase().includes("atocha"));
-              const chamartin = listaEstaciones.find((e: any) => e.estacion?.toLowerCase().includes("chamartín") || e.estacion?.toLowerCase().includes("chamartin"));
+              const atocha = listaEstaciones.find((e: any) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
+              const chamartin = listaEstaciones.find((e: any) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
 
               return (
                 <>
                   {atocha && (
                     <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                          <Train className="h-4 w-4" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                            <Train className="h-4 w-4" />
+                          </span>
+                          <span className="font-display text-base font-bold text-foreground">Atocha</span>
+                        </div>
+                        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
+                          Adif: 60000
                         </span>
-                        <span className="font-display text-base font-bold text-foreground">Atocha</span>
                       </div>
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
                         {(atocha.trenes ?? []).map((tr: any) => (
                           <li key={tr.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstimada}</span>
-                            <span className="min-w-0 flex-1 truncate text-foreground">{tr.origen}</span>
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">
+                              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
+                              {tr.origen}
+                            </span>
                             <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
                               {tr.estado}
                             </span>
@@ -623,17 +632,25 @@ function Panel() {
 
                   {chamartin && (
                     <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                          <Train className="h-4 w-4" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                            <Train className="h-4 w-4" />
+                          </span>
+                          <span className="font-display text-base font-bold text-foreground">Chamartín</span>
+                        </div>
+                        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
+                          Adif: 17000
                         </span>
-                        <span className="font-display text-base font-bold text-foreground">Chamartín</span>
                       </div>
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
                         {(chamartin.trenes ?? []).map((tr: any) => (
                           <li key={tr.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstimada}</span>
-                            <span className="min-w-0 flex-1 truncate text-foreground">{tr.origen}</span>
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">
+                              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
+                              {tr.origen}
+                            </span>
                             <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
                               {tr.estado}
                             </span>
