@@ -16,6 +16,7 @@ import {
   History,
   Clock,
   X,
+  Calendar,
 } from "lucide-react";
 import {
   eur,
@@ -41,32 +42,41 @@ interface TurnoGuardado {
   neto: number;
 }
 
+// Función para calcular el "día de trabajo" del taxista (cuenta como el día anterior si es antes de las 6:00 AM)
+function obtenerDiaLaboral(fechaStr: string): string {
+  const fecha = new Date(fechaStr);
+  const hora = fecha.getHours();
+  // Si trabaja de madrugada (ej. de 00:00 a 05:59), pertenece al día anterior contablemente
+  if (hora < 6) {
+    fecha.setDate(fecha.getDate() - 1);
+  }
+  return fecha.toISOString().slice(0, 10);
+}
+
 function perteneceAlPeriodo(
   fechaMovimiento: string,
   periodo: Periodo,
   rangoFechas: { inicio: string; fin: string }
 ): boolean {
-  const fecha = new Date(fechaMovimiento);
-  const hoy = new Date();
-  const inicio = new Date(hoy);
-  inicio.setHours(0, 0, 0, 0);
+  const diaLaboralMov = obtenerDiaLaboral(fechaMovimiento);
+  const hoyStr = obtenerDiaLaboral(new Date().toISOString());
 
   if (periodo === "personalizado") {
     if (!rangoFechas.inicio) return true;
-    const fInicio = new Date(rangoFechas.inicio);
-    fInicio.setHours(0, 0, 0, 0);
-    
-    const fFin = rangoFechas.fin ? new Date(rangoFechas.fin) : new Date(fInicio);
-    fFin.setHours(23, 59, 59, 999);
-
-    return fecha >= fInicio && fecha <= fFin;
+    const fInicio = rangoFechas.inicio;
+    const fFin = rangoFechas.fin || fInicio;
+    return diaLaboralMov >= fInicio && diaLaboralMov <= fFin;
   }
 
   if (periodo === "dia") {
-    return fecha >= inicio && fecha < new Date(inicio.getTime() + 86_400_000);
+    return diaLaboralMov === hoyStr;
   }
 
   if (periodo === "semana") {
+    const fecha = new Date(fechaMovimiento);
+    const hoy = new Date();
+    const inicio = new Date(hoy);
+    inicio.setHours(0, 0, 0, 0);
     const diasDesdeLunes = (inicio.getDay() + 6) % 7;
     inicio.setDate(inicio.getDate() - diasDesdeLunes);
     const fin = new Date(inicio);
@@ -74,15 +84,15 @@ function perteneceAlPeriodo(
     return fecha >= inicio && fecha < fin;
   }
 
-  inicio.setDate(1);
-  const fin = new Date(inicio);
-  fin.setMonth(fin.getMonth() + 1);
-  return fecha >= inicio && fecha < fin;
+  // Mes
+  const fecha = new Date(fechaMovimiento);
+  const hoy = new Date();
+  return fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
 }
 
 export const Route = createFileRoute("/_authenticated/panel")({
   validateSearch: (search: Record<string, unknown>) => ({
-    modal: (search.modal as "ingreso" | "gasto" | "factura" | "parciales" | undefined) ?? null,
+    modal: (search.modal as "ingreso" | "gasto" | "factura" | "turnos" | undefined) ?? null,
   }),
   head: () => ({
     meta: [
@@ -113,7 +123,7 @@ function Panel() {
     }
   });
 
-  const abrirModal = (tipo: "ingreso" | "gasto" | "factura" | "parciales") => {
+  const abrirModal = (tipo: "ingreso" | "gasto" | "factura" | "turnos") => {
     navigate({ search: { modal: tipo } });
   };
 
@@ -350,10 +360,10 @@ function Panel() {
         </button>
 
         <button
-          onClick={() => abrirModal("parciales")}
+          onClick={() => abrirModal("turnos")}
           className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
         >
-          <Lock className="h-4 w-4 text-primary" /> Parciales
+          <Lock className="h-4 w-4 text-primary" /> Turnos
         </button>
       </div>
 
@@ -476,51 +486,6 @@ function Panel() {
       </section>
 
       <section className="px-5 pt-8">
-        <h2 className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
-          <Clock className="h-5 w-5 text-primary" /> Historial de Turnos Cerrados
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Registro de cierres anteriores con sus respectivos balances e importes.
-        </p>
-
-        {turnosCerrados.length === 0 ? (
-          <div className="mt-3 rounded-3xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            Aún no hay turnos cerrados guardados en el historial.
-          </div>
-        ) : (
-          <ul className="mt-3 space-y-3">
-            {turnosCerrados.map((turno) => (
-              <li
-                key={turno.id}
-                className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] space-y-2"
-              >
-                <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-2">
-                  <span>Desde: {new Date(turno.fechaInicio).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
-                  <span>Hasta: {new Date(turno.fechaFin).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
-                </div>
-                <div className="flex items-center justify-between pt-1">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Balance Neto</p>
-                    <p className="font-display text-xl font-bold text-foreground">{eur(turno.neto)}</p>
-                  </div>
-                  <div className="text-right flex gap-3">
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase">Ingresos</p>
-                      <p className="text-sm font-semibold text-primary">+{eur(turno.ingresos)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase">Gastos</p>
-                      <p className="text-sm font-semibold text-destructive">-{eur(turno.gastos)}</p>
-                    </div>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
           <button
@@ -563,9 +528,10 @@ function Panel() {
       {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "gasto" && <FormularioGaseoso onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "factura" && <VentanaFacturaModal onCerrar={cerrarModal} />}
-      {search.modal === "parciales" && (
-        <VentanaParcialesModal 
+      {search.modal === "turnos" && (
+        <VentanaTurnosModal 
           totalesGenerales={totalesGenerales} 
+          turnosCerrados={turnosCerrados}
           onCerrar={cerrarModal} 
           onCerrarTurno={cerrarTurnoCompleto} 
         />
@@ -578,33 +544,35 @@ function Panel() {
   );
 }
 
-function VentanaParcialesModal({
+function VentanaTurnosModal({
   totalesGenerales,
+  turnosCerrados,
   onCerrar,
   onCerrarTurno,
 }: {
   totalesGenerales: { ingresos: number; gastos: number; neto: number };
+  turnosCerrados: TurnoGuardado[];
   onCerrar: () => void;
   onCerrarTurno: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={onCerrar}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200"
+        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={onCerrar}
             className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="h-5 w-5" /> Volver
+            <ArrowLeft className="h-5 w-5" /> Volver atrás
           </button>
-          <h3 className="font-display text-lg font-bold text-foreground">Parciales / Turno</h3>
+          <h3 className="font-display text-lg font-bold text-foreground">Turnos</h3>
           <div className="w-12" />
         </div>
 
-        <div className="rounded-2xl bg-secondary p-4 mb-6 space-y-2 text-center">
+        <div className="rounded-2xl bg-secondary p-4 mb-4 space-y-2 text-center">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Acumulado total actual</p>
           <p className="font-display text-3xl font-bold text-foreground">{eur(totalesGenerales.neto)}</p>
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
@@ -621,10 +589,52 @@ function VentanaParcialesModal({
 
         <button
           onClick={onCerrarTurno}
-          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] hover:bg-emerald-700"
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] hover:bg-emerald-700 mb-6"
         >
-          <Lock className="h-5 w-5" /> Cerrar turno y guardar en historial
+          <Lock className="h-5 w-5" /> Borrar turno / Cerrar turno
         </button>
+
+        <div className="border-t border-border pt-4">
+          <h4 className="font-display text-base font-semibold text-foreground flex items-center gap-2 mb-3">
+            <Clock className="h-4 w-4 text-primary" /> Historial de Turnos
+          </h4>
+
+          {turnosCerrados.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+              Aún no hay turnos cerrados guardados en el historial.
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {turnosCerrados.map((turno) => (
+                <li
+                  key={turno.id}
+                  className="rounded-2xl border border-border bg-secondary/50 p-3 shadow-sm space-y-2"
+                >
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground border-b border-border pb-1.5">
+                    <span>Inicio: {new Date(turno.fechaInicio).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
+                    <span>Fin: {new Date(turno.fechaFin).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-0.5">
+                    <div>
+                      <p className="text-[9px] text-muted-foreground uppercase">Neto</p>
+                      <p className="font-display text-base font-bold text-foreground">{eur(turno.neto)}</p>
+                    </div>
+                    <div className="text-right flex gap-2">
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase">Ingresos</p>
+                        <p className="text-xs font-semibold text-primary">+{eur(turno.ingresos)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase">Gastos</p>
+                        <p className="text-xs font-semibold text-destructive">-{eur(turno.gastos)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -684,7 +694,7 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
 
           <div>
             <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1">Forma de pago</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {(["Efectivo", "Tarjeta", "Emisora", "Bizum"] as const).map((m) => (
                 <button
                   type="button"
@@ -703,7 +713,9 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold">Fecha</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5 text-primary" /> Fecha
+            </label>
             <input
               type="date"
               value={fecha}
@@ -798,7 +810,9 @@ function FormularioGaseoso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold">Fecha</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5 text-primary" /> Fecha
+            </label>
             <input
               type="date"
               value={fecha}
