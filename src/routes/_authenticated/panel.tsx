@@ -88,7 +88,7 @@ function perteneceAlPeriodo(
 
 export const Route = createFileRoute("/_authenticated/panel")({
   validateSearch: (search: Record<string, unknown>) => ({
-    modal: (search.modal as "ingreso" | "gasto" | "factura" | "turnos" | "documentos" | undefined) ?? null,
+    modal: (search.modal as "ingreso" | "gasto" | "factura" | "turnos" | "documentos" | "filtros" | undefined) ?? null,
   }),
   head: () => ({
     meta: [
@@ -107,12 +107,11 @@ function Panel() {
   const search = Route.useSearch();
   const queryClient = useQueryClient();
   const [periodo, setPeriodo] = useState<Periodo>("dia");
-  const [mostrarFiltroAvanzado, setMostrarFiltroAvanzado] = useState(false);
   const [rangoFechas, setRangoFechas] = useState({ inicio: "", fin: "" });
   
   const ultimoCorte = obtenerUltimoCorteTurno();
 
-  const abrirModal = (tipo: "ingreso" | "gasto" | "factura" | "turnos" | "documentos") => {
+  const abrirModal = (tipo: "ingreso" | "gasto" | "factura" | "turnos" | "documentos" | "filtros") => {
     navigate({ search: { modal: tipo } });
   };
 
@@ -313,10 +312,10 @@ function Panel() {
               aria-pressed={periodo === opcion}
               onClick={() => {
                 setPeriodo(opcion);
-                setMostrarFiltroAvanzado(false);
+                setRangoFechas({ inicio: "", fin: "" });
               }}
               className={`h-10 min-w-20 rounded-xl px-4 text-sm font-semibold transition-colors ${
-                periodo === opcion && !mostrarFiltroAvanzado
+                periodo === opcion && periodo !== "personalizado"
                   ? "bg-primary text-primary-foreground"
                   : "border border-white/20 bg-white/10 text-white"
               }`}
@@ -345,7 +344,7 @@ function Panel() {
             </div>
           </div>
 
-          {/* BOTONES DE INGRESO Y GASTO (AMARILLO Y OSCURO REDONDOS) */}
+          {/* BOTONES DE INGRESO Y GASTO */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <button
               onClick={() => abrirModal("ingreso")}
@@ -361,10 +360,10 @@ function Panel() {
             </button>
           </div>
 
-          {/* BOTONES FILTRAR Y TURNOS BLANCOS Y REDONDOS DENTRO DEL CONTENEDOR OSCURO */}
+          {/* BOTONES FILTRAR Y TURNOS */}
           <div className="mt-3 grid grid-cols-2 gap-3">
             <button
-              onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
+              onClick={() => abrirModal("filtros")}
               className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md border border-slate-200 transition-transform active:scale-[0.97]"
             >
               <Search className="h-5 w-5 text-amber-500" /> Filtrar
@@ -381,55 +380,6 @@ function Panel() {
 
       <section className="px-5 pt-7">
         <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
-
-        {mostrarFiltroAvanzado && (
-          <div className="mt-3 animate-in fade-in duration-200">
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-md text-foreground">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                  <History className="h-4 w-4 text-primary" /> Filtrar por Fechas
-                </p>
-                {periodo === "personalizado" && (
-                  <button 
-                    onClick={() => { setPeriodo("dia"); setRangoFechas({ inicio: "", fin: "" }); }}
-                    className="text-[10px] text-primary underline font-semibold"
-                  >
-                    Limpiar filtro
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div>
-                  <span className="text-[10px] text-muted-foreground">Desde / Día</span>
-                  <input
-                    type="date"
-                    value={rangoFechas.inicio}
-                    onChange={(e) => {
-                      setRangoFechas({ ...rangoFechas, inicio: e.target.value });
-                      setPeriodo("personalizado");
-                    }}
-                    className="w-full h-9 rounded-lg bg-secondary border border-input px-2 text-xs text-foreground"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-muted-foreground">Hasta (opcional)</span>
-                  <input
-                    type="date"
-                    value={rangoFechas.fin}
-                    onChange={(e) => {
-                      setRangoFechas({ ...rangoFechas, fin: e.target.value });
-                      setPeriodo("personalizado");
-                    }}
-                    className="w-full h-9 rounded-lg bg-secondary border border-input px-2 text-xs text-foreground"
-                  />
-                </div>
-              </div>
-              <p className="text-[11px] text-muted-foreground italic">
-                Mostrando {movsFiltrados.length} registros correspondientes al criterio seleccionado.
-              </p>
-            </div>
-          </div>
-        )}
 
         <button
           type="button"
@@ -748,6 +698,14 @@ function Panel() {
       {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "factura" && <VentanaFacturaModalPersonalizada onCerrar={cerrarModal} />}
+      {search.modal === "filtros" && (
+        <VentanaFiltrosModal 
+          onCerrar={cerrarModal} 
+          rangoFechas={rangoFechas}
+          setRangoFechas={setRangoFechas}
+          setPeriodo={setPeriodo}
+        />
+      )}
       {search.modal === "turnos" && (
         <VentanaTurnosModal 
           totalesGenerales={totalesGenerales} 
@@ -787,29 +745,115 @@ function BookOpenIcon(props: React.SVGProps<SVGSVGElement>) {
 
 function VentanaFacturaModalPersonalizada({ onCerrar }: { onCerrar: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground max-h-[90vh] overflow-y-auto"
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 text-foreground"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-bold flex items-center gap-2">
+        <div className="flex items-center justify-between pb-2">
+          <h3 className="font-display text-xl font-bold flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" /> Factura
           </h3>
           <button
             onClick={onCerrar}
-            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Cerrar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="space-y-4">
-          <p className="text-xs text-muted-foreground">
-            Genera y descarga tu factura oficial con el desglose de IVA (10%).
-          </p>
-          <VentanaFacturaModal onCerrar={onCerrar} />
+        <p className="text-xs text-muted-foreground mb-4">
+          Genera y descarga tu factura oficial con el desglose de IVA (10%).
+        </p>
+        <VentanaFacturaModal onCerrar={onCerrar} />
+      </div>
+    </div>
+  );
+}
+
+function VentanaFiltrosModal({ 
+  onCerrar, 
+  rangoFechas, 
+  setRangoFechas, 
+  setPeriodo 
+}: { 
+  onCerrar: () => void;
+  rangoFechas: { inicio: string; fin: string };
+  setRangoFechas: React.Dispatch<React.SetStateAction<{ inicio: string; fin: string }>>;
+  setPeriodo: (p: Periodo) => void;
+}) {
+  const [inicioTemp, setInicioTemp] = useState(rangoFechas.inicio);
+  const [finTemp, setFinTemp] = useState(rangoFechas.fin);
+
+  function aplicarFiltro(e: React.FormEvent) {
+    e.preventDefault();
+    setRangoFechas({ inicio: inicioTemp, fin: finTemp });
+    setPeriodo("personalizado");
+    onCerrar();
+  }
+
+  function limpiarFiltro() {
+    setRangoFechas({ inicio: "", fin: "" });
+    setPeriodo("dia");
+    onCerrar();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 text-foreground"
+      >
+        <div className="flex items-center justify-between pb-2 mb-2">
+          <h3 className="font-display text-xl font-bold flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" /> Filtrar por fechas
+          </h3>
+          <button
+            onClick={onCerrar}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Cerrar"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
+
+        <form onSubmit={aplicarFiltro} className="space-y-4">
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Desde / Día inicial</label>
+            <input
+              type="date"
+              value={inicioTemp}
+              onChange={(e) => setInicioTemp(e.target.value)}
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Hasta (opcional)</label>
+            <input
+              type="date"
+              value={finTemp}
+              onChange={(e) => setFinTemp(e.target.value)}
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none"
+            />
+          </div>
+
+          <div className="pt-2 space-y-2">
+            <button
+              type="submit"
+              className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98]"
+            >
+              Aplicar filtros
+            </button>
+            <button
+              type="button"
+              onClick={limpiarFiltro}
+              className="w-full h-12 rounded-2xl bg-secondary text-foreground font-semibold text-sm hover:bg-secondary/80 transition-colors"
+            >
+              Limpiar filtro
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -833,21 +877,21 @@ function VentanaDocumentosModal({ onCerrar }: { onCerrar: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground max-h-[90vh] overflow-y-auto"
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 text-foreground"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-bold flex items-center gap-2">
+        <div className="flex items-center justify-between pb-2 mb-2">
+          <h3 className="font-display text-xl font-bold flex items-center gap-2">
             <Paperclip className="h-5 w-5 text-primary" /> Documentos y Archivos
           </h3>
           <button
             onClick={onCerrar}
-            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Cerrar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -861,11 +905,11 @@ function VentanaDocumentosModal({ onCerrar }: { onCerrar: () => void }) {
             placeholder="Ej: Seguro coche, ITV, Permiso..."
             value={nuevoNombre}
             onChange={(e) => setNuevoNombre(e.target.value)}
-            className="flex-1 h-11 rounded-2xl bg-secondary border border-input px-3 text-xs text-foreground"
+            className="flex-1 h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground outline-none focus:border-primary"
           />
           <button
             type="submit"
-            className="h-11 px-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-xs shadow"
+            className="h-12 px-5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm shadow"
           >
             Adjuntar
           </button>
@@ -914,19 +958,19 @@ function VentanaTurnosModal({
   onCerrarTurno: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={onCerrar}>
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 text-foreground"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-bold text-foreground">Turnos</h3>
+        <div className="flex items-center justify-between pb-2 mb-2">
+          <h3 className="font-display text-xl font-bold text-foreground">Turnos</h3>
           <button
             onClick={onCerrar}
-            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Cerrar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -1024,19 +1068,19 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground max-h-[90vh] overflow-y-auto"
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 text-foreground"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-bold">Nuevo ingreso</h3>
+        <div className="flex items-center justify-between pb-2 mb-2">
+          <h3 className="font-display text-xl font-bold">Nuevo ingreso</h3>
           <button
             onClick={onCerrar}
-            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Cerrar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -1050,12 +1094,12 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
               autoFocus
               value={importe}
               onChange={(e) => setImporte(e.target.value)}
-              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-lg font-bold text-foreground mt-1 focus:ring-2 focus:ring-primary"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-primary outline-none"
             />
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1">Forma de pago</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">Forma de pago</label>
             <div className="grid grid-cols-2 gap-2">
               {(["Efectivo", "Tarjeta", "Emisora", "Bizum"] as const).map((m) => (
                 <button
@@ -1082,7 +1126,7 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
               type="date"
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
-              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
             />
           </div>
 
@@ -1092,7 +1136,7 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
               type="text"
               value={concepto}
               onChange={(e) => setConcepto(e.target.value)}
-              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
             />
             <div className="flex flex-wrap gap-2 mt-2">
               {["Carrera", "Aeropuerto", "Estación"].map((c) => (
@@ -1145,19 +1189,19 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground max-h-[90vh] overflow-y-auto"
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 text-foreground"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-bold">Nuevo gasto</h3>
+        <div className="flex items-center justify-between pb-2 mb-2">
+          <h3 className="font-display text-xl font-bold">Nuevo gasto</h3>
           <button
             onClick={onCerrar}
-            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Cerrar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -1171,7 +1215,7 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
               autoFocus
               value={importe}
               onChange={(e) => setImporte(e.target.value)}
-              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-lg font-bold text-foreground mt-1 focus:ring-2 focus:ring-primary"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-primary outline-none"
             />
           </div>
 
@@ -1183,7 +1227,7 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
               type="date"
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
-              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
             />
           </div>
 
@@ -1193,7 +1237,7 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
               type="text"
               value={concepto}
               onChange={(e) => setConcepto(e.target.value)}
-              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
             />
             <div className="flex flex-wrap gap-2 mt-2">
               {["Combustible", "Lavado", "Taller", "Parking", "Peaje"].map((c) => (
