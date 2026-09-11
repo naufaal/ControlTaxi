@@ -286,7 +286,7 @@ function Panel() {
   }
 
   return (
-    <main className="min-h-dvh bg-background pb-32">
+    <main className="min-h-dvh bg-background pb-16">
       <div className="relative overflow-hidden rounded-b-[2rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8">
         <div className="pointer-events-none absolute -top-20 -right-10 h-52 w-52 rounded-full bg-primary/25 blur-3xl" />
         <div className="relative flex items-start justify-between gap-3">
@@ -339,20 +339,37 @@ function Panel() {
           </div>
         </div>
 
-        {/* BOTONES DE INGRESO/GASTO */}
-        <div className="relative mt-5 grid grid-cols-2 gap-3">
-          <button
-            onClick={() => abrirModal("ingreso")}
-            className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-primary text-base font-semibold text-primary-foreground shadow-[var(--shadow-glow)] transition-transform active:scale-[0.97]"
-          >
-            <Plus className="h-5 w-5" /> Ingreso
-          </button>
-          <button
-            onClick={() => abrirModal("gasto")}
-            className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white transition-transform active:scale-[0.97]"
-          >
-            <Minus className="h-5 w-5" /> Gasto
-          </button>
+        {/* BOTONES DE INGRESO / GASTO Y FILTRAR / TURNOS EN BLANCO Y REDONDOS */}
+        <div className="relative mt-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => abrirModal("ingreso")}
+              className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md transition-transform active:scale-[0.97]"
+            >
+              <Plus className="h-5 w-5 text-slate-950" /> Ingreso
+            </button>
+            <button
+              onClick={() => abrirModal("gasto")}
+              className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md transition-transform active:scale-[0.97]"
+            >
+              <Minus className="h-5 w-5 text-slate-950" /> Gasto
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
+              className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md transition-transform active:scale-[0.97]"
+            >
+              <Search className="h-5 w-5 text-slate-950" /> Filtrar
+            </button>
+            <button
+              onClick={() => abrirModal("turnos")}
+              className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md transition-transform active:scale-[0.97]"
+            >
+              <Lock className="h-5 w-5 text-slate-950" /> Turnos
+            </button>
+          </div>
         </div>
       </div>
 
@@ -737,25 +754,6 @@ function Panel() {
       <div className="px-5 pt-8">
         <PieMarca oscuro />
       </div>
-
-      {/* BARRA FLOTANTE FIJA INFERIOR CON FILTRAR Y TURNOS */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-t border-border p-3 px-5 shadow-lg">
-        <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
-          <button
-            onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
-            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-card text-sm font-semibold text-foreground shadow-sm transition-transform active:scale-[0.97]"
-          >
-            <Search className="h-4 w-4 text-primary" /> Filtrar
-          </button>
-
-          <button
-            onClick={() => abrirModal("turnos")}
-            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-card text-sm font-semibold text-foreground shadow-sm transition-transform active:scale-[0.97]"
-          >
-            <Lock className="h-4 w-4 text-primary" /> Turnos
-          </button>
-        </div>
-      </div>
     </main>
   );
 }
@@ -781,7 +779,6 @@ function BookOpenIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 function VentanaFacturaModalPersonalizada({ onCerrar }: { onCerrar: () => void }) {
-  // Ventana cuadrada con bordes redondeados y botón X arriba a la derecha idéntica a ingresos y gastos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
       <div
