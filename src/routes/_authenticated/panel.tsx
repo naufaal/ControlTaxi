@@ -561,7 +561,7 @@ function Panel() {
       <FacturaClienteBoton onClick={() => abrirModal("factura")} />
 
       {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
-      {search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
+      {search.modal === "gasto" && <FormularioGaseoso onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "factura" && <VentanaFacturaModal onCerrar={cerrarModal} />}
       {search.modal === "parciales" && (
         <VentanaParcialesModal 
@@ -633,7 +633,8 @@ function VentanaParcialesModal({
 function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
   const [importe, setImporte] = useState("");
   const [metodo, setMetodo] = useState<"Efectivo" | "Tarjeta" | "Emisora" | "Bizum">("Efectivo");
-  const [concepto, setConcepto] = useState("");
+  const [concepto, setConcepto] = useState("Carrera");
+  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -643,12 +644,14 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
       return;
     }
 
+    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
+
     onGuardar({
       id: crypto.randomUUID(),
       tipo: "ingreso",
       importe: num,
-      concepto: concepto.trim() ? `${concepto.trim()} (${metodo})` : `Carrera (${metodo})`,
-      fecha: new Date().toISOString(),
+      concepto: `${concepto.trim() || "Carrera"} (${metodo})`,
+      fecha: fechaFinal,
     });
   }
 
@@ -656,10 +659,10 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground"
+        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-bold">Nuevo Ingreso</h3>
+          <h3 className="font-display text-lg font-bold">Nuevo ingreso</h3>
           <button onClick={onCerrar} className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
             <X className="h-4 w-4" />
           </button>
@@ -667,30 +670,30 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold">Importe (€)</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Importe €</label>
             <input
               type="text"
               inputMode="decimal"
-              placeholder="0.00"
+              placeholder="0,00"
               autoFocus
               value={importe}
               onChange={(e) => setImporte(e.target.value)}
-              className="w-full h-12 rounded-xl bg-secondary border border-input px-3 text-lg font-bold text-foreground mt-1"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-lg font-bold text-foreground mt-1 focus:ring-2 focus:ring-primary"
             />
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1">Método de pago</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1">Forma de pago</label>
+            <div className="grid grid-cols-3 gap-2">
               {(["Efectivo", "Tarjeta", "Emisora", "Bizum"] as const).map((m) => (
                 <button
                   type="button"
                   key={m}
                   onClick={() => setMetodo(m)}
-                  className={`h-11 rounded-xl text-xs font-semibold border transition-colors ${
+                  className={`h-11 rounded-2xl text-xs font-semibold border transition-colors ${
                     metodo === m
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-secondary text-foreground border-input"
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-secondary text-foreground border-input hover:bg-secondary/80"
                   }`}
                 >
                   {m}
@@ -700,21 +703,42 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto (Opcional)</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Fecha</label>
+            <input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
             <input
               type="text"
-              placeholder="Ej. Aeropuerto"
               value={concepto}
               onChange={(e) => setConcepto(e.target.value)}
-              className="w-full h-12 rounded-xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
             />
+            <div className="flex flex-wrap gap-2 mt-2">
+              {["Carrera", "Aeropuerto", "Estación", "Propina"].map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  onClick={() => setConcepto(c)}
+                  className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-primary/10 hover:border-primary transition-colors"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
 
           <button
             type="submit"
             className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2"
           >
-            Guardar Ingreso
+            Guardar ingreso
           </button>
         </form>
       </div>
@@ -722,9 +746,10 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
   );
 }
 
-function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+function FormularioGaseoso({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
   const [importe, setImporte] = useState("");
-  const [concepto, setConcepto] = useState("");
+  const [concepto, setConcepto] = useState("Combustible");
+  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -734,12 +759,14 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
       return;
     }
 
+    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
+
     onGuardar({
       id: crypto.randomUUID(),
       tipo: "gasto",
       importe: num,
       concepto: concepto.trim() || "Gasto",
-      fecha: new Date().toISOString(),
+      fecha: fechaFinal,
     });
   }
 
@@ -747,10 +774,10 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground"
+        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-bold">Nuevo Gasto</h3>
+          <h3 className="font-display text-lg font-bold">Nuevo gasto</h3>
           <button onClick={onCerrar} className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
             <X className="h-4 w-4" />
           </button>
@@ -758,32 +785,55 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold">Importe (€)</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Importe €</label>
             <input
               type="text"
               inputMode="decimal"
-              placeholder="0.00"
+              placeholder="0,00"
               autoFocus
               value={importe}
               onChange={(e) => setImporte(e.target.value)}
-              className="w-full h-12 rounded-xl bg-secondary border border-input px-3 text-lg font-bold text-foreground mt-1"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-lg font-bold text-foreground mt-1 focus:ring-2 focus:ring-primary"
             />
           </div>
+
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto (Opcional)</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Fecha</label>
+            <input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
             <input
               type="text"
-              placeholder="Ej. Gasoil, Peaje..."
               value={concepto}
               onChange={(e) => setConcepto(e.target.value)}
-              className="w-full h-12 rounded-xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+              className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
             />
+            <div className="flex flex-wrap gap-2 mt-2">
+              {["Combustible", "Lavado", "Taller", "Parking", "Peaje", "Seguro"].map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  onClick={() => setConcepto(c)}
+                  className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-primary/10 hover:border-primary transition-colors"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
+
           <button
             type="submit"
             className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2"
           >
-            Guardar Gasto
+            Guardar gasto
           </button>
         </form>
       </div>
