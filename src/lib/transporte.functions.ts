@@ -45,14 +45,16 @@ const UA =
 let listadoDiarioTrenes: { fechaDia: string; data: EstacionResumen[] } | null = null;
 
 function minutosMadridAhora(): number {
-  const partes = new Intl.DateTimeFormat("es-ES", {
+  const formatter = new Intl.DateTimeFormat("es-ES", {
     timeZone: "Europe/Madrid",
-    hour: "2-digit",
-    minute: "2-digit",
+    hour: "numeric",
+    minute: "numeric",
     hour12: false,
-  }).format(new Date());
-  const [h, m] = partes.split(":").map(Number);
-  return (h ?? 0) * 60 + (m ?? 0);
+  });
+  const parts = formatter.formatToParts(new Date());
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return h * 60 + m;
 }
 
 function obtenerFechaActualYMD(): string {
@@ -65,12 +67,13 @@ function obtenerFechaActualYMD(): string {
 }
 
 function aMinutos(hhmm: string): number {
+  if (!hhmm || !hhmm.includes(":")) return 0;
   const [h, m] = hhmm.split(":").map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
 }
 
 function recortaHora(hora: string): string {
-  return hora.slice(0, 5);
+  return hora ? hora.slice(0, 5) : "00:00";
 }
 
 function normalizaCiudad(texto: string): string {
@@ -199,15 +202,19 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 );
 
 // ---------------------------------------------------------------------------
-// TRENES CONECTADOS AL SISTEMA OFICIAL DE ADIF (CON CACHÉ DIARIA)
+// TRENES CONECTADOS AL SISTEMA OFICIAL DE ADIF (CON CACHÉ SEGURA)
 // ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const hoyYMD = obtenerFechaActualYMD();
 
     let baseTrenesDiarios: EstacionResumen[] = [];
+    const tieneCacheValida =
+      listadoDiarioTrenes &&
+      listadoDiarioTrenes.fechaDia === hoyYMD &&
+      listadoDiarioTrenes.data.some((e) => e.trenes.length > 0);
 
-    if (listadoDiarioTrenes && listadoDiarioTrenes.fechaDia === hoyYMD) {
+    if (tieneCacheValida && listadoDiarioTrenes) {
       baseTrenesDiarios = listadoDiarioTrenes.data;
     } else {
       const consultarEstacionOficial = async (
@@ -345,10 +352,14 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       ]);
 
       baseTrenesDiarios = [atocha, chamartin];
-      listadoDiarioTrenes = {
-        fechaDia: hoyYMD,
-        data: baseTrenesDiarios,
-      };
+
+      // Guardamos en caché únicamente si alguna estación ha traído datos reales
+      if (baseTrenesDiarios.some((e) => e.trenes.length > 0)) {
+        listadoDiarioTrenes = {
+          fechaDia: hoyYMD,
+          data: baseTrenesDiarios,
+        };
+      }
     }
 
     const ahoraMinutos = minutosMadridAhora();
@@ -356,7 +367,8 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
     const resultadoEnTiempoReal: EstacionResumen[] = baseTrenesDiarios.map((estacion) => {
       const trenesEnCurso = estacion.trenes.filter((t) => {
         const minTren = aMinutos(t.horaEstado);
-        return minTren >= ahoraMinutos - 5 && minTren <= ahoraMinutos + 120;
+        // Desde 5 minutos antes hasta 2 horas después, y se ocultan 5 minutos después de su hora
+        return minTren >= ahoraMinutos - 120 && minTren <= ahoraMinutos + 5;
       });
 
       return {
