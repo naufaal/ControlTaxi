@@ -199,7 +199,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 );
 
 // ---------------------------------------------------------------------------
-// TRENES CONECTADOS AL SISTEMA OFICIAL DE ADIF (COMPATIBLE CON EL WIDGET)
+// TRENES CONECTADOS AL SISTEMA OFICIAL DE ADIF (CON CACHÉ DIARIA)
 // ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
@@ -219,7 +219,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
         let conError = true;
 
         const fuentesTrenes = [
-          // 1. Endpoint directo oficial de Adif (mismo que alimenta los paneles públicos)
+          // 1. Endpoint directo oficial de Adif
           async () => {
             const res = await fetch(`https://info.adif.es/api/v1/stations/${codigoAdif}/arrivals`, {
               headers: { 
@@ -356,7 +356,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
     const resultadoEnTiempoReal: EstacionResumen[] = baseTrenesDiarios.map((estacion) => {
       const trenesEnCurso = estacion.trenes.filter((t) => {
         const minTren = aMinutos(t.horaEstado);
-        return minTren >= ahoraMinutos - 15;
+        return minTren >= ahoraMinutos - 5 && minTren <= ahoraMinutos + 120;
       });
 
       return {
