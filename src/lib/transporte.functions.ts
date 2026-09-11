@@ -155,7 +155,7 @@ function decodificaHtml(texto: string): string {
 }
 
 async function leerEstacionTreneamos(
-  pagina: string,
+  urlEstacion: string,
   nombre: string,
 ): Promise<EstacionResumen> {
   const vacia: EstacionResumen = { nombre, total: 0, trenes: [], error: true };
@@ -163,9 +163,16 @@ async function leerEstacionTreneamos(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    const res = await fetch(`${pagina}?tab=llegadas&actualizado=${Date.now()}`, {
+    // Codificamos la URL para manejar correctamente caracteres especiales como tildes (ej. Chamartín)
+    const urlSegura = encodeURI(`${urlEstacion}?tab=llegadas&actualizado=${Date.now()}`);
+
+    const res = await fetch(urlSegura, {
       cache: "no-store",
-      headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" },
+      headers: { 
+        "User-Agent": UA, 
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "es-ES,es;q=0.9"
+      },
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -174,8 +181,6 @@ async function leerEstacionTreneamos(
     const html = await res.text();
 
     const trenes: TrenLlegada[] = [];
-    
-    // Extracción tolerante basada en etiquetas aria-label o filas generales si cambia el DOM
     const regexAria = /aria-label="([^"]*Tren[^"]*)"/g;
     let match;
 
@@ -206,7 +211,6 @@ async function leerEstacionTreneamos(
       });
     }
 
-    // Si no encuentra por aria-label, devolvemos vacío controlado en vez de colgarse
     if (trenes.length === 0) {
       return vacia;
     }
