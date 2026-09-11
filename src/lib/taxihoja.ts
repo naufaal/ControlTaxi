@@ -1,90 +1,59 @@
-import { supabase } from "@/integrations/supabase/client";
-
-export type Movimiento = {
+export type TurnoGuardado = {
   id: string;
-  fecha: string;
-  tipo: "ingreso" | "gasto";
-  concepto: string;
-  importe: number;
+  fechaInicio: string;
+  fechaFin: string;
+  ingresos: number;
+  gastos: number;
+  neto: number;
 };
 
-const KEY = "taxihoja:movimientos";
-
-// --- FUNCIONES CONECTADAS A SUPABASE ---
-
-export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
+export async function cargarTurnos(userId: string): Promise<TurnoGuardado[]> {
   const { data, error } = await (supabase as any)
-    .from("movimientos")
-    .select("id, fecha, tipo, concepto, importe")
+    .from("turnos_historial")
+    .select("id, fecha_inicio, fecha_fin, ingresos, gastos, neto")
     .eq("user_id", userId)
-    .order("fecha", { ascending: false });
+    .order("fecha_fin", { ascending: false });
 
   if (error) {
-    console.error("Error al cargar de Supabase:", error);
+    console.error("Error al cargar turnos de Supabase:", error);
     throw error;
   }
 
-  return (data || []).map((m: any) => ({
-    id: m.id,
-    fecha: m.fecha,
-    tipo: m.tipo as "ingreso" | "gasto",
-    concepto: m.concepto,
-    importe: Number(m.importe),
+  return (data || []).map((t: any) => ({
+    id: t.id,
+    fechaInicio: t.fecha_inicio,
+    fechaFin: t.fecha_fin,
+    ingresos: Number(t.ingresos),
+    gastos: Number(t.gastos),
+    neto: Number(t.neto),
   }));
 }
 
-export async function guardarMovimiento(userId: string, m: Movimiento) {
-  const { error } = await (supabase as any).from("movimientos").insert([
+export async function guardarTurnoSupabase(userId: string, t: TurnoGuardado) {
+  const { error } = await (supabase as any).from("turnos_historial").insert([
     {
-      id: m.id,
+      id: t.id,
       user_id: userId,
-      fecha: m.fecha,
-      tipo: m.tipo,
-      concepto: m.concepto,
-      importe: m.importe,
+      fecha_inicio: t.fechaInicio,
+      fecha_fin: t.fechaFin,
+      ingresos: t.ingresos,
+      gastos: t.gastos,
+      neto: t.neto,
     },
   ]);
 
   if (error) {
-    console.error("Error al guardar en Supabase:", error);
+    console.error("Error al guardar turno en Supabase:", error);
     throw error;
   }
 }
 
-export async function borrarMovimiento(userId: string, id: string) {
-  const { error } = await (supabase as any)
-    .from("movimientos")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
-
-  if (error) {
-    console.error("Error al borrar en Supabase:", error);
-    throw error;
-  }
+export function obtenerUltimoCorteTurno(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem("taxihoja:ultimo_corte");
 }
 
-// --- FUNCIONES LOCALES (RESPALDO Y FORMATO) ---
-
-export function getMovimientos(): Movimiento[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Movimiento[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveMovimientos(list: Movimiento[]) {
+export function guardarUltimoCorteTurno(fechaIso: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(KEY, JSON.stringify(list));
-}
-
-export function eur(n: number) {
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 2,
-  }).format(n);
+  window.localStorage.setItem("taxihoja:ultimo_corte", fechaIso);
 }
