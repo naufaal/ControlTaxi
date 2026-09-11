@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Paperclip,
   FileText,
+  Train,
 } from "lucide-react";
 import {
   eur,
@@ -352,128 +353,7 @@ function Panel() {
             <Minus className="h-5 w-5" /> Gasto
           </button>
         </div>
-
-        {/* APARTADO DE DOCUMENTOS ADJUNTOS DEBAJO DE INGRESOS/GASTOS */}
-        <div className="relative mt-3">
-          <button
-            onClick={() => abrirModal("documentos")}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-sm font-semibold text-white backdrop-blur transition-transform active:scale-[0.97]"
-          >
-            <Paperclip className="h-4 w-4" /> Documentos (Seguro, Autorización, etc.)
-          </button>
-        </div>
       </div>
-
-      {/* SECCIÓN AMARILLA: FACTURA */}
-      <div className="px-5 mt-4">
-        <button
-          onClick={() => abrirModal("factura")}
-          className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
-              <FileText className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="font-display text-base font-bold text-amber-950">
-                Factura
-              </h3>
-              <p className="text-xs text-amber-900/80 mt-0.5 truncate">
-                Crea y descarga una factura con IVA del 10%.
-              </p>
-            </div>
-          </div>
-        </button>
-      </div>
-
-      {/* SECCIÓN AMARILLA: TEMARIO EXAMEN TAXI */}
-      <div className="px-5 mt-3">
-        <div className="rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
-              <BookOpenIcon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="font-display text-base font-bold text-amber-950">
-                Temario examen taxi
-              </h3>
-              <a
-                href="https://madrid.es/taxi"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-amber-950 underline font-semibold mt-0.5 inline-flex items-center gap-1 hover:opacity-80"
-              >
-                madrid.es/taxi <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-5 mt-4 relative z-10 flex items-center justify-between gap-3">
-        <button
-          onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
-          className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
-        >
-          <Search className="h-4 w-4 text-primary" /> Filtrar / Historial
-        </button>
-
-        <button
-          onClick={() => abrirModal("turnos")}
-          className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
-        >
-          <Lock className="h-4 w-4 text-primary" /> Turnos
-        </button>
-      </div>
-
-      {mostrarFiltroAvanzado && (
-        <div className="px-5 mt-3 animate-in fade-in duration-200">
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-md text-foreground">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <History className="h-4 w-4 text-primary" /> Histórico y Filtro por Fechas
-              </p>
-              {periodo === "personalizado" && (
-                <button 
-                  onClick={() => { setPeriodo("dia"); setRangoFechas({ inicio: "", fin: "" }); }}
-                  className="text-[10px] text-primary underline font-semibold"
-                >
-                  Limpiar filtro
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div>
-                <span className="text-[10px] text-muted-foreground">Desde / Día</span>
-                <input
-                  type="date"
-                  value={rangoFechas.inicio}
-                  onChange={(e) => {
-                    setRangoFechas({ ...rangoFechas, inicio: e.target.value });
-                    setPeriodo("personalizado");
-                  }}
-                  className="w-full h-9 rounded-lg bg-secondary border border-input px-2 text-xs text-foreground"
-                />
-              </div>
-              <div>
-                <span className="text-[10px] text-muted-foreground">Hasta (opcional)</span>
-                <input
-                  type="date"
-                  value={rangoFechas.fin}
-                  onChange={(e) => {
-                    setRangoFechas({ ...rangoFechas, fin: e.target.value });
-                    setPeriodo("personalizado");
-                  }}
-                  className="w-full h-9 rounded-lg bg-secondary border border-input px-2 text-xs text-foreground"
-                />
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground italic">
-              Mostrando {movsFiltrados.length} registros correspondientes al criterio seleccionado.
-            </p>
-          </div>
-        </div>
-      )}
 
       <section className="px-5 pt-7">
         <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
@@ -544,6 +424,95 @@ function Panel() {
         )}
       </section>
 
+      {/* BOTONES FLOTANTES DE FILTRAR Y TURNOS */}
+      <div className="px-5 mt-6 relative z-10 flex items-center justify-between gap-3">
+        <button
+          onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
+          className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
+        >
+          <Search className="h-4 w-4 text-primary" /> Filtrar
+        </button>
+
+        <button
+          onClick={() => abrirModal("turnos")}
+          className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
+        >
+          <Lock className="h-4 w-4 text-primary" /> Turnos
+        </button>
+      </div>
+
+      {mostrarFiltroAvanzado && (
+        <div className="px-5 mt-3 animate-in fade-in duration-200">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-md text-foreground">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <History className="h-4 w-4 text-primary" /> Histórico y Filtro por Fechas
+              </p>
+              {periodo === "personalizado" && (
+                <button 
+                  onClick={() => { setPeriodo("dia"); setRangoFechas({ inicio: "", fin: "" }); }}
+                  className="text-[10px] text-primary underline font-semibold"
+                >
+                  Limpiar filtro
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div>
+                <span className="text-[10px] text-muted-foreground">Desde / Día</span>
+                <input
+                  type="date"
+                  value={rangoFechas.inicio}
+                  onChange={(e) => {
+                    setRangoFechas({ ...rangoFechas, inicio: e.target.value });
+                    setPeriodo("personalizado");
+                  }}
+                  className="w-full h-9 rounded-lg bg-secondary border border-input px-2 text-xs text-foreground"
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-muted-foreground">Hasta (opcional)</span>
+                <input
+                  type="date"
+                  value={rangoFechas.fin}
+                  onChange={(e) => {
+                    setRangoFechas({ ...rangoFechas, fin: e.target.value });
+                    setPeriodo("personalizado");
+                  }}
+                  className="w-full h-9 rounded-lg bg-secondary border border-input px-2 text-xs text-foreground"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground italic">
+              Mostrando {movsFiltrados.length} registros correspondientes al criterio seleccionado.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* DOCUMENTACIÓN APORTAR */}
+      <div className="px-5 mt-6">
+        <button
+          onClick={() => abrirModal("documentos")}
+          className="w-full text-left rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)] flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-primary">
+              <Paperclip className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-bold text-foreground">
+                Documentación aportar
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                Tema del seguro, tarjeta de transporte, etc.
+              </p>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* INFORMACIÓN DE TERMINALES DE BARAJAS */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
@@ -581,6 +550,94 @@ function Panel() {
           </div>
         )}
       </section>
+
+      {/* INFORMACIÓN DE ESTACIONES DE TREN (ALTA VELOCIDAD) */}
+      <section className="px-5 pt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad</h2>
+          <button
+            onClick={actualizarTransportes}
+            disabled={vuelos.isFetching || trenes.isFetching}
+            aria-label="Actualizar trenes"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+        {trenes.isLoading ? (
+          <Cargando texto="Consultando trenes…" />
+        ) : (
+          <div className="mt-3 space-y-3">
+            {(trenes.data ?? []).map((estacion: any) => (
+              <div key={estacion.estacion} className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                    <Train className="h-4 w-4" />
+                  </span>
+                  <span className="font-display text-base font-bold text-foreground">{estacion.estacion}</span>
+                </div>
+                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                  {(estacion.trenes ?? []).map((tr: any) => (
+                    <li key={tr.id} className="flex items-center gap-3 text-sm">
+                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstimada}</span>
+                      <span className="min-w-0 flex-1 truncate text-foreground">{tr.origen}</span>
+                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                        {tr.estado}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* BOTÓN AMARILLO: FACTURA */}
+      <div className="px-5 mt-8">
+        <button
+          onClick={() => abrirModal("factura")}
+          className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
+              <FileText className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-bold text-amber-950">
+                Factura
+              </h3>
+              <p className="text-xs text-amber-900/80 mt-0.5 truncate">
+                Crea y descarga una factura con IVA del 10%.
+              </p>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* BOTÓN AMARILLO: TEMARIO EXAMEN TAXI */}
+      <div className="px-5 mt-3">
+        <div className="rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
+              <BookOpenIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-bold text-amber-950">
+                Temario examen taxi
+              </h3>
+              <a
+                href="https://madrid.es/taxi"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-amber-950 underline font-semibold mt-0.5 inline-flex items-center gap-1 hover:opacity-80"
+              >
+                madrid.es/taxi <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
