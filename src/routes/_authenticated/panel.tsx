@@ -866,7 +866,7 @@ function VentanaFiltrosModal({
                       : "bg-secondary text-foreground border-input hover:bg-secondary/80"
                   }`}
                 >
-                  {t === "todos" ? "Neto / Todos" : t === "ingresos" ? "Ingresos" : "Gastos"}
+                  {t === "todos" ? "Neto" : t === "ingresos" ? "Ingresos" : "Gastos"}
                 </button>
               ))}
             </div>
