@@ -286,7 +286,7 @@ function Panel() {
   }
 
   return (
-    <main className="min-h-dvh bg-background pb-10">
+    <main className="min-h-dvh bg-background pb-32">
       <div className="relative overflow-hidden rounded-b-[2rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8">
         <div className="pointer-events-none absolute -top-20 -right-10 h-52 w-52 rounded-full bg-primary/25 blur-3xl" />
         <div className="relative flex items-start justify-between gap-3">
@@ -339,7 +339,7 @@ function Panel() {
           </div>
         </div>
 
-        {/* BOTONES FLOTANTES DE INGRESO/GASTO */}
+        {/* BOTONES DE INGRESO/GASTO */}
         <div className="relative mt-5 grid grid-cols-2 gap-3">
           <button
             onClick={() => abrirModal("ingreso")}
@@ -352,23 +352,6 @@ function Panel() {
             className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white transition-transform active:scale-[0.97]"
           >
             <Minus className="h-5 w-5" /> Gasto
-          </button>
-        </div>
-
-        {/* BOTONES FLOTANTES DE FILTRAR Y TURNOS */}
-        <div className="relative mt-3 grid grid-cols-2 gap-3">
-          <button
-            onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
-            className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white transition-transform active:scale-[0.97]"
-          >
-            <Search className="h-5 w-5 text-primary" /> Filtrar
-          </button>
-
-          <button
-            onClick={() => abrirModal("turnos")}
-            className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white transition-transform active:scale-[0.97]"
-          >
-            <Lock className="h-5 w-5 text-primary" /> Turnos
           </button>
         </div>
       </div>
@@ -514,7 +497,7 @@ function Panel() {
         </button>
       </div>
 
-      {/* INFORMACIÓN DE TERMINALES DE BARAJAS (CON SCROLL) */}
+      {/* INFORMACIÓN DE TERMINALES DE BARAJAS */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
@@ -615,7 +598,7 @@ function Panel() {
         )}
       </section>
 
-      {/* INFORMACIÓN DE ESTACIONES DE TREN (ATOCHA Y CHAMARTÍN SEPARADAS Y CON SCROLL) */}
+      {/* INFORMACIÓN DE ESTACIONES DE TREN */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
@@ -754,6 +737,25 @@ function Panel() {
       <div className="px-5 pt-8">
         <PieMarca oscuro />
       </div>
+
+      {/* BARRA FLOTANTE FIJA INFERIOR CON FILTRAR Y TURNOS */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-t border-border p-3 px-5 shadow-lg">
+        <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-card text-sm font-semibold text-foreground shadow-sm transition-transform active:scale-[0.97]"
+          >
+            <Search className="h-4 w-4 text-primary" /> Filtrar
+          </button>
+
+          <button
+            onClick={() => abrirModal("turnos")}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-card text-sm font-semibold text-foreground shadow-sm transition-transform active:scale-[0.97]"
+          >
+            <Lock className="h-4 w-4 text-primary" /> Turnos
+          </button>
+        </div>
+      </div>
     </main>
   );
 }
@@ -779,7 +781,7 @@ function BookOpenIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 function VentanaFacturaModalPersonalizada({ onCerrar }: { onCerrar: () => void }) {
-  // Versión adaptada con diseño idéntico a Ingreso/Gasto (cuadrada, botón X arriba a la derecha)
+  // Ventana cuadrada con bordes redondeados y botón X arriba a la derecha idéntica a ingresos y gastos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
       <div
@@ -802,7 +804,6 @@ function VentanaFacturaModalPersonalizada({ onCerrar }: { onCerrar: () => void }
           <p className="text-xs text-muted-foreground">
             Genera y descarga tu factura oficial con el desglose de IVA (10%).
           </p>
-          {/* Componente original de la factura adaptado o incrustado */}
           <VentanaFacturaModal onCerrar={onCerrar} />
         </div>
       </div>
