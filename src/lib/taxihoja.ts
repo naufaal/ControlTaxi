@@ -1,3 +1,13 @@
+import { supabase } from "@/integrations/supabase/client";
+
+export type Movimiento = {
+  id: string;
+  tipo: "ingreso" | "gasto";
+  importe: number;
+  concepto: string;
+  fecha: string;
+};
+
 export type TurnoGuardado = {
   id: string;
   fechaInicio: string;
@@ -6,6 +16,65 @@ export type TurnoGuardado = {
   gastos: number;
   neto: number;
 };
+
+export function eur(valor: number): string {
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+  }).format(valor);
+}
+
+export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
+  const { data, error } = await (supabase as any)
+    .from("movimientos")
+    .select("id, tipo, importe, concepto, fecha")
+    .eq("user_id", userId)
+    .order("fecha", { ascending: false });
+
+  if (error) {
+    console.error("Error al cargar movimientos:", error);
+    throw error;
+  }
+
+  return (data || []).map((m: any) => ({
+    id: m.id,
+    tipo: m.tipo,
+    importe: Number(m.importe),
+    concepto: m.concepto,
+    fecha: m.fecha,
+  }));
+}
+
+export async function guardarMovimiento(userId: string, m: Movimiento) {
+  const { error } = await (supabase as any).from("movimientos").insert([
+    {
+      id: m.id,
+      user_id: userId,
+      tipo: m.tipo,
+      importe: m.importe,
+      concepto: m.concepto,
+      fecha: m.fecha,
+    },
+  ]);
+
+  if (error) {
+    console.error("Error al guardar movimiento:", error);
+    throw error;
+  }
+}
+
+export async function borrarMovimiento(userId: string, id: string) {
+  const { error } = await (supabase as any)
+    .from("movimientos")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("Error al borrar movimiento:", error);
+    throw error;
+  }
+}
 
 export async function cargarTurnos(userId: string): Promise<TurnoGuardado[]> {
   const { data, error } = await (supabase as any)
