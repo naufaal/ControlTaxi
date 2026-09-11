@@ -1,26 +1,21 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import {
-  BookOpenCheck,
   CarTaxiFront,
   FileDown,
-  ExternalLink,
   LogOut,
   Minus,
   Plane,
   Plus,
   RefreshCw,
-  TrainFront,
   Trash2,
-  Upload,
-  FileText,
   ArrowLeft,
   Lock,
   Search,
   History,
   Clock,
+  X,
 } from "lucide-react";
 import {
   eur,
@@ -44,13 +39,6 @@ interface TurnoGuardado {
   ingresos: number;
   gastos: number;
   neto: number;
-}
-
-function fechaLocalInput(fecha: Date): string {
-  const año = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
-  const dia = String(fecha.getDate()).padStart(2, "0");
-  return `${año}-${mes}-${dia}`;
 }
 
 function perteneceAlPeriodo(
@@ -116,7 +104,6 @@ function Panel() {
   const [mostrarFiltroAvanzado, setMostrarFiltroAvanzado] = useState(false);
   const [rangoFechas, setRangoFechas] = useState({ inicio: "", fin: "" });
   
-  // Estado local para almacenar el historial de turnos cerrados
   const [turnosCerrados, setTurnosCerrados] = useState<TurnoGuardado[]>(() => {
     try {
       const guardados = localStorage.getItem("controltaxi_turnos");
@@ -150,7 +137,11 @@ function Panel() {
     queryKey: ["movimientos", currentUserId],
     queryFn: async () => {
       if (!currentUserId) return [];
-      void supabase.rpc("registrar_uso", { p_event: "panel_view", p_path: "/panel" });
+      try {
+        await supabase.rpc("registrar_uso", { p_event: "panel_view", p_path: "/panel" });
+      } catch (e) {
+        // Ignorar fallo de RPC si no existe en la BD
+      }
       return await cargarMovimientos(currentUserId);
     },
     enabled: !!currentUserId,
@@ -159,17 +150,27 @@ function Panel() {
 
   const movs = movimientosQuery.data ?? [];
 
-  const vuelosFn = useServerFn(getLlegadasBarajas);
-  const trenesFn = useServerFn(getLlegadasTrenes);
-
   const vuelos = useQuery({
     queryKey: ["llegadas-barajas"],
-    queryFn: () => vuelosFn(),
+    queryFn: async () => {
+      try {
+        return await getLlegadasBarajas();
+      } catch {
+        return [];
+      }
+    },
     refetchInterval: 120_000,
   });
+
   const trenes = useQuery({
     queryKey: ["llegadas-trenes"],
-    queryFn: () => trenesFn(),
+    queryFn: async () => {
+      try {
+        return await getLlegadasTrenes();
+      } catch {
+        return [];
+      }
+    },
     refetchInterval: 180_000,
   });
 
@@ -232,7 +233,6 @@ function Panel() {
     if (!seguro) return;
 
     if (currentUserId && movs.length > 0) {
-      // Calcular fechas del turno (desde el movimiento más antiguo al más actual)
       const fechasMovs = movs.map((m) => new Date(m.fecha).getTime());
       const fechaInicioTurno = new Date(Math.min(...fechasMovs)).toISOString();
       const fechaFinTurno = new Date().toISOString();
@@ -475,7 +475,6 @@ function Panel() {
         )}
       </section>
 
-      {/* Historial de Turnos Cerrados */}
       <section className="px-5 pt-8">
         <h2 className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
           <Clock className="h-5 w-5 text-primary" /> Historial de Turnos Cerrados
@@ -521,9 +520,6 @@ function Panel() {
         )}
       </section>
 
-      <DocumentosSincronizados userId={currentUserId} />
-
-      {/* Secciones de Transportes y Temario */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
@@ -540,7 +536,7 @@ function Panel() {
           <Cargando texto="Consultando vuelos…" />
         ) : (
           <div className="mt-3 space-y-3">
-            {(vuelos.data ?? []).map((t) => (
+            {(vuelos.data ?? []).map((t: any) => (
               <div key={t.terminal} className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
                 <div className="flex items-center gap-2">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
@@ -549,7 +545,7 @@ function Panel() {
                   <span className="font-display text-base font-bold text-foreground">{t.etiqueta}</span>
                 </div>
                 <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {t.vuelos.map((v) => (
+                  {t.vuelos.map((v: any) => (
                     <li key={v.id} className="flex items-center gap-3 text-sm">
                       <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
                       <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
@@ -564,8 +560,8 @@ function Panel() {
 
       <FacturaClienteBoton onClick={() => abrirModal("factura")} />
 
-      {search.modal === "ingreso" && <Formulario tipo="ingreso" onCerrar={cerrarModal} onGuardar={guardar} />}
-      {search.modal === "gasto" && <Formulario tipo="gasto" onCerrar={cerrarModal} onGuardar={guardar} />}
+      {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
+      {search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "factura" && <VentanaFacturaModal onCerrar={cerrarModal} />}
       {search.modal === "parciales" && (
         <VentanaParcialesModal 
@@ -634,6 +630,167 @@ function VentanaParcialesModal({
   );
 }
 
+function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+  const [importe, setImporte] = useState("");
+  const [metodo, setMetodo] = useState<"Efectivo" | "Tarjeta" | "Emisora" | "Bizum">("Efectivo");
+  const [concepto, setConcepto] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const num = parseFloat(importe.replace(",", "."));
+    if (isNaN(num) || num <= 0) {
+      alert("Introduce un importe válido");
+      return;
+    }
+
+    onGuardar({
+      id: crypto.randomUUID(),
+      tipo: "ingreso",
+      importe: num,
+      concepto: concepto.trim() ? `${concepto.trim()} (${metodo})` : `Carrera (${metodo})`,
+      fecha: new Date().toISOString(),
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-bold">Nuevo Ingreso</h3>
+          <button onClick={onCerrar} className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Importe (€)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
+              autoFocus
+              value={importe}
+              onChange={(e) => setImporte(e.target.value)}
+              className="w-full h-12 rounded-xl bg-secondary border border-input px-3 text-lg font-bold text-foreground mt-1"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1">Método de pago</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["Efectivo", "Tarjeta", "Emisora", "Bizum"] as const).map((m) => (
+                <button
+                  type="button"
+                  key={m}
+                  onClick={() => setMetodo(m)}
+                  className={`h-11 rounded-xl text-xs font-semibold border transition-colors ${
+                    metodo === m
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-secondary text-foreground border-input"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto (Opcional)</label>
+            <input
+              type="text"
+              placeholder="Ej. Aeropuerto"
+              value={concepto}
+              onChange={(e) => setConcepto(e.target.value)}
+              className="w-full h-12 rounded-xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2"
+          >
+            Guardar Ingreso
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+  const [importe, setImporte] = useState("");
+  const [concepto, setConcepto] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const num = parseFloat(importe.replace(",", "."));
+    if (isNaN(num) || num <= 0) {
+      alert("Introduce un importe válido");
+      return;
+    }
+
+    onGuardar({
+      id: crypto.randomUUID(),
+      tipo: "gasto",
+      importe: num,
+      concepto: concepto.trim() || "Gasto",
+      fecha: new Date().toISOString(),
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-bold">Nuevo Gasto</h3>
+          <button onClick={onCerrar} className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Importe (€)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
+              autoFocus
+              value={importe}
+              onChange={(e) => setImporte(e.target.value)}
+              className="w-full h-12 rounded-xl bg-secondary border border-input px-3 text-lg font-bold text-foreground mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto (Opcional)</label>
+            <input
+              type="text"
+              placeholder="Ej. Gasoil, Peaje..."
+              value={concepto}
+              onChange={(e) => setConcepto(e.target.value)}
+              className="w-full h-12 rounded-xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2"
+          >
+            Guardar Gasto
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function Cargando({ texto }: { texto: string }) {
   return (
     <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -649,13 +806,4 @@ function Mini({ label, valor }: { label: string; valor: string }) {
       <p className="text-sm font-semibold text-white">{valor}</p>
     </div>
   );
-}
-
-function DocumentosSincronizados({ userId }: { userId: string | null }) {
-  // Mantiene la lógica previa de archivos intacta
-  return null; 
-}
-
-function Formulario({ tipo, onCerrar, onGuardar }: any) {
-  return null; // Mantiene el formulario original
 }
