@@ -114,7 +114,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
         if (!programada) continue;
 
         const min = aMinutos(estimada);
-        if (min < ahora - 20 || min > ahora + 300) continue;
+        if (min < ahora || min > ahora + 300) continue;
 
         const origen = v["ciudadIataOtro"] ?? v["iataOtro"] ?? "";
         if (!origen) continue;
@@ -153,38 +153,50 @@ function generarHoraRelativa(minutosOffset: number): string {
 
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
-    // Definimos una lista amplia de trenes simulados distribuidos en el tiempo
     const todosAtocha: TrenLlegada[] = [
-      { id: "at-60000-1", tipo: "", numero: "03181", origen: "Barcelona-Sants", hora: generarHoraRelativa(-10), horaEstado: generarHoraRelativa(-10), via: "1", estado: "Realizado" },
-      { id: "at-60000-2", tipo: "", numero: "6042", origen: "Sevilla-Santa Justa", hora: generarHoraRelativa(15), horaEstado: generarHoraRelativa(19), via: "2", estado: "Con retraso (+4')" },
-      { id: "at-60000-3", tipo: "", numero: "04251", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(45), horaEstado: generarHoraRelativa(45), via: "3", estado: "En hora" },
-      { id: "at-60000-4", tipo: "", numero: "08172", origen: "Toledo", hora: generarHoraRelativa(90), horaEstado: generarHoraRelativa(90), via: "4", estado: "En hora" },
-      { id: "at-60000-5", tipo: "", numero: "02188", origen: "Málaga María Zambrano", hora: generarHoraRelativa(140), horaEstado: generarHoraRelativa(148), via: "1", estado: "Con retraso (+8')" },
-      { id: "at-60000-6", tipo: "", numero: "6512", origen: "Barcelona-Sants", hora: generarHoraRelativa(185), horaEstado: generarHoraRelativa(185), via: "2", estado: "En hora" },
-      { id: "at-60000-7", tipo: "", numero: "18032", origen: "Jaén", hora: generarHoraRelativa(240), horaEstado: generarHoraRelativa(240), via: "5", estado: "En hora" },
-      { id: "at-60000-8", tipo: "", numero: "03421", origen: "Granada", hora: generarHoraRelativa(280), horaEstado: generarHoraRelativa(280), via: "3", estado: "En hora" },
-      { id: "at-60000-9", tipo: "", numero: "08210", origen: "Ciudad Real", hora: generarHoraRelativa(320), horaEstado: generarHoraRelativa(320), via: "4", estado: "En hora" },
+      { id: "at-1", tipo: "", numero: "03181", origen: "Barcelona-Sants", hora: generarHoraRelativa(-15), horaEstado: generarHoraRelativa(-15), via: "1", estado: "Realizado" },
+      { id: "at-2", tipo: "", numero: "6042", origen: "Sevilla-Santa Justa", hora: generarHoraRelativa(-5), horaEstado: generarHoraRelativa(-2), via: "2", estado: "Recién llegado" },
+      { id: "at-3", tipo: "", numero: "04251", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(8), horaEstado: generarHoraRelativa(12), via: "3", estado: "Con retraso (+4')" },
+      { id: "at-4", tipo: "", numero: "08172", origen: "Toledo", hora: generarHoraRelativa(18), horaEstado: generarHoraRelativa(18), via: "4", estado: "En hora" },
+      { id: "at-5", tipo: "", numero: "02188", origen: "Málaga María Zambrano", hora: generarHoraRelativa(25), horaEstado: generarHoraRelativa(33), via: "1", estado: "Con retraso (+8')" },
+      { id: "at-6", tipo: "", numero: "6512", origen: "Barcelona-Sants", hora: generarHoraRelativa(40), horaEstado: generarHoraRelativa(40), via: "2", estado: "En hora" },
+      { id: "at-7", tipo: "", numero: "18032", origen: "Jaén", hora: generarHoraRelativa(55), horaEstado: generarHoraRelativa(55), via: "5", estado: "En hora" },
+      { id: "at-8", tipo: "", numero: "03421", origen: "Granada", hora: generarHoraRelativa(70), horaEstado: generarHoraRelativa(70), via: "3", estado: "En hora" },
+      { id: "at-9", tipo: "", numero: "08210", origen: "Ciudad Real", hora: generarHoraRelativa(85), horaEstado: generarHoraRelativa(90), via: "4", estado: "Con retraso (+5')" },
+      { id: "at-10", tipo: "", numero: "05114", origen: "Almería", hora: generarHoraRelativa(110), horaEstado: generarHoraRelativa(110), via: "5", estado: "En hora" },
+      { id: "at-11", tipo: "", numero: "03221", origen: "Barcelona-Sants", hora: generarHoraRelativa(135), horaEstado: generarHoraRelativa(135), via: "1", estado: "En hora" },
+      { id: "at-12", tipo: "", numero: "06150", origen: "Sevilla-Santa Justa", hora: generarHoraRelativa(160), horaEstado: generarHoraRelativa(160), via: "2", estado: "En hora" },
+      { id: "at-13", tipo: "", numero: "08412", origen: "Puertollano", hora: generarHoraRelativa(190), horaEstado: generarHoraRelativa(190), via: "4", estado: "En hora" },
+      { id: "at-14", tipo: "", numero: "04331", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(220), horaEstado: generarHoraRelativa(225), via: "3", estado: "Con retraso (+5')" },
+      { id: "at-15", tipo: "", numero: "02340", origen: "Huelva", hora: generarHoraRelativa(260), horaEstado: generarHoraRelativa(260), via: "1", estado: "En hora" },
+      { id: "at-16", tipo: "", numero: "08552", origen: "Toledo", hora: generarHoraRelativa(290), horaEstado: generarHoraRelativa(290), via: "4", estado: "En hora" },
     ];
 
     const todosChamartin: TrenLlegada[] = [
-      { id: "ch-17000-1", tipo: "", numero: "04050", origen: "Valladolid-Campo Grande", hora: generarHoraRelativa(-5), horaEstado: generarHoraRelativa(-5), via: "12", estado: "Realizado" },
-      { id: "ch-17000-2", tipo: "", numero: "05122", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(30), horaEstado: generarHoraRelativa(30), via: "14", estado: "En hora" },
-      { id: "ch-17000-3", tipo: "", numero: "06210", origen: "Alicante", hora: generarHoraRelativa(75), horaEstado: generarHoraRelativa(82), via: "15", estado: "Con retraso (+7')" },
-      { id: "ch-17000-4", tipo: "", numero: "17054", origen: "Segovia", hora: generarHoraRelativa(110), horaEstado: generarHoraRelativa(110), via: "10", estado: "En hora" },
-      { id: "ch-17000-5", tipo: "", numero: "04120", origen: "Burgos Rosa Manzano", hora: generarHoraRelativa(160), horaEstado: generarHoraRelativa(160), via: "11", estado: "En hora" },
-      { id: "ch-17000-6", tipo: "", numero: "04322", origen: "León", hora: generarHoraRelativa(210), horaEstado: generarHoraRelativa(210), via: "16", estado: "En hora" },
-      { id: "ch-17000-7", tipo: "", numero: "6248", origen: "Alicante", hora: generarHoraRelativa(250), horaEstado: generarHoraRelativa(250), via: "14", estado: "En hora" },
-      { id: "ch-17000-8", tipo: "", numero: "04182", origen: "Santander", hora: generarHoraRelativa(295), horaEstado: generarHoraRelativa(303), via: "12", estado: "Con retraso (+8')" },
+      { id: "ch-1", tipo: "", numero: "04050", origen: "Valladolid-Campo Grande", hora: generarHoraRelativa(-10), horaEstado: generarHoraRelativa(-10), via: "12", estado: "Realizado" },
+      { id: "ch-2", tipo: "", numero: "05122", origen: "Valencia Joaquín Sorolla", hora: generarHoraRelativa(5), horaEstado: generarHoraRelativa(5), via: "14", estado: "En hora" },
+      { id: "ch-3", tipo: "", numero: "06210", origen: "Alicante", hora: generarHoraRelativa(15), horaEstado: generarHoraRelativa(22), via: "15", estado: "Con retraso (+7')" },
+      { id: "ch-4", tipo: "", numero: "17054", origen: "Segovia", hora: generarHoraRelativa(30), horaEstado: generarHoraRelativa(30), via: "10", estado: "En hora" },
+      { id: "ch-5", tipo: "", numero: "04120", origen: "Burgos Rosa Manzano", hora: generarHoraRelativa(45), horaEstado: generarHoraRelativa(45), via: "11", estado: "En hora" },
+      { id: "ch-6", tipo: "", numero: "04322", origen: "León", hora: generarHoraRelativa(60), horaEstado: generarHoraRelativa(60), via: "16", estado: "En hora" },
+      { id: "ch-7", tipo: "", numero: "6248", origen: "Alicante", hora: generarHoraRelativa(80), horaEstado: generarHoraRelativa(80), via: "14", estado: "En hora" },
+      { id: "ch-8", tipo: "", numero: "04182", origen: "Santander", hora: generarHoraRelativa(100), horaEstado: generarHoraRelativa(108), via: "12", estado: "Con retraso (+8')" },
+      { id: "ch-9", tipo: "", numero: "18120", origen: "Salamanca", hora: generarHoraRelativa(125), horaEstado: generarHoraRelativa(125), via: "10", estado: "En hora" },
+      { id: "ch-10", tipo: "", numero: "04224", origen: "Gijón", hora: generarHoraRelativa(150), horaEstado: generarHoraRelativa(150), via: "16", estado: "En hora" },
+      { id: "ch-11", tipo: "", numero: "04350", origen: "Valladolid-Campo Grande", hora: generarHoraRelativa(180), horaEstado: generarHoraRelativa(180), via: "12", estado: "En hora" },
+      { id: "ch-12", tipo: "", numero: "05410", origen: "Murcia del Carmen", hora: generarHoraRelativa(210), horaEstado: generarHoraRelativa(215), via: "14", estado: "Con retraso (+5')" },
+      { id: "ch-13", tipo: "", numero: "04502", origen: "Ourense", hora: generarHoraRelativa(250), horaEstado: generarHoraRelativa(250), via: "15", estado: "En hora" },
+      { id: "ch-14", tipo: "", numero: "17210", origen: "Segovia", hora: generarHoraRelativa(285), horaEstado: generarHoraRelativa(285), via: "10", estado: "En hora" },
     ];
 
     const ahoraMinutos = minutosMadridAhora();
 
-    // Filtramos dinámicamente: desde 20 minutos antes (para ver los recién llegados o en curso) hasta un rango de 5 horas (300 min)
     const filtrarYLimitar = (trenes: TrenLlegada[]) => {
       return trenes
         .filter((t) => {
           const minEst = aMinutos(t.horaEstado);
-          return minEst >= ahoraMinutos - 20 && minEst <= ahoraMinutos + 300;
+          // minEst >= ahoraMinutos filtra los pasados de inmediato; minEst <= ahoraMinutos + 300 mantiene las próximas 5h
+          return minEst >= ahoraMinutos && minEst <= ahoraMinutos + 300;
         })
         .sort((a, b) => aMinutos(a.horaEstado) - aMinutos(b.horaEstado))
         .slice(0, 20);
