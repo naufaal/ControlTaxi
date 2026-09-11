@@ -292,7 +292,7 @@ function Panel() {
   }
 
   return (
-    <main className="min-h-dvh bg-background pb-16">
+    <main className="min-h-dvh bg-background pb-28">
       <div className="relative overflow-hidden rounded-b-[2rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8">
         <div className="pointer-events-none absolute -top-20 -right-10 h-52 w-52 rounded-full bg-primary/25 blur-3xl" />
         <div className="relative flex items-start justify-between gap-3">
@@ -365,63 +365,12 @@ function Panel() {
               <Minus className="h-5 w-5" /> Gasto
             </button>
           </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <button
-              onClick={() => abrirModal("filtros")}
-              className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md border border-slate-200 transition-transform active:scale-[0.97]"
-            >
-              <Search className="h-5 w-5 text-amber-500" /> Filtrar
-            </button>
-            <button
-              onClick={() => abrirModal("turnos")}
-              className="flex h-14 items-center justify-center gap-2 rounded-full bg-white text-base font-semibold text-slate-950 shadow-md border border-slate-200 transition-transform active:scale-[0.97]"
-            >
-              <Lock className="h-5 w-5 text-amber-500" /> Turnos
-            </button>
-          </div>
         </div>
       </div>
 
       <section className="px-5 pt-7">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-lg font-semibold text-foreground">Movimientos</h2>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 mb-4" role="group" aria-label="Filtro de movimientos">
-          <button
-            type="button"
-            onClick={() => setFiltroTipo("todos")}
-            className={`h-10 rounded-xl text-xs font-semibold transition-colors ${
-              filtroTipo === "todos"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Neto / Todos
-          </button>
-          <button
-            type="button"
-            onClick={() => setFiltroTipo("ingresos")}
-            className={`h-10 rounded-xl text-xs font-semibold transition-colors ${
-              filtroTipo === "ingresos"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Solo Ingresos
-          </button>
-          <button
-            type="button"
-            onClick={() => setFiltroTipo("gastos")}
-            className={`h-10 rounded-xl text-xs font-semibold transition-colors ${
-              filtroTipo === "gastos"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Solo Gastos
-          </button>
         </div>
 
         <button
@@ -710,7 +659,7 @@ function Panel() {
         )}
       </section>
 
-      <div className="px-5 mt-8">
+      <div className="px-5 pt-8">
         <button
           onClick={() => abrirModal("factura")}
           className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
@@ -754,6 +703,22 @@ function Panel() {
         </div>
       </div>
 
+      {/* Botones Flotantes (Filtrar y Turnos) */}
+      <div className="fixed bottom-5 left-5 right-5 z-40 flex gap-3 max-w-sm mx-auto">
+        <button
+          onClick={() => abrirModal("filtros")}
+          className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
+        >
+          <Search className="h-5 w-5 text-amber-500" /> Filtrar
+        </button>
+        <button
+          onClick={() => abrirModal("turnos")}
+          className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
+        >
+          <Lock className="h-5 w-5 text-amber-500" /> Turnos
+        </button>
+      </div>
+
       {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "factura" && <VentanaFacturaModalPersonalizada onCerrar={cerrarModal} />}
@@ -763,6 +728,8 @@ function Panel() {
           rangoFechas={rangoFechas}
           setRangoFechas={setRangoFechas}
           setPeriodo={setPeriodo}
+          filtroTipo={filtroTipo}
+          setFiltroTipo={setFiltroTipo}
         />
       )}
       {search.modal === "turnos" && (
@@ -834,25 +801,33 @@ function VentanaFiltrosModal({
   onCerrar, 
   rangoFechas, 
   setRangoFechas, 
-  setPeriodo 
+  setPeriodo,
+  filtroTipo,
+  setFiltroTipo
 }: { 
   onCerrar: () => void;
   rangoFechas: { inicio: string; fin: string };
   setRangoFechas: React.Dispatch<React.SetStateAction<{ inicio: string; fin: string }>>;
   setPeriodo: (p: Periodo) => void;
+  filtroTipo: "todos" | "ingresos" | "gastos";
+  setFiltroTipo: (tipo: "todos" | "ingresos" | "gastos") => void;
 }) {
   const [inicioTemp, setInicioTemp] = useState(rangoFechas.inicio);
   const [finTemp, setFinTemp] = useState(rangoFechas.fin);
+  const [tipoTemp, setTipoTemp] = useState(filtroTipo);
 
   function aplicarFiltro(e: React.FormEvent) {
     e.preventDefault();
     setRangoFechas({ inicio: inicioTemp, fin: finTemp });
+    setFiltroTipo(tipoTemp);
     setPeriodo("personalizado");
     onCerrar();
   }
 
   function limpiarFiltro() {
     setRangoFechas({ inicio: "", fin: "" });
+    setTipoTemp("todos");
+    setFiltroTipo("todos");
     setPeriodo("dia");
     onCerrar();
   }
@@ -865,7 +840,7 @@ function VentanaFiltrosModal({
       >
         <div className="flex items-center justify-between pb-2 mb-2">
           <h3 className="font-display text-xl font-bold flex items-center gap-2">
-            <History className="h-5 w-5 text-primary" /> Filtrar por fechas
+            <History className="h-5 w-5 text-primary" /> Filtrar movimientos
           </h3>
           <button
             onClick={onCerrar}
@@ -878,7 +853,27 @@ function VentanaFiltrosModal({
 
         <form onSubmit={aplicarFiltro} className="space-y-4">
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold">Desde / Día inicial</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">Tipo de movimiento</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["todos", "ingresos", "gastos"] as const).map((t) => (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setTipoTemp(t)}
+                  className={`h-11 rounded-xl text-xs font-semibold border transition-colors ${
+                    tipoTemp === t
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-secondary text-foreground border-input hover:bg-secondary/80"
+                  }`}
+                >
+                  {t === "todos" ? "Neto / Todos" : t === "ingresos" ? "Ingresos" : "Gastos"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Desde / Fecha inicial</label>
             <input
               type="date"
               value={inicioTemp}
@@ -888,7 +883,7 @@ function VentanaFiltrosModal({
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold">Hasta (opcional)</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold">Hasta / Fecha final</label>
             <input
               type="date"
               value={finTemp}
