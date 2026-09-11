@@ -84,7 +84,7 @@ function normalizaCiudad(texto: string): string {
     .trim();
 }
 
-// Generador de respaldo diario por si fallan todas las conexiones
+// Generador de respaldo diario completo por si fallan las APIs
 function generarRespaldoDiario(): EstacionResumen[] {
   const origenesAtocha = ["Barcelona Sants", "Sevilla S.J.", "Málaga M.Z.", "Valencia J.S.", "Alicante", "Granada", "Cádiz"];
   const origenesChamartin = ["Valladolid", "León", "Burgos", "Santander", "Oviedo", "Valencia J.S.", "Alicante", "Murcia"];
@@ -93,8 +93,8 @@ function generarRespaldoDiario(): EstacionResumen[] {
   const generarTrenesEstacion = (codigo: string, nombresOrigenes: string[]): TrenLlegada[] => {
     const lista: TrenLlegada[] = [];
     let idCounter = 1;
-    for (let h = 6; h <= 23; h++) {
-      for (const m of [0, 30]) {
+    for (let h = 0; h <= 23; h++) {
+      for (const m of [0, 15, 30, 45]) {
         const hh = String(h).padStart(2, "0");
         const mm = String(m).padStart(2, "0");
         const horaStr = `${hh}:${mm}`;
@@ -255,7 +255,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 );
 
 // ---------------------------------------------------------------------------
-// TRENES CON PANTALLAS-ESTACIONES, CACHÉ DIARIA Y FILTRADO EXACTO (+5 MIN)
+// TRENES CON PANTALLAS-ESTACIONES, CACHÉ DIARIA Y FILTRADO DE 5 MIN
 // ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
@@ -266,8 +266,8 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       return listadoDiarioTrenes.data.map((estacion) => {
         const trenesEnCurso = estacion.trenes.filter((t) => {
           const minTren = aMinutos(t.horaEstado);
-          // Oculta el tren exactamente a los 5 minutos de pasar su hora estimada
-          return minTren >= ahoraMinutos - 120 && minTren <= ahoraMinutos + 5;
+          // Muestra desde 5 minutos antes (pasados) en adelante para todo el día
+          return minTren >= ahoraMinutos - 5;
         });
 
         return {
@@ -287,7 +287,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       let conError = true;
 
       const fuentesTrenes = [
-        // 1. Pantallas Estaciones (Primera opción prioritaria)
+        // 1. Pantallas Estaciones (Opción principal espejo de Adif)
         async () => {
           const res = await fetch(`https://pantallas-estaciones.vercel.app/api/stations/${codigoAdif}/arrivals`, {
             headers: { "User-Agent": UA, Accept: "application/json" },
@@ -395,7 +395,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
 
     let baseTrenesDiarios = [atocha, chamartin];
 
-    // Si todas las fuentes fallan, se aplica el respaldo diario completo
+    // Si las APIs externas bloquean las peticiones, se usa el respaldo completo del día
     if (baseTrenesDiarios.every((e) => e.trenes.length === 0)) {
       baseTrenesDiarios = generarRespaldoDiario();
     }
@@ -410,7 +410,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
     return baseTrenesDiarios.map((estacion) => {
       const trenesEnCurso = estacion.trenes.filter((t) => {
         const minTren = aMinutos(t.horaEstado);
-        return minTren >= ahoraMinutos - 120 && minTren <= ahoraMinutos + 5;
+        return minTren >= ahoraMinutos - 5;
       });
 
       return {
