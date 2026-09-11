@@ -40,7 +40,7 @@ export type EstacionResumen = {
 };
 
 const UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
 function minutosMadridAhora(): number {
   const partes = new Intl.DateTimeFormat("es-ES", {
@@ -70,6 +70,9 @@ function normalizaCiudad(texto: string): string {
     .trim();
 }
 
+// ---------------------------------------------------------------------------
+// VUELOS BARAJAS CON MÚLTIPLES ENDPOINTS EN CASCADA
+// ---------------------------------------------------------------------------
 export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   async (): Promise<TerminalResumen[]> => {
     const base: Record<"T1" | "T2" | "T4", TerminalResumen> = {
@@ -78,25 +81,45 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
       T4: { terminal: "T4", etiqueta: "T4 · T4S", total: 0, vuelos: [] },
     };
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+    // Lista de enlaces alternativos de Aena e infovuelos
+    const endpointsAena = [
+      "https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=MAD&flightType=L&l=es_ES",
+      "https://www.aena.es/destinos/es/madrid-barajas/infovuelos.json",
+      "https://aeropuertomadrid-barajas.com/api/vuelos-llegadas.json"
+    ];
 
-      const res = await fetch(
-        "https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=MAD&flightType=L&l=es_ES",
-        {
+    let datos: Array<Record<string, string>> | null = null;
+
+    for (const url of endpointsAena) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const res = await fetch(url, {
           headers: {
             "User-Agent": UA,
-            Accept: "json, text/plain, */*",
+            Accept: "application/json, text/plain, */*",
             Referer: "https://www.aena.es/es/infovuelos.html",
           },
           signal: controller.signal,
-        },
-      );
-      clearTimeout(timeoutId);
+        });
+        clearTimeout(timeoutId);
 
-      if (!res.ok) return Object.values(base);
-      const datos = (await res.json()) as Array<Record<string, string>>;
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json) && json.length > 0) {
+            datos = json;
+            break; 
+          }
+        }
+      } catch {
+        // Intenta con el siguiente enlace de la lista si este falla
+      }
+    }
+
+    if (!datos) return Object.values(base);
+
+    try {
       const ahora = minutosMadridAhora();
       const vistos = new Set<string>();
 
@@ -111,7 +134,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
               : null;
         if (!clave) continue;
 
-        const programada = recortaHora(v["horaProgramada"] ?? "");
+        const programada = recortaHora(v["horaProgramada"] ?? v["hora"] ?? "");
         const estimada = recortaHora(v["horaEstimada"] ?? programada) || programada;
         if (!programada) continue;
 
@@ -122,7 +145,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 
         if (diffMin > 30 || diffMin < -15) continue;
 
-        const origen = v["ciudadIataOtro"] ?? v["iataOtro"] ?? "";
+        const origen = v["ciudadIataOtro"] ?? v["iataOtro"] ?? v["origen"] ?? "";
         if (!origen) continue;
         const huella = `${clave}|${estimada}|${normalizaCiudad(origen)}`;
         if (vistos.has(huella)) continue;
@@ -144,8 +167,8 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
         base[clave].total += 1;
         base[clave].vuelos.push({
           id: huella,
-          numero: `${v["iataCompania"] ?? ""}${(v["numVuelo"] ?? "").replace(/^0+/, "")}`,
-          compania: v["nombreCompania"] ?? "",
+          numero: `${v["iataCompania"] ?? ""}${(v["numVuelo"] ?? v["numero"] ?? "").replace(/^0+/, "")}`,
+          compania: v["nombreCompania"] ?? v["compania"] ?? "",
           origen,
           horaProgramada: programada,
           horaEstimada: estimada,
@@ -165,74 +188,135 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   },
 );
 
+// ---------------------------------------------------------------------------
+// TRENES CON MÚLTIPLES ENDPOINTS EN CASCADA
+// ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
-    const consultarEstacion = async (codigoAdif: string, nombre: string, enlace: string): Promise<EstacionResumen> => {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const consultarEstacionConRespaldo = async (
+      codigoAdif: string,
+      nombre: string,
+      enlace: string
+    ): Promise<EstacionResumen> => {
+      let listaTrenes: TrenLlegada[] = [];
+      let conError = true;
 
-        const res = await fetch(`https://radardetrenes.com/api/v1/stations/${codigoAdif}`, {
-          headers: {
-            "User-Agent": UA,
-            Accept: "application/json",
-          },
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-
-        if (!res.ok) {
-          throw new Error(`Error HTTP: ${res.status}`);
-        }
-
-        const data = await res.json();
-        // Mapeo adaptado según la estructura de la API de radardetrenes.com
-        const listaTrenes: TrenLlegada[] = (data.arrivals || data.llegadas || []).map((t: any, index: number) => {
-          const horaProg = recortaHora(t.scheduledTime || t.hora || "00:00");
-          const horaEst = recortaHora(t.estimatedTime || t.horaEstado || horaProg);
-          const retraso = t.delayMinutes || t.retraso || 0;
-
-          return {
+      // Lista de proveedores alternativos de trenes ordenados por prioridad
+      const fuentesTrenes = [
+        // 1. Radar de Trenes
+        async () => {
+          const res = await fetch(`https://radardetrenes.com/api/v1/stations/${codigoAdif}`, {
+            headers: { "User-Agent": UA, Accept: "application/json" },
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const items = data.arrivals || data.llegadas || [];
+          return items.map((t: any, index: number) => ({
             id: `${codigoAdif}-${t.trainNumber || index}`,
             tipo: t.serviceType || t.tipo || "AVE",
-            numero: t.trainNumber || t.numero || "",
-            origen: t.origin || t.origen || "",
-            hora: horaProg,
-            horaEstado: horaEst,
-            via: t.track || t.via || "-",
-            estado: retraso > 0 ? `Con retraso (+${retraso}')` : (t.status || t.estado || "En hora"),
-          };
-        });
+            numero: String(t.trainNumber || t.numero || ""),
+            origen: t.origin || t.origen || "Origen desconocido",
+            hora: recortaHora(t.scheduledTime || t.hora || "00:00"),
+            horaEstado: recortaHora(t.estimatedTime || t.horaEstado || t.scheduledTime || "00:00"),
+            via: String(t.track || t.via || "-"),
+            estado: (t.delayMinutes || t.retraso || 0) > 0 ? `Con retraso (+${t.delayMinutes || t.retraso}')` : (t.status || "En hora"),
+          }));
+        },
+        // 2. Renfe Flota Larga Distancia Directo
+        async () => {
+          const timestamp = Date.now();
+          const res = await fetch(`https://tiempo-real.largorecorrido.renfe.com/renfe-visor/flotaLD.json?v=${timestamp}`, {
+            headers: { "User-Agent": UA, Accept: "application/json", Referer: "https://tiempo-real.largorecorrido.renfe.com/" },
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const items = Array.isArray(data) ? data : (data.trenes || data.items || []);
+          const filtrados: TrenLlegada[] = [];
 
-        const ahoraMinutos = minutosMadridAhora();
-        const trenesFiltrados = listaTrenes.filter((t) => {
+          items.forEach((t: any, index: number) => {
+            const descEstacion = (t.desEstacion || t.destination || t.estacionDestino || "").toUpperCase();
+            const codDestino = String(t.codEstacionDestino || t.destStationCode || "");
+
+            if (codDestino === codigoAdif || descEstacion.includes(nombre.toUpperCase())) {
+              const horaProg = recortaHora(t.fecLlegadaProg || t.scheduledTime || "00:00");
+              const horaEst = recortaHora(t.fecLlegadaEst || t.estimatedTime || horaProg);
+              const retraso = Number(t.retraso || t.delayMinutes || 0);
+
+              filtrados.push({
+                id: `${codigoAdif}-renfe-${index}`,
+                tipo: t.tipoTren || t.serviceType || "AVE",
+                numero: String(t.numTren || t.trainNumber || ""),
+                origen: t.desOrigen || t.origin || "Desconocido",
+                hora: horaProg,
+                horaEstado: horaEst,
+                via: String(t.via || "-"),
+                estado: retraso > 0 ? `Con retraso (+${retraso}')` : "En hora",
+              });
+            }
+          });
+          return filtrados;
+        },
+        // 3. API de Treneamos de respaldo
+        async () => {
+          const res = await fetch(`https://api.treneamos.com/v1/estaciones/${codigoAdif}/llegadas`, {
+            headers: { "User-Agent": UA, Accept: "application/json" },
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const items = data.llegadas || data.trenes || [];
+          return items.map((t: any, index: number) => ({
+            id: `${codigoAdif}-alt-${index}`,
+            tipo: t.tipo || "AVE",
+            numero: String(t.numero || ""),
+            origen: t.origen || "Desconocido",
+            hora: recortaHora(t.hora || "00:00"),
+            horaEstado: recortaHora(t.horaEstimada || t.hora || "00:00"),
+            via: String(t.via || "-"),
+            estado: t.estado || "En hora",
+          }));
+        }
+      ];
+
+      for (const fuente of fuentesTrenes) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          
+          const resultado = await fuente();
+          clearTimeout(timeoutId);
+
+          if (resultado && resultado.length > 0) {
+            listaTrenes = resultado;
+            conError = false;
+            break;
+          }
+        } catch {
+          // Si falla, pasa a la siguiente opción de la lista
+        }
+      }
+
+      const ahoraMinutos = minutosMadridAhora();
+      const trenesFiltrados = listaTrenes
+        .filter((t) => {
           const minEst = aMinutos(t.horaEstado);
           return minEst >= ahoraMinutos - 30 && minEst <= ahoraMinutos + 300;
-        });
+        })
+        .sort((a, b) => aMinutos(a.horaEstado) - aMinutos(b.horaEstado))
+        .slice(0, 25);
 
-        return {
-          nombre,
-          codigoAdif,
-          enlaceOficial: enlace,
-          total: trenesFiltrados.length,
-          trenes: trenesFiltrados,
-          error: false,
-        };
-      } catch {
-        return {
-          nombre,
-          codigoAdif,
-          enlaceOficial: enlace,
-          total: 0,
-          trenes: [],
-          error: true,
-        };
-      }
+      return {
+        nombre,
+        codigoAdif,
+        enlaceOficial: enlace,
+        total: trenesFiltrados.length,
+        trenes: trenesFiltrados,
+        error: conError && trenesFiltrados.length === 0,
+      };
     };
 
     const [atocha, chamartin] = await Promise.all([
-      consultarEstacion("60000", "Atocha", "https://info.adif.es/?s=60000&v=al"),
-      consultarEstacion("17000", "Chamartín", "https://info.adif.es/?s=17000&v=al"),
+      consultarEstacionConRespaldo("60000", "Atocha", "https://info.adif.es/?s=60000&v=al"),
+      consultarEstacionConRespaldo("17000", "Chamartín", "https://info.adif.es/?s=17000&v=al"),
     ]);
 
     return [atocha, chamartin];
