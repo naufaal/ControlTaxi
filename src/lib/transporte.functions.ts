@@ -71,7 +71,7 @@ function normalizaCiudad(texto: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// VUELOS BARAJAS CON MÚLTIPLES ENDPOINTS EN CASCADA
+// VUELOS BARAJAS CON ENDPOINTS EN CASCADA
 // ---------------------------------------------------------------------------
 export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   async (): Promise<TerminalResumen[]> => {
@@ -81,7 +81,6 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
       T4: { terminal: "T4", etiqueta: "T4 · T4S", total: 0, vuelos: [] },
     };
 
-    // Lista de enlaces alternativos de Aena e infovuelos
     const endpointsAena = [
       "https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=MAD&flightType=L&l=es_ES",
       "https://www.aena.es/destinos/es/madrid-barajas/infovuelos.json",
@@ -113,7 +112,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
           }
         }
       } catch {
-        // Intenta con el siguiente enlace de la lista si este falla
+        // Intenta con el siguiente
       }
     }
 
@@ -189,7 +188,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 );
 
 // ---------------------------------------------------------------------------
-// TRENES CON MÚLTIPLES ENDPOINTS EN CASCADA
+// TRENES CON MÚLTIPLES FUENTES AMPLIADAS Y RESCATADAS
 // ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
@@ -201,9 +200,9 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       let listaTrenes: TrenLlegada[] = [];
       let conError = true;
 
-      // Lista de proveedores alternativos de trenes ordenados por prioridad
+      // Lista ampliada de pasarelas y alternativas de trenes
       const fuentesTrenes = [
-        // 1. Radar de Trenes
+        // 1. Radar de Trenes API oficial
         async () => {
           const res = await fetch(`https://radardetrenes.com/api/v1/stations/${codigoAdif}`, {
             headers: { "User-Agent": UA, Accept: "application/json" },
@@ -222,7 +221,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
             estado: (t.delayMinutes || t.retraso || 0) > 0 ? `Con retraso (+${t.delayMinutes || t.retraso}')` : (t.status || "En hora"),
           }));
         },
-        // 2. Renfe Flota Larga Distancia Directo
+        // 2. Renfe Flota Larga Distancia Directo con timestamp
         async () => {
           const timestamp = Date.now();
           const res = await fetch(`https://tiempo-real.largorecorrido.renfe.com/renfe-visor/flotaLD.json?v=${timestamp}`, {
@@ -256,7 +255,26 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
           });
           return filtrados;
         },
-        // 3. API de Treneamos de respaldo
+        // 3. API de Respaldo Adif Info Widget directo
+        async () => {
+          const res = await fetch(`https://info.adif.es/api/v1/stations/${codigoAdif}/arrivals`, {
+            headers: { "User-Agent": UA, Accept: "application/json", Referer: "https://info.adif.es/" },
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const items = data.llegadas || data.arrivals || [];
+          return items.map((t: any, index: number) => ({
+            id: `${codigoAdif}-adif-${index}`,
+            tipo: t.tipo || t.serviceType || "AVE",
+            numero: String(t.numero || t.trainNumber || ""),
+            origen: t.origen || t.origin || "Desconocido",
+            hora: recortaHora(t.hora || t.scheduledTime || "00:00"),
+            horaEstado: recortaHora(t.horaEstimada || t.estimatedTime || t.hora || "00:00"),
+            via: String(t.via || t.track || "-"),
+            estado: t.estado || t.status || "En hora",
+          }));
+        },
+        // 4. Alternativa auxiliar de Treneamos API
         async () => {
           const res = await fetch(`https://api.treneamos.com/v1/estaciones/${codigoAdif}/llegadas`, {
             headers: { "User-Agent": UA, Accept: "application/json" },
@@ -291,7 +309,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
             break;
           }
         } catch {
-          // Si falla, pasa a la siguiente opción de la lista
+          // Continúa probando la siguiente alternativa si la actual falla o bloquea
         }
       }
 
