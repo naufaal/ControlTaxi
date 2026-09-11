@@ -16,6 +16,10 @@ import {
   Trash2,
   Upload,
   FileText,
+  ArrowLeft,
+  Lock,
+  Search,
+  Calendar,
 } from "lucide-react";
 import {
   eur,
@@ -30,7 +34,7 @@ import { FacturaClienteBoton, VentanaFacturaModal } from "@/components/factura";
 import { abrirInforme } from "@/lib/informe";
 import { Marca, PieMarca } from "@/components/marca";
 
-type Periodo = "dia" | "semana" | "mes";
+type Periodo = "dia" | "semana" | "mes" | "personalizado";
 
 function fechaLocalInput(fecha: Date): string {
   const año = fecha.getFullYear();
@@ -39,11 +43,26 @@ function fechaLocalInput(fecha: Date): string {
   return `${año}-${mes}-${dia}`;
 }
 
-function perteneceAlPeriodo(fechaMovimiento: string, periodo: Periodo): boolean {
+function perteneceAlPeriodo(
+  fechaMovimiento: string,
+  periodo: Periodo,
+  rangoFechas: { inicio: string; fin: string }
+): boolean {
   const fecha = new Date(fechaMovimiento);
   const hoy = new Date();
   const inicio = new Date(hoy);
   inicio.setHours(0, 0, 0, 0);
+
+  if (periodo === "personalizado") {
+    if (!rangoFechas.inicio) return true;
+    const fInicio = new Date(rangoFechas.inicio);
+    fInicio.setHours(0, 0, 0, 0);
+    
+    const fFin = rangoFechas.fin ? new Date(rangoFechas.fin) : new Date(fInicio);
+    fFin.setHours(23, 59, 59, 999);
+
+    return fecha >= fInicio && fecha <= fFin;
+  }
 
   if (periodo === "dia") {
     return fecha >= inicio && fecha < new Date(inicio.getTime() + 86_400_000);
@@ -65,7 +84,7 @@ function perteneceAlPeriodo(fechaMovimiento: string, periodo: Periodo): boolean 
 
 export const Route = createFileRoute("/_authenticated/panel")({
   validateSearch: (search: Record<string, unknown>) => ({
-    modal: (search.modal as "ingreso" | "gasto" | "factura" | undefined) ?? null,
+    modal: (search.modal as "ingreso" | "gasto" | "factura" | "parciales" | undefined) ?? null,
   }),
   head: () => ({
     meta: [
@@ -92,8 +111,10 @@ function Panel() {
   const search = Route.useSearch();
   const queryClient = useQueryClient();
   const [periodo, setPeriodo] = useState<Periodo>("dia");
+  const [mostrarFiltroAvanzado, setMostrarFiltroAvanzado] = useState(false);
+  const [rangoFechas, setRangoFechas] = useState({ inicio: "", fin: "" });
 
-  const abrirModal = (tipo: "ingreso" | "gasto" | "factura") => {
+  const abrirModal = (tipo: "ingreso" | "gasto" | "factura" | "parciales") => {
     navigate({ search: { modal: tipo } });
   };
 
@@ -147,8 +168,8 @@ function Panel() {
   }
 
   const movsFiltrados = useMemo(
-    () => movs.filter((movimiento) => perteneceAlPeriodo(movimiento.fecha, periodo)),
-    [movs, periodo],
+    () => movs.filter((movimiento) => perteneceAlPeriodo(movimiento.fecha, periodo, rangoFechas)),
+    [movs, periodo, rangoFechas],
   );
 
   const totales = useMemo(() => {
@@ -161,7 +182,14 @@ function Panel() {
     return { ingresos, gastos, neto: ingresos - gastos };
   }, [movsFiltrados]);
 
-  const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : "del mes";
+  // Totales generales para el cierre de turno (sin filtrar por periodo)
+  const totalesGenerales = useMemo(() => {
+    const ingresos = movs.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + m.importe, 0);
+    const gastos = movs.filter((m) => m.tipo === "gasto").reduce((s, m) => s + m.importe, 0);
+    return { ingresos, gastos, neto: ingresos - gastos };
+  }, [movs]);
+
+  const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "del periodo seleccionado";
 
   async function guardar(m: Movimiento) {
     if (currentUserId) {
@@ -188,6 +216,29 @@ function Panel() {
     }
   }
 
+  // Función para cerrar turno (borrar todos los movimientos o marcarlos)
+  async function cerrarTurnoCompleto() {
+    const seguro = window.confirm(
+      "¿Está usted seguro de poner a cero los contadores? Esta operación no se puede deshacer."
+    );
+    if (!seguro) return;
+
+    if (currentUserId) {
+      try {
+        // Borramos todos los movimientos actuales de la base de datos para poner a cero
+        for (const m of movs) {
+          await borrarMovimiento(currentUserId, m.id);
+        }
+        await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
+        cerrarModal();
+        alert("Contadores puestos a cero correctamente.");
+      } catch (error) {
+        console.error("Error al cerrar turno:", error);
+        alert("Hubo un error al cerrar el turno.");
+      }
+    }
+  }
+
   async function salir() {
     await supabase.auth.signOut();
     navigate({ to: "/auth", search: { modo: "acceso" }, replace: true });
@@ -204,24 +255,45 @@ function Panel() {
               {currentCorreo || "Tu cuenta"}
             </h1>
           </div>
-          <button
-            onClick={salir}
-            aria-label="Cerrar sesión"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => abrirModal("parciales")}
+              className="flex h-11 px-4 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-sm font-semibold text-white"
+            >
+              Parciales
+            </button>
+            <button
+              onClick={salir}
+              aria-label="Cerrar sesión"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        <div className="relative mt-7 flex justify-center gap-2" role="group" aria-label="Periodo">
+        <div className="relative mt-7 flex flex-wrap justify-center gap-2" role="group" aria-label="Periodo">
+          <button
+            type="button"
+            onClick={() => {
+              setMostrarFiltroAvanzado(!mostrarFiltroAvanzado);
+            }}
+            className={`h-10 px-4 rounded-xl text-sm font-semibold transition-colors border border-white/20 bg-white/10 text-white flex items-center gap-1.5`}
+          >
+            <Search className="h-4 w-4" /> Filtrar
+          </button>
+
           {(["dia", "semana", "mes"] as const).map((opcion) => (
             <button
               key={opcion}
               type="button"
               aria-pressed={periodo === opcion}
-              onClick={() => setPeriodo(opcion)}
+              onClick={() => {
+                setPeriodo(opcion);
+                setMostrarFiltroAvanzado(false);
+              }}
               className={`h-10 min-w-20 rounded-xl px-4 text-sm font-semibold transition-colors ${
-                periodo === opcion
+                periodo === opcion && !mostrarFiltroAvanzado
                   ? "bg-primary text-primary-foreground"
                   : "border border-white/20 bg-white/10 text-white"
               }`}
@@ -231,8 +303,52 @@ function Panel() {
           ))}
         </div>
 
+        {/* Panel desplegable de filtro avanzado */}
+        {mostrarFiltroAvanzado && (
+          <div className="relative mx-auto mt-3 max-w-sm rounded-2xl border border-white/15 bg-black/40 p-4 text-white backdrop-blur">
+            <p className="text-xs font-semibold text-white/80 mb-2">Seleccionar día o rango:</p>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div>
+                <span className="text-[10px] text-white/60">Desde / Día</span>
+                <input
+                  type="date"
+                  value={rangoFechas.inicio}
+                  onChange={(e) => {
+                    setRangoFechas({ ...rangoFechas, inicio: e.target.value });
+                    setPeriodo("personalizado");
+                  }}
+                  className="w-full h-9 rounded-lg bg-white/10 border border-white/20 px-2 text-xs text-white"
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-white/60">Hasta (opcional)</span>
+                <input
+                  type="date"
+                  value={rangoFechas.fin}
+                  onChange={(e) => {
+                    setRangoFechas({ ...rangoFechas, fin: e.target.value });
+                    setPeriodo("personalizado");
+                  }}
+                  className="w-full h-9 rounded-lg bg-white/10 border border-white/20 px-2 text-xs text-white"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setPeriodo("personalizado");
+                setMostrarFiltroAvanzado(false);
+              }}
+              className="w-full h-9 rounded-xl bg-primary text-primary-foreground text-xs font-semibold"
+            >
+              Aplicar filtro
+            </button>
+          </div>
+        )}
+
         <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
-          <p className="text-xs tracking-wide text-white/70 uppercase">Neto acumulado</p>
+          <p className="text-xs tracking-wide text-white/70 uppercase">
+            Neto acumulado {periodo === "personalizado" ? "(Personalizado)" : periodoLabel}
+          </p>
           <p className="mt-1 font-display text-4xl font-bold text-white">
             {eur(totales.neto)}
           </p>
@@ -500,11 +616,71 @@ function Panel() {
       {search.modal === "factura" && (
         <VentanaFacturaModal onCerrar={cerrarModal} />
       )}
+      {search.modal === "parciales" && (
+        <VentanaParcialesModal 
+          totalesGenerales={totalesGenerales} 
+          onCerrar={cerrarModal} 
+          onCerrarTurno={cerrarTurnoCompleto} 
+        />
+      )}
 
       <div className="px-5 pt-8">
         <PieMarca oscuro />
       </div>
     </main>
+  );
+}
+
+// Modal de Parciales / Cierre de Turno
+function VentanaParcialesModal({
+  totalesGenerales,
+  onCerrar,
+  onCerrarTurno,
+}: {
+  totalesGenerales: { ingresos: number; gastos: number; neto: number };
+  onCerrar: () => void;
+  onCerrarTurno: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={onCerrar}
+            className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-5 w-5" /> Volver
+          </button>
+          <h3 className="font-display text-lg font-bold text-foreground">Parciales / Turno</h3>
+          <div className="w-12" />
+        </div>
+
+        <div className="rounded-2xl bg-secondary p-4 mb-6 space-y-2 text-center">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Acumulado total actual</p>
+          <p className="font-display text-3xl font-bold text-foreground">{eur(totalesGenerales.neto)}</p>
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Ingresos</p>
+              <p className="text-sm font-semibold text-primary">{eur(totalesGenerales.ingresos)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Gastos</p>
+              <p className="text-sm font-semibold text-destructive">{eur(totalesGenerales.gastos)}</p>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={onCerrarTurno}
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] hover:bg-emerald-700"
+        >
+          <Lock className="h-5 w-5" /> Cerrar turno
+        </button>
+      </div>
+    </div>
   );
 }
 
