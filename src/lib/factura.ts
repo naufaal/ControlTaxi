@@ -215,4 +215,3 @@ export function abrirFactura(emisor: Emisor, cliente: Cliente, factura: Factura)
   doc.save(`${factura.numero}.pdf`);
   return true;
 }
-X
