@@ -1,7 +1,3 @@
-            </div>
-          </div>
-        </div>
-
         <button
           onClick={onCerrarTurno}
           className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] hover:bg-emerald-700 mb-6"
@@ -173,7 +169,7 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
   );
 }
 
-function FormularioGaseoso({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
   const [importe, setImporte] = useState("");
   const [concepto, setConcepto] = useState("Combustible");
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
