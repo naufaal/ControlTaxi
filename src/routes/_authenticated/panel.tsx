@@ -23,7 +23,12 @@ import {
   cargarMovimientos,
   guardarMovimiento,
   borrarMovimiento,
+  cargarTurnos,
+  guardarTurnoSupabase,
+  obtenerUltimoCorteTurno,
+  guardarUltimoCorteTurno,
   type Movimiento,
+  type TurnoGuardado,
 } from "@/lib/taxihoja";
 import { getLlegadasBarajas, getLlegadasTrenes } from "@/lib/transporte.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,20 +38,9 @@ import { Marca, PieMarca } from "@/components/marca";
 
 type Periodo = "dia" | "semana" | "mes" | "personalizado";
 
-interface TurnoGuardado {
-  id: string;
-  fechaInicio: string;
-  fechaFin: string;
-  ingresos: number;
-  gastos: number;
-  neto: number;
-}
-
-// Función para calcular el "día de trabajo" del taxista (cuenta como el día anterior si es antes de las 6:00 AM)
 function obtenerDiaLaboral(fechaStr: string): string {
   const fecha = new Date(fechaStr);
   const hora = fecha.getHours();
-  // Si trabaja de madrugada (ej. de 00:00 a 05:59), pertenece al día anterior contablemente
   if (hora < 6) {
     fecha.setDate(fecha.getDate() - 1);
   }
@@ -84,7 +78,6 @@ function perteneceAlPeriodo(
     return fecha >= inicio && fecha < fin;
   }
 
-  // Mes
   const fecha = new Date(fechaMovimiento);
   const hoy = new Date();
   return fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
@@ -114,14 +107,7 @@ function Panel() {
   const [mostrarFiltroAvanzado, setMostrarFiltroAvanzado] = useState(false);
   const [rangoFechas, setRangoFechas] = useState({ inicio: "", fin: "" });
   
-  const [turnosCerrados, setTurnosCerrados] = useState<TurnoGuardado[]>(() => {
-    try {
-      const guardados = localStorage.getItem("controltaxi_turnos");
-      return guardados ? JSON.parse(guardados) : [];
-    } catch {
-      return [];
-    }
-  });
+  const ultimoCorte = obtenerUltimoCorteTurno();
 
   const abrirModal = (tipo: "ingreso" | "gasto" | "factura" | "turnos") => {
     navigate({ search: { modal: tipo } });
@@ -150,7 +136,7 @@ function Panel() {
       try {
         await supabase.rpc("registrar_uso", { p_event: "panel_view", p_path: "/panel" });
       } catch (e) {
-        // Ignorar fallo de RPC si no existe en la BD
+        // Ignorar fallo de RPC
       }
       return await cargarMovimientos(currentUserId);
     },
@@ -158,7 +144,17 @@ function Panel() {
     refetchOnWindowFocus: true,
   });
 
+  const turnosQuery = useQuery({
+    queryKey: ["turnos_historial", currentUserId],
+    queryFn: async () => {
+      if (!currentUserId) return [];
+      return await cargarTurnos(currentUserId);
+    },
+    enabled: !!currentUserId,
+  });
+
   const movs = movimientosQuery.data ?? [];
+  const turnosCerrados = turnosQuery.data ?? [];
 
   const vuelos = useQuery({
     queryKey: ["llegadas-barajas"],
@@ -189,8 +185,14 @@ function Panel() {
   }
 
   const movsFiltrados = useMemo(
-    () => movs.filter((movimiento) => perteneceAlPeriodo(movimiento.fecha, periodo, rangoFechas)),
-    [movs, periodo, rangoFechas],
+    () =>
+      movs.filter((movimiento) => {
+        if (periodo === "dia" && ultimoCorte && movimiento.fecha <= ultimoCorte) {
+          return false;
+        }
+        return perteneceAlPeriodo(movimiento.fecha, periodo, rangoFechas);
+      }),
+    [movs, periodo, rangoFechas, ultimoCorte]
   );
 
   const totales = useMemo(() => {
@@ -203,11 +205,16 @@ function Panel() {
     return { ingresos, gastos, neto: ingresos - gastos };
   }, [movsFiltrados]);
 
+  const movsDelTurnoActual = useMemo(
+    () => movs.filter((m) => !ultimoCorte || m.fecha > ultimoCorte),
+    [movs, ultimoCorte]
+  );
+
   const totalesGenerales = useMemo(() => {
-    const ingresos = movs.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + m.importe, 0);
-    const gastos = movs.filter((m) => m.tipo === "gasto").reduce((s, m) => s + m.importe, 0);
+    const ingresos = movsDelTurnoActual.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + m.importe, 0);
+    const gastos = movsDelTurnoActual.filter((m) => m.tipo === "gasto").reduce((s, m) => s + m.importe, 0);
     return { ingresos, gastos, neto: ingresos - gastos };
-  }, [movs]);
+  }, [movsDelTurnoActual]);
 
   const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "filtrado";
 
@@ -238,41 +245,35 @@ function Panel() {
 
   async function cerrarTurnoCompleto() {
     const seguro = window.confirm(
-      "¿Está usted seguro de poner a cero los contadores? Se guardará el turno en el historial."
+      "¿Está usted seguro de cerrar el turno? Los contadores del día se pondrán a cero, pero tus movimientos se mantendrán guardados en Supabase para las estadísticas."
     );
     if (!seguro) return;
 
-    if (currentUserId && movs.length > 0) {
-      const fechasMovs = movs.map((m) => new Date(m.fecha).getTime());
-      const fechaInicioTurno = new Date(Math.min(...fechasMovs)).toISOString();
-      const fechaFinTurno = new Date().toISOString();
+    if (currentUserId && movsDelTurnoActual.length > 0) {
+      const ahoraIso = new Date().toISOString();
+      const fechaInicioTurno = movsDelTurnoActual[movsDelTurnoActual.length - 1].fecha;
 
       const nuevoTurno: TurnoGuardado = {
         id: crypto.randomUUID(),
         fechaInicio: fechaInicioTurno,
-        fechaFin: fechaFinTurno,
+        fechaFin: ahoraIso,
         ingresos: totalesGenerales.ingresos,
         gastos: totalesGenerales.gastos,
         neto: totalesGenerales.neto,
       };
 
-      const actualizados = [nuevoTurno, ...turnosCerrados];
-      setTurnosCerrados(actualizados);
-      localStorage.setItem("controltaxi_turnos", JSON.stringify(actualizados));
-
       try {
-        for (const m of movs) {
-          await borrarMovimiento(currentUserId, m.id);
-        }
-        await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
+        await guardarTurnoSupabase(currentUserId, nuevoTurno);
+        guardarUltimoCorteTurno(ahoraIso);
+        await queryClient.invalidateQueries({ queryKey: ["turnos_historial", currentUserId] });
         cerrarModal();
-        alert("Turno cerrado y guardado en el historial correctamente.");
+        alert("Turno cerrado correctamente. Los contadores se han puesto a cero sin borrar tus datos.");
       } catch (error) {
         console.error("Error al cerrar turno:", error);
-        alert("Hubo un error al vaciar los movimientos.");
+        alert("Hubo un error al guardar el turno.");
       }
     } else {
-      cerrarModal();
+      alert("No hay movimientos nuevos en este turno para cerrar.");
     }
   }
 
@@ -573,7 +574,7 @@ function VentanaTurnosModal({
         </div>
 
         <div className="rounded-2xl bg-secondary p-4 mb-4 space-y-2 text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Acumulado total actual</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Acumulado turno actual</p>
           <p className="font-display text-3xl font-bold text-foreground">{eur(totalesGenerales.neto)}</p>
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
             <div>
@@ -591,7 +592,7 @@ function VentanaTurnosModal({
           onClick={onCerrarTurno}
           className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] hover:bg-emerald-700 mb-6"
         >
-          <Lock className="h-5 w-5" /> Borrar turno / Cerrar turno
+          <Lock className="h-5 w-5" /> Cerrar turno actual
         </button>
 
         <div className="border-t border-border pt-4">
@@ -601,7 +602,7 @@ function VentanaTurnosModal({
 
           {turnosCerrados.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-              Aún no hay turnos cerrados guardados en el historial.
+              Aún no hay turnos cerrados guardados en Supabase.
             </div>
           ) : (
             <ul className="space-y-3">
