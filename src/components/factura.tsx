@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import { eur } from "@/lib/taxihoja";
 import {
   abrirFactura,
@@ -35,12 +35,11 @@ export function FacturaClienteBoton({ onClick }: { onClick: () => void }) {
   );
 }
 
-// Ventana modal de la factura controlada limpiamente por el router
+// Ventana modal de la factura con el diseño unificado (cabecera con X, tarjeta flotante)
 export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
   const [emisor, setEmisor] = useState<Emisor>(emisorVacio);
   const [cliente, setCliente] = useState({ nombre: "", cif: "", domicilio: "" });
   
-  // Array de conceptos con su propia descripción e importe independiente
   const [conceptos, setConceptos] = useState([
     { descripcion: "Servicio de taxi", importe: "" }
   ]);
@@ -52,7 +51,6 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
     setEmisor(getEmisor());
   }, []);
 
-  // Cálculo total sumando todos los importes del array de conceptos
   const total = conceptos.reduce((acc, curr) => {
     const num = Number(curr.importe.replace(",", ".")) || 0;
     return acc + num;
@@ -72,7 +70,6 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
           saveEmisor(emisor);
           const numero = await siguienteNumeroCentralizado().catch(() => siguienteNumero());
           
-          // Enviamos los conceptos como un array para que el PDF dibuje cada línea por separado
           const factura = {
             numero,
             fecha: new Date().toISOString(),
@@ -92,10 +89,20 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
           setGenerando(false);
           onCerrar();
         }}
-        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8"
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300"
       >
-        <div className="mx-auto h-1.5 w-12 rounded-full bg-border" />
-        <h3 className="mt-5 font-display text-xl font-bold text-foreground">Nueva factura</h3>
+        {/* Cabecera unificada idéntica a Ingresos/Gastos con título y botón X */}
+        <div className="flex items-center justify-between pb-2">
+          <h3 className="font-display text-xl font-bold text-foreground">Nueva factura</h3>
+          <button
+            type="button"
+            onClick={onCerrar}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Cerrar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
         <Grupo titulo="Datos del emisor">
           <Campo label="Nombre" valor={emisor.nombre} set={(v) => setEmisor({ ...emisor, nombre: v })} />
