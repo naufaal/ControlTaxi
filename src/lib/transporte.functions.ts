@@ -98,7 +98,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
     const endpointsAena = [
       "https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=MAD&flightType=L&l=es_ES",
       "https://www.aena.es/destinos/es/madrid-barajas/infovuelos.json",
-      "https://aeropuertomadrid-barajas.com/api/vuelos-llegadas.json"
+      "https://aeropuertomadrid-barajas.com/api/vuelos-llegadas.json",
     ];
 
     let datos: Array<Record<string, string>> | null = null;
@@ -122,7 +122,7 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
           const json = await res.json();
           if (Array.isArray(json) && json.length > 0) {
             datos = json;
-            break; 
+            break;
           }
         }
       } catch {
@@ -202,172 +202,179 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 );
 
 // ---------------------------------------------------------------------------
-// TRENES CONECTADOS AL SISTEMA OFICIAL DE ADIF (CON CACHÉ SEGURA)
+// TRENES CON CACHÉ DIARIA Y FILTRADO EXACTO (+5 MIN)
 // ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const hoyYMD = obtenerFechaActualYMD();
 
-    let baseTrenesDiarios: EstacionResumen[] = [];
-    const tieneCacheValida =
-      listadoDiarioTrenes &&
-      listadoDiarioTrenes.fechaDia === hoyYMD &&
-      listadoDiarioTrenes.data.some((e) => e.trenes.length > 0);
-
-    if (tieneCacheValida && listadoDiarioTrenes) {
-      baseTrenesDiarios = listadoDiarioTrenes.data;
-    } else {
-      const consultarEstacionOficial = async (
-        codigoAdif: string,
-        nombre: string,
-        enlace: string
-      ): Promise<EstacionResumen> => {
-        let listaTrenes: TrenLlegada[] = [];
-        let conError = true;
-
-        const fuentesTrenes = [
-          // 1. Endpoint directo oficial de Adif
-          async () => {
-            const res = await fetch(`https://info.adif.es/api/v1/stations/${codigoAdif}/arrivals`, {
-              headers: { 
-                "User-Agent": UA, 
-                "Accept": "application/json, text/plain, */*", 
-                "Referer": "https://info.adif.es/" 
-              },
-            });
-            if (!res.ok) throw new Error();
-            const data = await res.json();
-            const items = Array.isArray(data) ? data : (data.llegadas || data.arrivals || []);
-            
-            return items.map((t: any, index: number) => {
-              const horaProg = recortaHora(t.hora || t.scheduledTime || t.horaProgramada || "00:00");
-              const horaEst = recortaHora(t.horaEstimada || t.estimatedTime || horaProg);
-              const retrasoMin = Number(t.retraso || t.delayMinutes || 0);
-
-              let estadoTexto = "En hora";
-              if (retrasoMin > 0) {
-                estadoTexto = `Retrasado (+${retrasoMin}')`;
-              } else if (t.estado) {
-                estadoTexto = t.estado;
-              }
-
-              return {
-                id: `${codigoAdif}-adif-${index}-${t.numero || t.trainNumber || "gen"}`,
-                tipo: t.tipo || t.serviceType || "AVE",
-                numero: String(t.numero || t.trainNumber || ""),
-                origen: t.origen || t.origin || "Origen desconocido",
-                hora: horaProg,
-                horaEstado: horaEst,
-                via: String(t.via || t.track || "-"),
-                estado: estadoTexto,
-              };
-            });
-          },
-          // 2. Respaldo de Renfe Flota LD
-          async () => {
-            const timestamp = Date.now();
-            const res = await fetch(`https://tiempo-real.largorecorrido.renfe.com/renfe-visor/flotaLD.json?v=${timestamp}`, {
-              headers: { "User-Agent": UA, Accept: "application/json", Referer: "https://tiempo-real.largorecorrido.renfe.com/" },
-            });
-            if (!res.ok) throw new Error();
-            const data = await res.json();
-            const items = Array.isArray(data) ? data : (data.trenes || data.items || []);
-            const filtrados: TrenLlegada[] = [];
-
-            items.forEach((t: any, index: number) => {
-              const descEstacion = (t.desEstacion || t.destination || t.estacionDestino || "").toUpperCase();
-              const codDestino = String(t.codEstacionDestino || t.destStationCode || "");
-
-              if (codDestino === codigoAdif || descEstacion.includes(nombre.toUpperCase())) {
-                const horaProg = recortaHora(t.fecLlegadaProg || t.scheduledTime || "00:00");
-                const horaEst = recortaHora(t.fecLlegadaEst || t.estimatedTime || horaProg);
-                const retraso = Number(t.retraso || t.delayMinutes || 0);
-
-                filtrados.push({
-                  id: `${codigoAdif}-renfe-${index}`,
-                  tipo: t.tipoTren || t.serviceType || "AVE",
-                  numero: String(t.numTren || t.trainNumber || ""),
-                  origen: t.desOrigen || t.origin || "Desconocido",
-                  hora: horaProg,
-                  horaEstado: horaEst,
-                  via: String(t.via || "-"),
-                  estado: retraso > 0 ? `Con retraso (+${retraso}')` : "En hora",
-                });
-              }
-            });
-            return filtrados;
-          },
-          // 3. Respaldo de Radar de Trenes
-          async () => {
-            const res = await fetch(`https://radardetrenes.com/api/v1/stations/${codigoAdif}`, {
-              headers: { "User-Agent": UA, Accept: "application/json" },
-            });
-            if (!res.ok) throw new Error();
-            const data = await res.json();
-            const items = data.arrivals || data.llegadas || [];
-            return items.map((t: any, index: number) => ({
-              id: `${codigoAdif}-${t.trainNumber || index}`,
-              tipo: t.serviceType || t.tipo || "AVE",
-              numero: String(t.trainNumber || t.numero || ""),
-              origen: t.origin || t.origen || "Origen desconocido",
-              hora: recortaHora(t.scheduledTime || t.hora || "00:00"),
-              horaEstado: recortaHora(t.estimatedTime || t.horaEstado || t.scheduledTime || "00:00"),
-              via: String(t.track || t.via || "-"),
-              estado: (t.delayMinutes || t.retraso || 0) > 0 ? `Con retraso (+${t.delayMinutes || t.retraso}')` : (t.status || "En hora"),
-            }));
-          }
-        ];
-
-        for (const fuente of fuentesTrenes) {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000);
-            
-            const resultado = await fuente();
-            clearTimeout(timeoutId);
-
-            if (resultado && resultado.length > 0) {
-              listaTrenes = resultado;
-              conError = false;
-              break;
-            }
-          } catch {
-            // Siguiente fuente
-          }
-        }
+    // Si ya tenemos la caché cargada de hoy con datos, la reutilizamos para evitar bloqueos
+    if (listadoDiarioTrenes && listadoDiarioTrenes.fechaDia === hoyYMD) {
+      const ahoraMinutos = minutosMadridAhora();
+      return listadoDiarioTrenes.data.map((estacion) => {
+        const trenesEnCurso = estacion.trenes.filter((t) => {
+          const minTren = aMinutos(t.horaEstado);
+          // Muestra desde 2 horas antes hasta exactamente 5 minutos después de su hora estimada
+          return minTren >= ahoraMinutos - 120 && minTren <= ahoraMinutos + 5;
+        });
 
         return {
-          nombre,
-          codigoAdif,
-          enlaceOficial: enlace,
-          total: listaTrenes.length,
-          trenes: listaTrenes.sort((a, b) => aMinutos(a.horaEstado) - aMinutos(b.horaEstado)),
-          error: conError && listaTrenes.length === 0,
+          ...estacion,
+          total: trenesEnCurso.length,
+          trenes: trenesEnCurso,
         };
-      };
+      });
+    }
 
-      const [atocha, chamartin] = await Promise.all([
-        consultarEstacionOficial("60000", "Atocha", "https://info.adif.es/?s=60000&v=al"),
-        consultarEstacionOficial("17000", "Chamartín", "https://info.adif.es/?s=17000&v=al"),
-      ]);
+    const consultarEstacionOficial = async (
+      codigoAdif: string,
+      nombre: string,
+      enlace: string
+    ): Promise<EstacionResumen> => {
+      let listaTrenes: TrenLlegada[] = [];
+      let conError = true;
 
-      baseTrenesDiarios = [atocha, chamartin];
+      const fuentesTrenes = [
+        // 1. Radar de Trenes (API abierta alternativa muy estable)
+        async () => {
+          const res = await fetch(`https://radardetrenes.com/api/v1/stations/${codigoAdif}`, {
+            headers: { "User-Agent": UA, Accept: "application/json" },
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const items = data.arrivals || data.llegadas || [];
+          return items.map((t: any, index: number) => ({
+            id: `${codigoAdif}-${t.trainNumber || index}`,
+            tipo: t.serviceType || t.tipo || "AVE",
+            numero: String(t.trainNumber || t.numero || ""),
+            origen: t.origin || t.origen || "Origen desconocido",
+            hora: recortaHora(t.scheduledTime || t.hora || "00:00"),
+            horaEstado: recortaHora(t.estimatedTime || t.horaEstado || t.scheduledTime || "00:00"),
+            via: String(t.track || t.via || "-"),
+            estado: (t.delayMinutes || t.retraso || 0) > 0 ? `Con retraso (+${t.delayMinutes || t.retraso}')` : (t.status || "En hora"),
+          }));
+        },
+        // 2. Renfe Flota LD como respaldo secundario
+        async () => {
+          const timestamp = Date.now();
+          const res = await fetch(`https://tiempo-real.largorecorrido.renfe.com/renfe-visor/flotaLD.json?v=${timestamp}`, {
+            headers: { "User-Agent": UA, Accept: "application/json", Referer: "https://tiempo-real.largorecorrido.renfe.com/" },
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const items = Array.isArray(data) ? data : (data.trenes || data.items || []);
+          const filtrados: TrenLlegada[] = [];
 
-      // Guardamos en caché únicamente si alguna estación ha traído datos reales
-      if (baseTrenesDiarios.some((e) => e.trenes.length > 0)) {
-        listadoDiarioTrenes = {
-          fechaDia: hoyYMD,
-          data: baseTrenesDiarios,
-        };
+          items.forEach((t: any, index: number) => {
+            const descEstacion = (t.desEstacion || t.destination || t.estacionDestino || "").toUpperCase();
+            const codDestino = String(t.codEstacionDestino || t.destStationCode || "");
+
+            if (codDestino === codigoAdif || descEstacion.includes(nombre.toUpperCase())) {
+              const horaProg = recortaHora(t.fecLlegadaProg || t.scheduledTime || "00:00");
+              const horaEst = recortaHora(t.fecLlegadaEst || t.estimatedTime || horaProg);
+              const retraso = Number(t.retraso || t.delayMinutes || 0);
+
+              filtrados.push({
+                id: `${codigoAdif}-renfe-${index}`,
+                tipo: t.tipoTren || t.serviceType || "AVE",
+                numero: String(t.numTren || t.trainNumber || ""),
+                origen: t.desOrigen || t.origin || "Desconocido",
+                hora: horaProg,
+                horaEstado: horaEst,
+                via: String(t.via || "-"),
+                estado: retraso > 0 ? `Con retraso (+${retraso}')` : "En hora",
+              });
+            }
+          });
+          return filtrados;
+        },
+        // 3. Endpoint directo oficial de Adif
+        async () => {
+          const res = await fetch(`https://info.adif.es/api/v1/stations/${codigoAdif}/arrivals`, {
+            headers: { 
+              "User-Agent": UA, 
+              "Accept": "application/json, text/plain, */*", 
+              "Referer": "https://info.adif.es/" 
+            },
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const items = Array.isArray(data) ? data : (data.llegadas || data.arrivals || []);
+          
+          return items.map((t: any, index: number) => {
+            const horaProg = recortaHora(t.hora || t.scheduledTime || t.horaProgramada || "00:00");
+            const horaEst = recortaHora(t.horaEstimada || t.estimatedTime || horaProg);
+            const retrasoMin = Number(t.retraso || t.delayMinutes || 0);
+
+            let estadoTexto = "En hora";
+            if (retrasoMin > 0) {
+              estadoTexto = `Retrasado (+${retrasoMin}')`;
+            } else if (t.estado) {
+              estadoTexto = t.estado;
+            }
+
+            return {
+              id: `${codigoAdif}-adif-${index}-${t.numero || t.trainNumber || "gen"}`,
+              tipo: t.tipo || t.serviceType || "AVE",
+              numero: String(t.numero || t.trainNumber || ""),
+              origen: t.origen || t.origin || "Origen desconocido",
+              hora: horaProg,
+              horaEstado: horaEst,
+              via: String(t.via || t.track || "-"),
+              estado: estadoTexto,
+            };
+          });
+        }
+      ];
+
+      for (const fuente of fuentesTrenes) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          
+          const resultado = await fuente();
+          clearTimeout(timeoutId);
+
+          if (resultado && resultado.length > 0) {
+            listaTrenes = resultado;
+            conError = false;
+            break;
+          }
+        } catch {
+          // Siguiente fuente
+        }
       }
+
+      return {
+        nombre,
+        codigoAdif,
+        enlaceOficial: enlace,
+        total: listaTrenes.length,
+        trenes: listaTrenes.sort((a, b) => aMinutos(a.horaEstado) - aMinutos(b.horaEstado)),
+        error: conError && listaTrenes.length === 0,
+      };
+    };
+
+    const [atocha, chamartin] = await Promise.all([
+      consultarEstacionOficial("60000", "Atocha", "https://info.adif.es/?s=60000&v=al"),
+      consultarEstacionOficial("17000", "Chamartín", "https://info.adif.es/?s=17000&v=al"),
+    ]);
+
+    const baseTrenesDiarios = [atocha, chamartin];
+
+    // Guardamos en caché global del día solo si se obtuvieron datos con éxito
+    if (baseTrenesDiarios.some((e) => e.trenes.length > 0)) {
+      listadoDiarioTrenes = {
+        fechaDia: hoyYMD,
+        data: baseTrenesDiarios,
+      };
     }
 
     const ahoraMinutos = minutosMadridAhora();
 
-    const resultadoEnTiempoReal: EstacionResumen[] = baseTrenesDiarios.map((estacion) => {
+    return baseTrenesDiarios.map((estacion) => {
       const trenesEnCurso = estacion.trenes.filter((t) => {
         const minTren = aMinutos(t.horaEstado);
-        // Desde 5 minutos antes hasta 2 horas después, y se ocultan 5 minutos después de su hora
         return minTren >= ahoraMinutos - 120 && minTren <= ahoraMinutos + 5;
       });
 
@@ -377,7 +384,5 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
         trenes: trenesEnCurso,
       };
     });
-
-    return resultadoEnTiempoReal;
   },
 );
