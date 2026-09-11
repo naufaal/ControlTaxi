@@ -10,13 +10,15 @@ import {
   Plus,
   RefreshCw,
   Trash2,
-  ArrowLeft,
   Lock,
   Search,
   History,
   Clock,
   X,
   Calendar,
+  ExternalLink,
+  Paperclip,
+  FileText,
 } from "lucide-react";
 import {
   eur,
@@ -32,7 +34,7 @@ import {
 } from "@/lib/taxihoja";
 import { getLlegadasBarajas, getLlegadasTrenes } from "@/lib/transporte.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { FacturaClienteBoton, VentanaFacturaModal } from "@/components/factura";
+import { VentanaFacturaModal } from "@/components/factura";
 import { abrirInforme } from "@/lib/informe";
 import { Marca, PieMarca } from "@/components/marca";
 
@@ -85,7 +87,7 @@ function perteneceAlPeriodo(
 
 export const Route = createFileRoute("/_authenticated/panel")({
   validateSearch: (search: Record<string, unknown>) => ({
-    modal: (search.modal as "ingreso" | "gasto" | "factura" | "turnos" | undefined) ?? null,
+    modal: (search.modal as "ingreso" | "gasto" | "factura" | "turnos" | "documentos" | undefined) ?? null,
   }),
   head: () => ({
     meta: [
@@ -109,7 +111,7 @@ function Panel() {
   
   const ultimoCorte = obtenerUltimoCorteTurno();
 
-  const abrirModal = (tipo: "ingreso" | "gasto" | "factura" | "turnos") => {
+  const abrirModal = (tipo: "ingreso" | "gasto" | "factura" | "turnos" | "documentos") => {
     navigate({ search: { modal: tipo } });
   };
 
@@ -350,9 +352,65 @@ function Panel() {
             <Minus className="h-5 w-5" /> Gasto
           </button>
         </div>
+
+        {/* APARTADO DE DOCUMENTOS ADJUNTOS DEBAJO DE INGRESOS/GASTOS */}
+        <div className="relative mt-3">
+          <button
+            onClick={() => abrirModal("documentos")}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-sm font-semibold text-white backdrop-blur transition-transform active:scale-[0.97]"
+          >
+            <Paperclip className="h-4 w-4" /> Documentos (Seguro, Autorización, etc.)
+          </button>
+        </div>
       </div>
 
-      <div className="px-5 -mt-4 relative z-10 flex items-center justify-between gap-3">
+      {/* SECCIÓN AMARILLA: FACTURA */}
+      <div className="px-5 mt-4">
+        <button
+          onClick={() => abrirModal("factura")}
+          className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
+              <FileText className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-bold text-amber-950">
+                Factura
+              </h3>
+              <p className="text-xs text-amber-900/80 mt-0.5 truncate">
+                Crea y descarga una factura con IVA del 10%.
+              </p>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* SECCIÓN AMARILLA: TEMARIO EXAMEN TAXI */}
+      <div className="px-5 mt-3">
+        <div className="rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
+              <BookOpenIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-bold text-amber-950">
+                Temario examen taxi
+              </h3>
+              <a
+                href="https://madrid.es/taxi"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-amber-950 underline font-semibold mt-0.5 inline-flex items-center gap-1 hover:opacity-80"
+              >
+                madrid.es/taxi <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 mt-4 relative z-10 flex items-center justify-between gap-3">
         <button
           onClick={() => setMostrarFiltroAvanzado(!mostrarFiltroAvanzado)}
           className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] active:scale-[0.97]"
@@ -524,8 +582,6 @@ function Panel() {
         )}
       </section>
 
-      <FacturaClienteBoton onClick={() => abrirModal("factura")} />
-
       {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
       {search.modal === "factura" && <VentanaFacturaModal onCerrar={cerrarModal} />}
@@ -537,11 +593,119 @@ function Panel() {
           onCerrarTurno={cerrarTurnoCompleto} 
         />
       )}
+      {search.modal === "documentos" && <VentanaDocumentosModal onCerrar={cerrarModal} />}
 
       <div className="px-5 pt-8">
         <PieMarca oscuro />
       </div>
     </main>
+  );
+}
+
+function BookOpenIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  );
+}
+
+function VentanaDocumentosModal({ onCerrar }: { onCerrar: () => void }) {
+  const [documentos, setDocumentos] = useState<Array<{ id: string; nombre: string; fecha: string }>>([
+    { id: "1", nombre: "ITS_2024-10-2469.pdf", fecha: "08 sept 2026" },
+    { id: "2", nombre: "ITS_2024-12-1201.pdf", fecha: "08 sept 2026" },
+  ]);
+  const [nuevoNombre, setNuevoNombre] = useState("");
+
+  function agregarDocumento(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nuevoNombre.trim()) return;
+    setDocumentos([
+      ...documentos,
+      { id: crypto.randomUUID(), nombre: nuevoNombre.trim(), fecha: "08 sept 2026" },
+    ]);
+    setNuevoNombre("");
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 text-foreground max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-bold flex items-center gap-2">
+            <Paperclip className="h-5 w-5 text-primary" /> Documentos y Archivos
+          </h3>
+          <button
+            onClick={onCerrar}
+            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Cerrar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground mb-4">
+          Guarda tus permisos, seguros o recibos de forma sincronizada.
+        </p>
+
+        <form onSubmit={agregarDocumento} className="flex gap-2 mb-4">
+          <input
+            type="text"
+            placeholder="Ej: Seguro coche, ITV, Permiso..."
+            value={nuevoNombre}
+            onChange={(e) => setNuevoNombre(e.target.value)}
+            className="flex-1 h-11 rounded-2xl bg-secondary border border-input px-3 text-xs text-foreground"
+          />
+          <button
+            type="submit"
+            className="h-11 px-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-xs shadow"
+          >
+            Adjuntar
+          </button>
+        </form>
+
+        <div className="space-y-2">
+          {documentos.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+              No hay documentos registrados.
+            </div>
+          ) : (
+            documentos.map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <FileText className="h-4 w-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-foreground truncate">{doc.nombre}</p>
+                    <p className="text-[10px] text-muted-foreground">{doc.fecha}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDocumentos(documentos.filter((d) => d.id !== doc.id))}
+                  className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  aria-label="Borrar documento"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -563,14 +727,14 @@ function VentanaTurnosModal({
         className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-bold text-foreground">Turnos</h3>
           <button
             onClick={onCerrar}
-            className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"
+            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Cerrar"
           >
-            <ArrowLeft className="h-5 w-5" /> Volver atrás
+            <X className="h-4 w-4" />
           </button>
-          <h3 className="font-display text-lg font-bold text-foreground">Turnos</h3>
-          <div className="w-12" />
         </div>
 
         <div className="rounded-2xl bg-secondary p-4 mb-4 space-y-2 text-center">
@@ -674,7 +838,11 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display text-lg font-bold">Nuevo ingreso</h3>
-          <button onClick={onCerrar} className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+          <button
+            onClick={onCerrar}
+            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Cerrar"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -734,7 +902,7 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
               className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
             />
             <div className="flex flex-wrap gap-2 mt-2">
-              {["Carrera", "Aeropuerto", "Estación", "Propina"].map((c) => (
+              {["Carrera", "Aeropuerto", "Estación"].map((c) => (
                 <button
                   type="button"
                   key={c}
@@ -791,7 +959,11 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display text-lg font-bold">Nuevo gasto</h3>
-          <button onClick={onCerrar} className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+          <button
+            onClick={onCerrar}
+            className="h-9 w-9 rounded-xl border border-input bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Cerrar"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -831,7 +1003,7 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
               className="w-full h-12 rounded-2xl bg-secondary border border-input px-3 text-sm text-foreground mt-1"
             />
             <div className="flex flex-wrap gap-2 mt-2">
-              {["Combustible", "Lavado", "Taller", "Parking", "Peaje", "Seguro"].map((c) => (
+              {["Combustible", "Lavado", "Taller", "Parking", "Peaje"].map((c) => (
                 <button
                   type="button"
                   key={c}
