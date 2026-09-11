@@ -84,16 +84,15 @@ function normalizaCiudad(texto: string): string {
     .trim();
 }
 
-// Generador de respaldo para todo el día por si Adif bloquea la conexión
+// Generador de respaldo diario por si fallan todas las conexiones
 function generarRespaldoDiario(): EstacionResumen[] {
   const origenesAtocha = ["Barcelona Sants", "Sevilla S.J.", "Málaga M.Z.", "Valencia J.S.", "Alicante", "Granada", "Cádiz"];
-  const origenesChamartin = ["Valladolid", "León", "Burgos", " Santander", "Oviedo", "Valencia J.S.", "Alicante", "Murcia"];
+  const origenesChamartin = ["Valladolid", "León", "Burgos", "Santander", "Oviedo", "Valencia J.S.", "Alicante", "Murcia"];
   const tipos = ["AVE", "IRYO", "OUIGO", "Alvia", "Avant"];
 
   const generarTrenesEstacion = (codigo: string, nombresOrigenes: string[]): TrenLlegada[] => {
     const lista: TrenLlegada[] = [];
     let idCounter = 1;
-    // Generar trenes cada 30 minutos desde las 06:00 hasta las 23:30
     for (let h = 6; h <= 23; h++) {
       for (const m of [0, 30]) {
         const hh = String(h).padStart(2, "0");
@@ -256,19 +255,18 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 );
 
 // ---------------------------------------------------------------------------
-// TRENES CON CACHÉ DIARIA Y FILTRADO ESTRICTO DE 5 MINUTOS
+// TRENES CON PANTALLAS-ESTACIONES, CACHÉ DIARIA Y FILTRADO EXACTO (+5 MIN)
 // ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const hoyYMD = obtenerFechaActualYMD();
 
-    // Si ya tenemos la caché del día guardada, la usamos directamente
     if (listadoDiarioTrenes && listadoDiarioTrenes.fechaDia === hoyYMD) {
       const ahoraMinutos = minutosMadridAhora();
       return listadoDiarioTrenes.data.map((estacion) => {
         const trenesEnCurso = estacion.trenes.filter((t) => {
           const minTren = aMinutos(t.horaEstado);
-          // Muestra desde 2 horas antes y se oculta exactamente a los 5 minutos de pasar su hora
+          // Oculta el tren exactamente a los 5 minutos de pasar su hora estimada
           return minTren >= ahoraMinutos - 120 && minTren <= ahoraMinutos + 5;
         });
 
@@ -280,7 +278,6 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       });
     }
 
-    // Intentamos cargar de las APIs
     const consultarEstacionOficial = async (
       codigoAdif: string,
       nombre: string,
@@ -290,6 +287,26 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       let conError = true;
 
       const fuentesTrenes = [
+        // 1. Pantallas Estaciones (Primera opción prioritaria)
+        async () => {
+          const res = await fetch(`https://pantallas-estaciones.vercel.app/api/stations/${codigoAdif}/arrivals`, {
+            headers: { "User-Agent": UA, Accept: "application/json" },
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const items = Array.isArray(data) ? data : (data.llegadas || data.arrivals || []);
+          return items.map((t: any, index: number) => ({
+            id: `${codigoAdif}-pantallas-${index}`,
+            tipo: t.tipo || t.serviceType || "AVE",
+            numero: String(t.numero || t.trainNumber || ""),
+            origen: t.origen || t.origin || "Origen desconocido",
+            hora: recortaHora(t.hora || t.scheduledTime || "00:00"),
+            horaEstado: recortaHora(t.horaEstimada || t.estimatedTime || t.hora || "00:00"),
+            via: String(t.via || t.track || "-"),
+            estado: (t.retraso || t.delayMinutes || 0) > 0 ? `Con retraso (+${t.retraso || t.delayMinutes}')` : (t.estado || "En hora"),
+          }));
+        },
+        // 2. Radar de Trenes
         async () => {
           const res = await fetch(`https://radardetrenes.com/api/v1/stations/${codigoAdif}`, {
             headers: { "User-Agent": UA, Accept: "application/json" },
@@ -298,7 +315,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
           const data = await res.json();
           const items = data.arrivals || data.llegadas || [];
           return items.map((t: any, index: number) => ({
-            id: `${codigoAdif}-${t.trainNumber || index}`,
+            id: `${codigoAdif}-radar-${index}`,
             tipo: t.serviceType || t.tipo || "AVE",
             numero: String(t.trainNumber || t.numero || ""),
             origen: t.origin || t.origen || "Origen desconocido",
@@ -308,6 +325,7 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
             estado: (t.delayMinutes || t.retraso || 0) > 0 ? `Con retraso (+${t.delayMinutes || t.retraso}')` : (t.status || "En hora"),
           }));
         },
+        // 3. Renfe Flota LD
         async () => {
           const timestamp = Date.now();
           const res = await fetch(`https://tiempo-real.largorecorrido.renfe.com/renfe-visor/flotaLD.json?v=${timestamp}`, {
@@ -377,12 +395,11 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
 
     let baseTrenesDiarios = [atocha, chamartin];
 
-    // Si las APIs devuelven vacío (porque están bloqueadas), usamos el respaldo diario completo
+    // Si todas las fuentes fallan, se aplica el respaldo diario completo
     if (baseTrenesDiarios.every((e) => e.trenes.length === 0)) {
       baseTrenesDiarios = generarRespaldoDiario();
     }
 
-    // Guardamos permanentemente en caché todo el día para evitar problemas de bloqueo
     listadoDiarioTrenes = {
       fechaDia: hoyYMD,
       data: baseTrenesDiarios,
