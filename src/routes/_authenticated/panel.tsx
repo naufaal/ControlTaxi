@@ -298,8 +298,9 @@ function Panel() {
 
         if (upsertError) throw upsertError;
 
-        await queryClient.invalidateQueries({ queryKey: ["configuracion_usuario", currentUserId] });
-        await queryClient.invalidateQueries({ queryKey: ["turnos_historial", currentUserId] });
+        await queryClient.resetQueries({ queryKey: ["configuracion_usuario", currentUserId] });
+        await queryClient.resetQueries({ queryKey: ["turnos_historial", currentUserId] });
+        await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
         
         cerrarModal();
         alert("Turno cerrado correctamente. Los contadores se han puesto a cero.");
