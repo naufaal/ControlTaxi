@@ -205,34 +205,41 @@ function Panel() {
     void Promise.all([vuelos.refetch(), trenes.refetch()]);
   }
 
-  // Movimientos del turno actual independiente (para el modal de Turnos y cierre)
-  // Incluye todos los ingresos posteriores al último corte (sin importar la fecha natural, para que los futuros cuadren con el turno)
+  // Movimientos de ingresos del turno actual
   const movsDelTurnoActual = useMemo(
-    () => movs.filter((m) => (!ultimoCorte || m.fecha > ultimoCorte) && m.tipo === "ingreso"),
+    () =>
+      movs.filter(
+        (m) => (!ultimoCorte || new Date(m.fecha).getTime() > new Date(ultimoCorte).getTime()) && m.tipo === "ingreso"
+      ),
+    [movs, ultimoCorte]
+  );
+
+  // Movimientos de gastos del turno actual
+  const gastosDelTurnoActual = useMemo(
+    () =>
+      movs.filter(
+        (m) => (!ultimoCorte || new Date(m.fecha).getTime() > new Date(ultimoCorte).getTime()) && m.tipo === "gasto"
+      ),
     [movs, ultimoCorte]
   );
 
   const totalesGenerales = useMemo(() => {
     const ingresos = movsDelTurnoActual.reduce((s, m) => s + m.importe, 0);
-    return { ingresos, gastos: 0, neto: ingresos };
-  }, [movsDelTurnoActual]);
+    const gastos = gastosDelTurnoActual.reduce((s, m) => s + m.importe, 0);
+    return { ingresos, gastos, neto: ingresos - gastos };
+  }, [movsDelTurnoActual, gastosDelTurnoActual]);
 
   // Movimientos filtrados para la lista principal y para los filtros de semana/mes/personalizado/día
   const movsFiltrados = useMemo(
     () =>
       movs.filter((movimiento) => {
-        // Si el periodo es "dia", mostramos exactamente los mismos ingresos que componen el turno actual
         if (periodo === "dia") {
-          if (movimiento.tipo !== "ingreso") return false;
-          if (ultimoCorte && movimiento.fecha <= ultimoCorte) {
+          if (ultimoCorte && new Date(movimiento.fecha).getTime() <= new Date(ultimoCorte).getTime()) {
             return false;
           }
+          if (filtroTipo === "ingresos" && movimiento.tipo !== "ingreso") return false;
+          if (filtroTipo === "gastos" && movimiento.tipo !== "gasto") return false;
           return true;
-        }
-
-        // Para semana, mes o personalizado, excluimos los gastos a menos que se use un filtro explícito de gastos en los filtros
-        if (periodo !== "personalizado" && movimiento.tipo === "gasto") {
-          return false;
         }
 
         if (filtroTipo === "ingresos" && movimiento.tipo !== "ingreso") return false;
@@ -249,7 +256,7 @@ function Panel() {
   // Totales basados en el filtro actual seleccionado
   const totales = useMemo(() => {
     if (periodo === "dia") {
-      return { ingresos: totalesGenerales.ingresos, gastos: 0, neto: totalesGenerales.neto };
+      return { ingresos: totalesGenerales.ingresos, gastos: totalesGenerales.gastos, neto: totalesGenerales.neto };
     }
     const ingresos = movsFiltrados
       .filter((m) => m.tipo === "ingreso")
@@ -289,20 +296,22 @@ function Panel() {
 
   async function cerrarTurnoCompleto() {
     const seguro = window.confirm(
-      "¿Está usted seguro de cerrar el turno? Los contadores del turno se pondrán a cero, pero tus movimientos se mantendrán guardados en Supabase para las estadísticas."
+      "¿Está usted seguro de cerrar el turno? Los contadores de ingresos y gastos se pondrán a cero."
     );
     if (!seguro) return;
 
-    if (currentUserId && movsDelTurnoActual.length > 0) {
+    if (currentUserId) {
       const ahoraIso = new Date().toISOString();
-      const fechaInicioTurno = movsDelTurnoActual[movsDelTurnoActual.length - 1].fecha;
+      const fechaInicioTurno = movsDelTurnoActual.length > 0 
+        ? movsDelTurnoActual[movsDelTurnoActual.length - 1].fecha 
+        : ahoraIso;
 
       const nuevoTurno: TurnoGuardado = {
         id: crypto.randomUUID(),
         fechaInicio: fechaInicioTurno,
         fechaFin: ahoraIso,
         ingresos: totalesGenerales.ingresos,
-        gastos: 0,
+        gastos: totalesGenerales.gastos,
         neto: totalesGenerales.neto,
       };
 
@@ -321,6 +330,7 @@ function Panel() {
         await queryClient.resetQueries({ queryKey: ["configuracion_usuario", currentUserId] });
         await queryClient.resetQueries({ queryKey: ["turnos_historial", currentUserId] });
         await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
+        await configQuery.refetch();
         
         cerrarModal();
         alert("Turno cerrado correctamente. Los contadores se han puesto a cero.");
@@ -329,7 +339,7 @@ function Panel() {
         alert(`Error al guardar el turno: ${error?.message || JSON.stringify(error)}`);
       }
     } else {
-      alert("No hay ingresos nuevos en este turno para cerrar.");
+      alert("No hay sesión activa.");
     }
   }
 
