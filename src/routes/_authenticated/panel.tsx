@@ -205,8 +205,6 @@ function Panel() {
     void Promise.all([vuelos.refetch(), trenes.refetch()]);
   }
 
-  // Movimientos del turno actual independiente (para el modal de Turnos y cierre)
-  // Incluye todos los ingresos posteriores al último corte (sin importar la fecha natural, para que los futuros cuadren con el turno)
   const movsDelTurnoActual = useMemo(
     () => movs.filter((m) => (!ultimoCorte || m.fecha > ultimoCorte) && m.tipo === "ingreso"),
     [movs, ultimoCorte]
@@ -217,11 +215,9 @@ function Panel() {
     return { ingresos, gastos: 0, neto: ingresos };
   }, [movsDelTurnoActual]);
 
-  // Movimientos filtrados para la lista principal y para los filtros de semana/mes/personalizado/día
   const movsFiltrados = useMemo(
     () =>
       movs.filter((movimiento) => {
-        // Si el periodo es "dia", mostramos exactamente los mismos ingresos que componen el turno actual
         if (periodo === "dia") {
           if (movimiento.tipo !== "ingreso") return false;
           if (ultimoCorte && movimiento.fecha <= ultimoCorte) {
@@ -230,7 +226,6 @@ function Panel() {
           return true;
         }
 
-        // Para semana, mes o personalizado, excluimos los gastos a menos que se use un filtro explícito de gastos en los filtros
         if (periodo !== "personalizado" && movimiento.tipo === "gasto") {
           return false;
         }
@@ -246,7 +241,6 @@ function Panel() {
     [movs, periodo, rangoFechas, ultimoCorte, filtroTipo]
   );
 
-  // Totales basados en el filtro actual seleccionado
   const totales = useMemo(() => {
     if (periodo === "dia") {
       return { ingresos: totalesGenerales.ingresos, gastos: 0, neto: totalesGenerales.neto };
@@ -307,8 +301,10 @@ function Panel() {
       };
 
       try {
+        // 1. Guardar el turno cerrado en el historial
         await guardarTurnoSupabase(currentUserId, nuevoTurno);
         
+        // 2. Actualizar la fecha del último corte en la configuración del usuario
         const { error: upsertError } = await supabase
           .from("configuracion_usuario")
           .upsert(
@@ -318,10 +314,14 @@ function Panel() {
 
         if (upsertError) throw upsertError;
 
-        await queryClient.resetQueries({ queryKey: ["configuracion_usuario", currentUserId] });
-        await queryClient.resetQueries({ queryKey: ["turnos_historial", currentUserId] });
+        // 3. Forzar la recarga inmediata de la configuración y movimientos para que el turno pase a 0
+        await queryClient.invalidateQueries({ queryKey: ["configuracion_usuario", currentUserId] });
+        await queryClient.invalidateQueries({ queryKey: ["turnos_historial", currentUserId] });
         await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
         
+        // 4. Refrescar explícitamente los datos de configuración en caché
+        await configQuery.refetch();
+
         cerrarModal();
         alert("Turno cerrado correctamente. Los contadores se han puesto a cero.");
       } catch (error: any) {
