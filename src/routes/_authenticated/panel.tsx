@@ -205,9 +205,11 @@ function Panel() {
     void Promise.all([vuelos.refetch(), trenes.refetch()]);
   }
 
+  // Movimientos filtrados para la lista principal y para los filtros de semana/mes/personalizado
   const movsFiltrados = useMemo(
     () =>
       movs.filter((movimiento) => {
+        // Si el periodo es "dia", respetamos el turno actual (desde el último cierre)
         if (periodo === "dia" && ultimoCorte && movimiento.fecha <= ultimoCorte) {
           return false;
         }
@@ -219,6 +221,7 @@ function Panel() {
     [movs, periodo, rangoFechas, ultimoCorte, filtroTipo]
   );
 
+  // Totales basados en el filtro actual seleccionado (Día/Turno, Semana, Mes o Personalizado)
   const totales = useMemo(() => {
     const ingresos = movsFiltrados
       .filter((m) => m.tipo === "ingreso")
@@ -229,6 +232,7 @@ function Panel() {
     return { ingresos, gastos, neto: ingresos - gastos };
   }, [movsFiltrados]);
 
+  // Movimientos del turno actual independiente (para el modal de Turnos y cierre)
   const movsDelTurnoActual = useMemo(
     () => movs.filter((m) => !ultimoCorte || m.fecha > ultimoCorte),
     [movs, ultimoCorte]
@@ -240,7 +244,7 @@ function Panel() {
     return { ingresos, gastos, neto: ingresos - gastos };
   }, [movsDelTurnoActual]);
 
-  const periodoLabel = periodo === "dia" ? "del día" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "filtrado";
+  const periodoLabel = periodo === "dia" ? "del turno" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "filtrado";
 
   async function guardar(m: Movimiento) {
     if (currentUserId) {
@@ -269,7 +273,7 @@ function Panel() {
 
   async function cerrarTurnoCompleto() {
     const seguro = window.confirm(
-      "¿Está usted seguro de cerrar el turno? Los contadores del día se pondrán a cero, pero tus movimientos se mantendrán guardados en Supabase para las estadísticas."
+      "¿Está usted seguro de cerrar el turno? Los contadores del turno se pondrán a cero, pero tus movimientos se mantendrán guardados en Supabase para las estadísticas."
     );
     if (!seguro) return;
 
