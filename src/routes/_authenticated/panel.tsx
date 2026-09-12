@@ -205,24 +205,52 @@ function Panel() {
     void Promise.all([vuelos.refetch(), trenes.refetch()]);
   }
 
-  // Movimientos filtrados para la lista principal y para los filtros de semana/mes/personalizado
+  // Movimientos del turno actual independiente (para el modal de Turnos y cierre)
+  // Incluye todos los ingresos posteriores al último corte (sin importar la fecha natural, para que los futuros cuadren con el turno)
+  const movsDelTurnoActual = useMemo(
+    () => movs.filter((m) => (!ultimoCorte || m.fecha > ultimoCorte) && m.tipo === "ingreso"),
+    [movs, ultimoCorte]
+  );
+
+  const totalesGenerales = useMemo(() => {
+    const ingresos = movsDelTurnoActual.reduce((s, m) => s + m.importe, 0);
+    return { ingresos, gastos: 0, neto: ingresos };
+  }, [movsDelTurnoActual]);
+
+  // Movimientos filtrados para la lista principal y para los filtros de semana/mes/personalizado/día
   const movsFiltrados = useMemo(
     () =>
       movs.filter((movimiento) => {
-        // Si el periodo es "dia", respetamos el turno actual (desde el último cierre)
-        if (periodo === "dia" && ultimoCorte && movimiento.fecha <= ultimoCorte) {
+        // Si el periodo es "dia", mostramos exactamente los mismos ingresos que componen el turno actual
+        if (periodo === "dia") {
+          if (movimiento.tipo !== "ingreso") return false;
+          if (ultimoCorte && movimiento.fecha <= ultimoCorte) {
+            return false;
+          }
+          return true;
+        }
+
+        // Para semana, mes o personalizado, excluimos los gastos a menos que se use un filtro explícito de gastos en los filtros
+        if (periodo !== "personalizado" && movimiento.tipo === "gasto") {
           return false;
         }
+
         if (filtroTipo === "ingresos" && movimiento.tipo !== "ingreso") return false;
         if (filtroTipo === "gastos" && movimiento.tipo !== "gasto") return false;
+        if (filtroTipo === "todos" && movimiento.tipo === "gasto" && periodo !== "personalizado") {
+          return false;
+        }
 
         return perteneceAlPeriodo(movimiento.fecha, periodo, rangoFechas);
       }),
     [movs, periodo, rangoFechas, ultimoCorte, filtroTipo]
   );
 
-  // Totales basados en el filtro actual seleccionado (Día/Turno, Semana, Mes o Personalizado)
+  // Totales basados en el filtro actual seleccionado
   const totales = useMemo(() => {
+    if (periodo === "dia") {
+      return { ingresos: totalesGenerales.ingresos, gastos: 0, neto: totalesGenerales.neto };
+    }
     const ingresos = movsFiltrados
       .filter((m) => m.tipo === "ingreso")
       .reduce((s, m) => s + m.importe, 0);
@@ -230,19 +258,7 @@ function Panel() {
       .filter((m) => m.tipo === "gasto")
       .reduce((s, m) => s + m.importe, 0);
     return { ingresos, gastos, neto: ingresos - gastos };
-  }, [movsFiltrados]);
-
-  // Movimientos del turno actual independiente (para el modal de Turnos y cierre)
-  const movsDelTurnoActual = useMemo(
-    () => movs.filter((m) => !ultimoCorte || m.fecha > ultimoCorte),
-    [movs, ultimoCorte]
-  );
-
-  const totalesGenerales = useMemo(() => {
-    const ingresos = movsDelTurnoActual.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + m.importe, 0);
-    const gastos = movsDelTurnoActual.filter((m) => m.tipo === "gasto").reduce((s, m) => s + m.importe, 0);
-    return { ingresos, gastos, neto: ingresos - gastos };
-  }, [movsDelTurnoActual]);
+  }, [movsFiltrados, periodo, totalesGenerales]);
 
   const periodoLabel = periodo === "dia" ? "del turno" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "filtrado";
 
@@ -286,7 +302,7 @@ function Panel() {
         fechaInicio: fechaInicioTurno,
         fechaFin: ahoraIso,
         ingresos: totalesGenerales.ingresos,
-        gastos: totalesGenerales.gastos,
+        gastos: 0,
         neto: totalesGenerales.neto,
       };
 
@@ -313,7 +329,7 @@ function Panel() {
         alert(`Error al guardar el turno: ${error?.message || JSON.stringify(error)}`);
       }
     } else {
-      alert("No hay movimientos nuevos en este turno para cerrar.");
+      alert("No hay ingresos nuevos en este turno para cerrar.");
     }
   }
 
