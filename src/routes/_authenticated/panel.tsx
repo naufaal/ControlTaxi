@@ -206,14 +206,32 @@ function Panel() {
   }
 
   const movsDelTurnoActual = useMemo(
-    () => movs.filter((m) => (!ultimoCorte || m.fecha > ultimoCorte) && m.tipo === "ingreso"),
+    () => movs.filter((m) => (!ultimoCorte || m.fecha > ultimoCorte)),
     [movs, ultimoCorte]
   );
 
-  const totalesGenerales = useMemo(() => {
-    const ingresos = movsDelTurnoActual.reduce((s, m) => s + m.importe, 0);
-    return { ingresos, gastos: 0, neto: ingresos };
+  const totalesGeneralesTurno = useMemo(() => {
+    const ingresos = movsDelTurnoActual
+      .filter((m) => m.tipo === "ingreso")
+      .reduce((s, m) => s + m.importe, 0);
+    const gastos = movsDelTurnoActual
+      .filter((m) => m.tipo === "gasto")
+      .reduce((s, m) => s + m.importe, 0);
+    
+    // Aquí el neto del turno es netamente el total ingresado (lo facturado), sin restar gastos
+    const neto = ingresos;
+    return { ingresos, gastos, neto };
   }, [movsDelTurnoActual]);
+
+  const movimientosIngresosTurnoActual = useMemo(
+    () => movsDelTurnoActual.filter((m) => m.tipo === "ingreso"),
+    [movsDelTurnoActual]
+  );
+
+  const totalesGenerales = useMemo(() => {
+    const ingresos = movimientosIngresosTurnoActual.reduce((s, m) => s + m.importe, 0);
+    return { ingresos, gastos: 0, neto: ingresos };
+  }, [movimientosIngresosTurnoActual]);
 
   const movsFiltrados = useMemo(
     () =>
@@ -242,7 +260,7 @@ function Panel() {
       .filter((m) => m.tipo === "gasto")
       .reduce((s, m) => s + m.importe, 0);
 
-    const neto = periodo === "dia" ? totalesGenerales.ingresos : ingresos - gastos;
+    const neto = periodo === "dia" ? totalesGenerales.ingresos : ingresos;
 
     return {
       ingresos: periodo === "dia" ? totalesGenerales.ingresos : ingresos,
@@ -292,9 +310,9 @@ function Panel() {
         id: crypto.randomUUID(),
         fechaInicio: fechaInicioTurno,
         fechaFin: ahoraIso,
-        ingresos: totalesGenerales.ingresos,
-        gastos: 0,
-        neto: totalesGenerales.neto,
+        ingresos: totalesGeneralesTurno.ingresos,
+        gastos: totalesGeneralesTurno.gastos,
+        neto: totalesGeneralesTurno.neto,
       };
 
       try {
@@ -321,7 +339,7 @@ function Panel() {
         alert(`Error al guardar el turno: ${errObj?.message || JSON.stringify(error)}`);
       }
     } else {
-      alert("No hay ingresos nuevos en este turno para cerrar.");
+      alert("No hay movimientos nuevos en este turno para cerrar.");
     }
   }
 
@@ -796,7 +814,7 @@ function Panel() {
       )}
       {search.modal === "turnos" && (
         <VentanaTurnosModal 
-          totalesGenerales={totalesGenerales} 
+          totalesGenerales={totalesGeneralesTurno} 
           turnosCerrados={turnosCerrados}
           onCerrar={cerrarModal} 
           onCerrarTurno={cerrarTurnoCompleto} 
@@ -1095,15 +1113,15 @@ function VentanaTurnosModal({
         </div>
 
         <div className="rounded-2xl bg-secondary p-4 mb-4 space-y-2 text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Acumulado turno actual</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Importe Facturado (Neto del turno)</p>
           <p className="font-display text-3xl font-bold text-foreground">{eur(totalesGenerales.neto)}</p>
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase">Ingresos</p>
+              <p className="text-[10px] text-muted-foreground uppercase">Ingresos informativos</p>
               <p className="text-sm font-semibold text-primary">{eur(totalesGenerales.ingresos)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase">Gastos</p>
+              <p className="text-[10px] text-muted-foreground uppercase">Gastos informativos</p>
               <p className="text-sm font-semibold text-destructive">{eur(totalesGenerales.gastos)}</p>
             </div>
           </div>
@@ -1138,7 +1156,7 @@ function VentanaTurnosModal({
                   </div>
                   <div className="flex items-center justify-between pt-0.5">
                     <div>
-                      <p className="text-[9px] text-muted-foreground uppercase">Neto</p>
+                      <p className="text-[9px] text-muted-foreground uppercase">Importe Facturado</p>
                       <p className="font-display text-base font-bold text-foreground">{eur(turno.neto)}</p>
                     </div>
                     <div className="text-right flex gap-2">
