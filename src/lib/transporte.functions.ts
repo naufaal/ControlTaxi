@@ -84,7 +84,6 @@ function normalizaCiudad(texto: string): string {
     .trim();
 }
 
-// Generador de respaldo realista (excluyendo la franja nocturna de 01:00 a 05:00)
 function generarRespaldoDiario(): EstacionResumen[] {
   const origenesAtocha = ["Barcelona Sants", "Sevilla S.J.", "Málaga M.Z.", "Valencia J.S.", "Alicante", "Granada", "Cádiz"];
   const origenesChamartin = ["Valladolid", "León", "Burgos", "Santander", "Oviedo", "Valencia J.S.", "Alicante", "Murcia"];
@@ -93,10 +92,9 @@ function generarRespaldoDiario(): EstacionResumen[] {
   const generarTrenesEstacion = (codigo: string, nombresOrigenes: string[]): TrenLlegada[] => {
     const lista: TrenLlegada[] = [];
     let idCounter = 1;
-    // Solo generamos en horario operativo real de alta velocidad (de 05:00 a 01:00)
     for (let h = 5; h <= 24; h++) {
       const horaRealH = h === 24 ? 0 : h;
-      if (horaRealH >= 1 && horaRealH < 5) continue; // Fuera de servicio nocturno
+      if (horaRealH >= 1 && horaRealH < 5) continue;
 
       for (const m of [0, 15, 30, 45]) {
         if (h === 24 && m > 0) continue;
@@ -149,8 +147,8 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
   async (): Promise<TerminalResumen[]> => {
     const base: Record<"T1" | "T2" | "T4", TerminalResumen> = {
       T1: { terminal: "T1", etiqueta: "T1", total: 0, vuelos: [] },
-      T2: { terminal: "T2", etiqueta: "T2 · T3", total: 0, vuelos: [] },
-      T4: { terminal: "T4", etiqueta: "T4 · T4S", total: 0, vuelos: [] },
+      T2: { terminal: "T2", etiqueta: "T2", total: 0, vuelos: [] },
+      T4: { terminal: "T4", etiqueta: "T4", total: 0, vuelos: [] },
     };
 
     const endpointsAena = [
@@ -260,15 +258,13 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 );
 
 // ---------------------------------------------------------------------------
-// TRENES CON FILTRADO ESTRICTO DE FRANJA NOCTURNA Y VENTANA DE PRÓXIMAS HORAS
+// TRENES LARGA DISTANCIA
 // ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const hoyYMD = obtenerFechaActualYMD();
-
-    // Filtro de franja horaria nocturna real en Madrid (de 01:00 a 05:00 no hay trenes)
     const ahoraMinutos = minutosMadridAhora();
-    const esHorarioNocturnoCerrado = ahoraMinutos >= 60 && ahoraMinutos < 300; // 01:00 AM a 05:00 AM
+    const esHorarioNocturnoCerrado = ahoraMinutos >= 60 && ahoraMinutos < 300; 
 
     if (esHorarioNocturnoCerrado) {
       return [
@@ -296,7 +292,6 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
         const trenesEnCurso = estacion.trenes.filter((t) => {
           const minTren = aMinutos(t.horaEstado);
           const diff = minTren - ahoraMinutos;
-          // Muestra desde 5 minutos atrás hasta las próximas 5 horas (300 min)
           return diff >= -5 && diff <= 300;
         });
 
@@ -402,7 +397,6 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       const trenesEnCurso = estacion.trenes.filter((t) => {
         const minTren = aMinutos(t.horaEstado);
         const diff = minTren - ahoraMinutos;
-        // Solo muestra trenes desde 5 minutos antes hasta las próximas 5 horas
         return diff >= -5 && diff <= 300;
       });
 
