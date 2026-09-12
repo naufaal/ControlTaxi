@@ -205,41 +205,29 @@ function Panel() {
     void Promise.all([vuelos.refetch(), trenes.refetch()]);
   }
 
-  // Movimientos de ingresos del turno actual
   const movsDelTurnoActual = useMemo(
-    () =>
-      movs.filter(
-        (m) => (!ultimoCorte || new Date(m.fecha).getTime() > new Date(ultimoCorte).getTime()) && m.tipo === "ingreso"
-      ),
-    [movs, ultimoCorte]
-  );
-
-  // Movimientos de gastos del turno actual
-  const gastosDelTurnoActual = useMemo(
-    () =>
-      movs.filter(
-        (m) => (!ultimoCorte || new Date(m.fecha).getTime() > new Date(ultimoCorte).getTime()) && m.tipo === "gasto"
-      ),
+    () => movs.filter((m) => (!ultimoCorte || m.fecha > ultimoCorte) && m.tipo === "ingreso"),
     [movs, ultimoCorte]
   );
 
   const totalesGenerales = useMemo(() => {
     const ingresos = movsDelTurnoActual.reduce((s, m) => s + m.importe, 0);
-    const gastos = gastosDelTurnoActual.reduce((s, m) => s + m.importe, 0);
-    return { ingresos, gastos, neto: ingresos - gastos };
-  }, [movsDelTurnoActual, gastosDelTurnoActual]);
+    return { ingresos, gastos: 0, neto: ingresos };
+  }, [movsDelTurnoActual]);
 
-  // Movimientos filtrados para la lista principal y para los filtros de semana/mes/personalizado/día
   const movsFiltrados = useMemo(
     () =>
       movs.filter((movimiento) => {
         if (periodo === "dia") {
-          if (ultimoCorte && new Date(movimiento.fecha).getTime() <= new Date(ultimoCorte).getTime()) {
+          if (movimiento.tipo !== "ingreso") return false;
+          if (ultimoCorte && movimiento.fecha <= ultimoCorte) {
             return false;
           }
-          if (filtroTipo === "ingresos" && movimiento.tipo !== "ingreso") return false;
-          if (filtroTipo === "gastos" && movimiento.tipo !== "gasto") return false;
           return true;
+        }
+
+        if (periodo !== "personalizado" && movimiento.tipo === "gasto") {
+          return false;
         }
 
         if (filtroTipo === "ingresos" && movimiento.tipo !== "ingreso") return false;
@@ -253,10 +241,9 @@ function Panel() {
     [movs, periodo, rangoFechas, ultimoCorte, filtroTipo]
   );
 
-  // Totales basados en el filtro actual seleccionado
   const totales = useMemo(() => {
     if (periodo === "dia") {
-      return { ingresos: totalesGenerales.ingresos, gastos: totalesGenerales.gastos, neto: totalesGenerales.neto };
+      return { ingresos: totalesGenerales.ingresos, gastos: 0, neto: totalesGenerales.neto };
     }
     const ingresos = movsFiltrados
       .filter((m) => m.tipo === "ingreso")
@@ -296,22 +283,20 @@ function Panel() {
 
   async function cerrarTurnoCompleto() {
     const seguro = window.confirm(
-      "¿Está usted seguro de cerrar el turno? Los contadores de ingresos y gastos se pondrán a cero."
+      "¿Está usted seguro de cerrar el turno? Los contadores del turno se pondrán a cero, pero tus movimientos se mantendrán guardados en Supabase para las estadísticas."
     );
     if (!seguro) return;
 
-    if (currentUserId) {
+    if (currentUserId && movsDelTurnoActual.length > 0) {
       const ahoraIso = new Date().toISOString();
-      const fechaInicioTurno = movsDelTurnoActual.length > 0 
-        ? movsDelTurnoActual[movsDelTurnoActual.length - 1].fecha 
-        : ahoraIso;
+      const fechaInicioTurno = movsDelTurnoActual[movsDelTurnoActual.length - 1].fecha;
 
       const nuevoTurno: TurnoGuardado = {
         id: crypto.randomUUID(),
         fechaInicio: fechaInicioTurno,
         fechaFin: ahoraIso,
         ingresos: totalesGenerales.ingresos,
-        gastos: totalesGenerales.gastos,
+        gastos: 0,
         neto: totalesGenerales.neto,
       };
 
@@ -330,7 +315,6 @@ function Panel() {
         await queryClient.resetQueries({ queryKey: ["configuracion_usuario", currentUserId] });
         await queryClient.resetQueries({ queryKey: ["turnos_historial", currentUserId] });
         await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
-        await configQuery.refetch();
         
         cerrarModal();
         alert("Turno cerrado correctamente. Los contadores se han puesto a cero.");
@@ -339,7 +323,7 @@ function Panel() {
         alert(`Error al guardar el turno: ${error?.message || JSON.stringify(error)}`);
       }
     } else {
-      alert("No hay sesión activa.");
+      alert("No hay ingresos nuevos en este turno para cerrar.");
     }
   }
 
@@ -889,6 +873,8 @@ function VentanaFiltrosModal({
     onCerrar();
   }
 
+  const hoyMax = new Date().toISOString().slice(0, 10);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
       <div
@@ -933,6 +919,7 @@ function VentanaFiltrosModal({
             <label className="text-xs text-muted-foreground uppercase font-semibold">Desde / Fecha inicial</label>
             <input
               type="date"
+              max={hoyMax}
               value={inicioTemp}
               onChange={(e) => setInicioTemp(e.target.value)}
               className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none"
@@ -943,6 +930,7 @@ function VentanaFiltrosModal({
             <label className="text-xs text-muted-foreground uppercase font-semibold">Hasta / Fecha final</label>
             <input
               type="date"
+              max={hoyMax}
               value={finTemp}
               onChange={(e) => setFinTemp(e.target.value)}
               className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none"
@@ -1159,11 +1147,18 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
   const [concepto, setConcepto] = useState("Carrera");
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
 
+  const hoyMax = new Date().toISOString().slice(0, 10);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const num = parseFloat(importe.replace(",", "."));
     if (isNaN(num) || num <= 0) {
       alert("Introduce un importe válido");
+      return;
+    }
+
+    if (fecha > hoyMax) {
+      alert("No se permiten fechas futuras.");
       return;
     }
 
@@ -1235,6 +1230,7 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
             </label>
             <input
               type="date"
+              max={hoyMax}
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
               className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
@@ -1280,11 +1276,18 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
   const [concepto, setConcepto] = useState("Combustible");
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
 
+  const hoyMax = new Date().toISOString().slice(0, 10);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const num = parseFloat(importe.replace(",", "."));
     if (isNaN(num) || num <= 0) {
       alert("Introduce un importe válido");
+      return;
+    }
+
+    if (fecha > hoyMax) {
+      alert("No se permiten fechas futuras.");
       return;
     }
 
@@ -1336,6 +1339,7 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
             </label>
             <input
               type="date"
+              max={hoyMax}
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
               className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
