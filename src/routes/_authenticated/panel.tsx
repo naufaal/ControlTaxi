@@ -156,7 +156,7 @@ function Panel() {
       if (!currentUserId) return [];
       try {
         await supabase.rpc("registrar_uso", { p_event: "panel_view", p_path: "/panel" });
-      } catch (e) {
+      } catch {
         // Ignorar fallo de RPC
       }
       return await cargarMovimientos(currentUserId);
@@ -318,9 +318,10 @@ function Panel() {
         
         cerrarModal();
         alert("Turno cerrado correctamente. Los contadores se han puesto a cero.");
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errObj = error as { message?: string };
         console.error("Error al cerrar turno:", error);
-        alert(`Error al guardar el turno: ${error?.message || JSON.stringify(error)}`);
+        alert(`Error al guardar el turno: ${errObj?.message || JSON.stringify(error)}`);
       }
     } else {
       alert("No hay ingresos nuevos en este turno para cerrar.");
@@ -524,9 +525,19 @@ function Panel() {
           <div className="mt-3 space-y-3">
             {(() => {
               const listaVuelos = vuelos.data ?? [];
-              const t1 = listaVuelos.find((t: any) => t.terminal?.includes("T1"));
-              const t2t3 = listaVuelos.find((t: any) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
-              const t4t4s = listaVuelos.find((t: any) => t.terminal?.includes("T4"));
+              interface VueloItem {
+                id: string;
+                horaEstimada: string;
+                origen: string;
+                estadoVuelo?: string;
+              }
+              interface TerminalVuelos {
+                terminal?: string;
+                vuelos?: VueloItem[];
+              }
+              const t1 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T1"));
+              const t2t3 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
+              const t4t4s = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T4"));
 
               return (
                 <>
@@ -539,7 +550,7 @@ function Panel() {
                         <span className="font-display text-base font-bold text-foreground">T1</span>
                       </div>
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(t1.vuelos ?? []).map((v: any) => (
+                        {(t1.vuelos ?? []).map((v: VueloItem) => (
                           <li key={v.id} className="flex items-center gap-3 text-sm">
                             <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
                             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
@@ -563,7 +574,7 @@ function Panel() {
                         <span className="font-display text-base font-bold text-foreground">T2 · T3</span>
                       </div>
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(t2t3.vuelos ?? []).map((v: any) => (
+                        {(t2t3.vuelos ?? []).map((v: VueloItem) => (
                           <li key={v.id} className="flex items-center gap-3 text-sm">
                             <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
                             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
@@ -587,7 +598,7 @@ function Panel() {
                         <span className="font-display text-base font-bold text-foreground">T4 · T4S</span>
                       </div>
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(t4t4s.vuelos ?? []).map((v: any) => (
+                        {(t4t4s.vuelos ?? []).map((v: VueloItem) => (
                           <li key={v.id} className="flex items-center gap-3 text-sm">
                             <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
                             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
@@ -629,8 +640,21 @@ function Panel() {
           <div className="mt-3 space-y-3">
             {(() => {
               const listaEstaciones = trenes.data ?? [];
-              const atocha = listaEstaciones.find((e: any) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
-              const chamartin = listaEstaciones.find((e: any) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
+              interface TrenItem {
+                id: string;
+                horaEstado?: string;
+                hora?: string;
+                tipo?: string;
+                origen?: string;
+                estado?: string;
+              }
+              interface EstacionTrenes {
+                nombre?: string;
+                codigoAdif?: string;
+                trenes?: TrenItem[];
+              }
+              const atocha = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
+              const chamartin = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
 
               return (
                 <>
@@ -648,7 +672,7 @@ function Panel() {
                         </span>
                       </div>
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(atocha.trenes ?? []).map((tr: any) => (
+                        {(atocha.trenes ?? []).map((tr: TrenItem) => (
                           <li key={tr.id} className="flex items-center gap-3 text-sm">
                             <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
                             <span className="min-w-0 flex-1 truncate text-foreground">
@@ -678,7 +702,7 @@ function Panel() {
                         </span>
                       </div>
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(chamartin.trenes ?? []).map((tr: any) => (
+                        {(chamartin.trenes ?? []).map((tr: TrenItem) => (
                           <li key={tr.id} className="flex items-center gap-3 text-sm">
                             <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
                             <span className="min-w-0 flex-1 truncate text-foreground">
