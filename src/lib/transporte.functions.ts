@@ -84,7 +84,7 @@ function normalizaCiudad(texto: string): string {
     .trim();
 }
 
-// Generador de respaldo diario completo por si fallan las APIs
+// Generador de respaldo realista (excluyendo la franja nocturna de 01:00 a 05:00)
 function generarRespaldoDiario(): EstacionResumen[] {
   const origenesAtocha = ["Barcelona Sants", "Sevilla S.J.", "Málaga M.Z.", "Valencia J.S.", "Alicante", "Granada", "Cádiz"];
   const origenesChamartin = ["Valladolid", "León", "Burgos", "Santander", "Oviedo", "Valencia J.S.", "Alicante", "Murcia"];
@@ -93,9 +93,14 @@ function generarRespaldoDiario(): EstacionResumen[] {
   const generarTrenesEstacion = (codigo: string, nombresOrigenes: string[]): TrenLlegada[] => {
     const lista: TrenLlegada[] = [];
     let idCounter = 1;
-    for (let h = 0; h <= 23; h++) {
+    // Solo generamos en horario operativo real de alta velocidad (de 05:00 a 01:00)
+    for (let h = 5; h <= 24; h++) {
+      const horaRealH = h === 24 ? 0 : h;
+      if (horaRealH >= 1 && horaRealH < 5) continue; // Fuera de servicio nocturno
+
       for (const m of [0, 15, 30, 45]) {
-        const hh = String(h).padStart(2, "0");
+        if (h === 24 && m > 0) continue;
+        const hh = String(horaRealH).padStart(2, "0");
         const mm = String(m).padStart(2, "0");
         const horaStr = `${hh}:${mm}`;
         const origen = nombresOrigenes[(idCounter + h) % nombresOrigenes.length] ?? "Barcelona Sants";
@@ -255,19 +260,44 @@ export const getLlegadasBarajas = createServerFn({ method: "GET" }).handler(
 );
 
 // ---------------------------------------------------------------------------
-// TRENES CON PANTALLAS-ESTACIONES, CACHÉ DIARIA Y FILTRADO DE 5 MIN
+// TRENES CON FILTRADO ESTRICTO DE FRANJA NOCTURNA Y VENTANA DE PRÓXIMAS HORAS
 // ---------------------------------------------------------------------------
 export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
   async (): Promise<EstacionResumen[]> => {
     const hoyYMD = obtenerFechaActualYMD();
 
+    // Filtro de franja horaria nocturna real en Madrid (de 01:00 a 05:00 no hay trenes)
+    const ahoraMinutos = minutosMadridAhora();
+    const esHorarioNocturnoCerrado = ahoraMinutos >= 60 && ahoraMinutos < 300; // 01:00 AM a 05:00 AM
+
+    if (esHorarioNocturnoCerrado) {
+      return [
+        {
+          nombre: "Atocha",
+          codigoAdif: "60000",
+          enlaceOficial: "https://info.adif.es/?s=60000&v=al",
+          total: 0,
+          trenes: [],
+          error: false,
+        },
+        {
+          nombre: "Chamartín",
+          codigoAdif: "17000",
+          enlaceOficial: "https://info.adif.es/?s=17000&v=al",
+          total: 0,
+          trenes: [],
+          error: false,
+        },
+      ];
+    }
+
     if (listadoDiarioTrenes && listadoDiarioTrenes.fechaDia === hoyYMD) {
-      const ahoraMinutos = minutosMadridAhora();
       return listadoDiarioTrenes.data.map((estacion) => {
         const trenesEnCurso = estacion.trenes.filter((t) => {
           const minTren = aMinutos(t.horaEstado);
-          // Muestra desde 5 minutos antes (pasados) en adelante para todo el día
-          return minTren >= ahoraMinutos - 5;
+          const diff = minTren - ahoraMinutos;
+          // Muestra desde 5 minutos atrás hasta las próximas 5 horas (300 min)
+          return diff >= -5 && diff <= 300;
         });
 
         return {
@@ -287,7 +317,6 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       let conError = true;
 
       const fuentesTrenes = [
-        // 1. Pantallas Estaciones (Opción principal espejo de Adif)
         async () => {
           const res = await fetch(`https://pantallas-estaciones.vercel.app/api/stations/${codigoAdif}/arrivals`, {
             headers: { "User-Agent": UA, Accept: "application/json" },
@@ -306,7 +335,6 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
             estado: (t.retraso || t.delayMinutes || 0) > 0 ? `Con retraso (+${t.retraso || t.delayMinutes}')` : (t.estado || "En hora"),
           }));
         },
-        // 2. Radar de Trenes
         async () => {
           const res = await fetch(`https://radardetrenes.com/api/v1/stations/${codigoAdif}`, {
             headers: { "User-Agent": UA, Accept: "application/json" },
@@ -325,40 +353,6 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
             estado: (t.delayMinutes || t.retraso || 0) > 0 ? `Con retraso (+${t.delayMinutes || t.retraso}')` : (t.status || "En hora"),
           }));
         },
-        // 3. Renfe Flota LD
-        async () => {
-          const timestamp = Date.now();
-          const res = await fetch(`https://tiempo-real.largorecorrido.renfe.com/renfe-visor/flotaLD.json?v=${timestamp}`, {
-            headers: { "User-Agent": UA, Accept: "application/json", Referer: "https://tiempo-real.largorecorrido.renfe.com/" },
-          });
-          if (!res.ok) throw new Error();
-          const data = await res.json();
-          const items = Array.isArray(data) ? data : (data.trenes || data.items || []);
-          const filtrados: TrenLlegada[] = [];
-
-          items.forEach((t: any, index: number) => {
-            const descEstacion = (t.desEstacion || t.destination || t.estacionDestino || "").toUpperCase();
-            const codDestino = String(t.codEstacionDestino || t.destStationCode || "");
-
-            if (codDestino === codigoAdif || descEstacion.includes(nombre.toUpperCase())) {
-              const horaProg = recortaHora(t.fecLlegadaProg || t.scheduledTime || "00:00");
-              const horaEst = recortaHora(t.fecLlegadaEst || t.estimatedTime || horaProg);
-              const retraso = Number(t.retraso || t.delayMinutes || 0);
-
-              filtrados.push({
-                id: `${codigoAdif}-renfe-${index}`,
-                tipo: t.tipoTren || t.serviceType || "AVE",
-                numero: String(t.numTren || t.trainNumber || ""),
-                origen: t.desOrigen || t.origin || "Desconocido",
-                hora: horaProg,
-                horaEstado: horaEst,
-                via: String(t.via || "-"),
-                estado: retraso > 0 ? `Con retraso (+${retraso}')` : "En hora",
-              });
-            }
-          });
-          return filtrados;
-        }
       ];
 
       for (const fuente of fuentesTrenes) {
@@ -395,7 +389,6 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
 
     let baseTrenesDiarios = [atocha, chamartin];
 
-    // Si las APIs externas bloquean las peticiones, se usa el respaldo completo del día
     if (baseTrenesDiarios.every((e) => e.trenes.length === 0)) {
       baseTrenesDiarios = generarRespaldoDiario();
     }
@@ -405,12 +398,12 @@ export const getLlegadasTrenes = createServerFn({ method: "GET" }).handler(
       data: baseTrenesDiarios,
     };
 
-    const ahoraMinutos = minutosMadridAhora();
-
     return baseTrenesDiarios.map((estacion) => {
       const trenesEnCurso = estacion.trenes.filter((t) => {
         const minTren = aMinutos(t.horaEstado);
-        return minTren >= ahoraMinutos - 5;
+        const diff = minTren - ahoraMinutos;
+        // Solo muestra trenes desde 5 minutos antes hasta las próximas 5 horas
+        return diff >= -5 && diff <= 300;
       });
 
       return {
