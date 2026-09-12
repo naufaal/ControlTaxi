@@ -131,27 +131,23 @@ function Panel() {
   const currentUserId = usuarioQuery.data?.id ?? null;
   const currentCorreo = usuarioQuery.data?.email ?? "";
 
-  // Consulta de configuración de usuario para obtener el último corte o estado guardado en Supabase
   const configQuery = useQuery({
     queryKey: ["configuracion_usuario", currentUserId],
     queryFn: async () => {
       if (!currentUserId) return null;
       const { data, error } = await supabase
         .from("configuracion_usuario")
-        .select("*")
+        .select("dia_laboral_activo")
         .eq("user_id", currentUserId)
         .maybeSingle();
-
-      if (error) {
-        console.error("Error al cargar configuración:", error);
-      }
+      if (error) throw error;
       return data;
     },
     enabled: !!currentUserId,
   });
 
-  const ultimoCorte = configQuery.data?.dia_laboral_activo 
-    ? new Date(configQuery.data.dia_laboral_activo).toISOString() 
+  const ultimoCorte = configQuery.data?.dia_laboral_activo
+    ? new Date(configQuery.data.dia_laboral_activo).toISOString()
     : null;
 
   const movimientosQuery = useQuery({
@@ -293,7 +289,6 @@ function Panel() {
       try {
         await guardarTurnoSupabase(currentUserId, nuevoTurno);
         
-        // Guardar o actualizar el corte directamente en Supabase (tabla configuracion_usuario)
         const { error: upsertError } = await supabase
           .from("configuracion_usuario")
           .upsert(
@@ -305,11 +300,12 @@ function Panel() {
 
         await queryClient.invalidateQueries({ queryKey: ["configuracion_usuario", currentUserId] });
         await queryClient.invalidateQueries({ queryKey: ["turnos_historial", currentUserId] });
+        
         cerrarModal();
-        alert("Turno cerrado correctamente y sincronizado en la nube.");
+        alert("Turno cerrado correctamente. Los contadores se han puesto a cero.");
       } catch (error) {
         console.error("Error al cerrar turno:", error);
-        alert("Hubo un error al guardar el turno en Supabase.");
+        alert("Hubo un error al guardar el turno en la nube.");
       }
     } else {
       alert("No hay movimientos nuevos en este turno para cerrar.");
