@@ -303,9 +303,9 @@ function Panel() {
         
         cerrarModal();
         alert("Turno cerrado correctamente. Los contadores se han puesto a cero.");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error al cerrar turno:", error);
-        alert("Hubo un error al guardar el turno en la nube.");
+        alert(`Error al guardar el turno: ${error?.message || JSON.stringify(error)}`);
       }
     } else {
       alert("No hay movimientos nuevos en este turno para cerrar.");
