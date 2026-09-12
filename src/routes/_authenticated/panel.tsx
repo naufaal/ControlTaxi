@@ -28,8 +28,6 @@ import {
   borrarMovimiento,
   cargarTurnos,
   guardarTurnoSupabase,
-  obtenerUltimoCorteTurno,
-  guardarUltimoCorteTurno,
   type Movimiento,
   type TurnoGuardado,
 } from "@/lib/taxihoja";
@@ -112,8 +110,6 @@ function Panel() {
   const [periodo, setPeriodo] = useState<Periodo>("dia");
   const [rangoFechas, setRangoFechas] = useState({ inicio: "", fin: "" });
   const [filtroTipo, setFiltroTipo] = useState<"todos" | "ingresos" | "gastos">("todos");
-  
-  const ultimoCorte = obtenerUltimoCorteTurno();
 
   const abrirModal = (tipo: "ingreso" | "gasto" | "factura" | "turnos" | "documentos" | "filtros") => {
     navigate({ search: { modal: tipo } });
@@ -134,6 +130,29 @@ function Panel() {
 
   const currentUserId = usuarioQuery.data?.id ?? null;
   const currentCorreo = usuarioQuery.data?.email ?? "";
+
+  // Consulta de configuración de usuario para obtener el último corte o estado guardado en Supabase
+  const configQuery = useQuery({
+    queryKey: ["configuracion_usuario", currentUserId],
+    queryFn: async () => {
+      if (!currentUserId) return null;
+      const { data, error } = await supabase
+        .from("configuracion_usuario")
+        .select("*")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error al cargar configuración:", error);
+      }
+      return data;
+    },
+    enabled: !!currentUserId,
+  });
+
+  const ultimoCorte = configQuery.data?.dia_laboral_activo 
+    ? new Date(configQuery.data.dia_laboral_activo).toISOString() 
+    : null;
 
   const movimientosQuery = useQuery({
     queryKey: ["movimientos", currentUserId],
@@ -273,13 +292,24 @@ function Panel() {
 
       try {
         await guardarTurnoSupabase(currentUserId, nuevoTurno);
-        guardarUltimoCorteTurno(ahoraIso);
+        
+        // Guardar o actualizar el corte directamente en Supabase (tabla configuracion_usuario)
+        const { error: upsertError } = await supabase
+          .from("configuracion_usuario")
+          .upsert(
+            { user_id: currentUserId, dia_laboral_activo: ahoraIso, updated_at: ahoraIso },
+            { onConflict: "user_id" }
+          );
+
+        if (upsertError) throw upsertError;
+
+        await queryClient.invalidateQueries({ queryKey: ["configuracion_usuario", currentUserId] });
         await queryClient.invalidateQueries({ queryKey: ["turnos_historial", currentUserId] });
         cerrarModal();
-        alert("Turno cerrado correctamente. Los contadores se han puesto a cero sin borrar tus datos.");
+        alert("Turno cerrado correctamente y sincronizado en la nube.");
       } catch (error) {
         console.error("Error al cerrar turno:", error);
-        alert("Hubo un error al guardar el turno.");
+        alert("Hubo un error al guardar el turno en Supabase.");
       }
     } else {
       alert("No hay movimientos nuevos en este turno para cerrar.");
