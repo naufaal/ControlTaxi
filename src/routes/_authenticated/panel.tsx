@@ -533,7 +533,7 @@ function Panel() {
             </span>
             <div className="min-w-0">
               <h3 className="font-display text-base font-bold text-foreground">
-                Documentación a aportar
+                Documentación a almacenar
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">
                 Guarda tus permisos, seguros o recibos de forma sincronizada.
@@ -1099,6 +1099,27 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
     }
   }
 
+  async function verDocumento(doc: { ruta?: string; url?: string }) {
+    if (doc.ruta) {
+      try {
+        const { data, error } = await supabase.storage
+          .from("documentos")
+          .download(doc.ruta);
+        if (error) throw error;
+        if (data) {
+          const blobUrl = URL.createObjectURL(data);
+          window.open(blobUrl, "_blank");
+          return;
+        }
+      } catch (e) {
+        console.error("Error al descargar documento para visualizar:", e);
+      }
+    }
+    if (doc.url) {
+      window.open(doc.url, "_blank");
+    }
+  }
+
   async function borrarDocumento(id: string, rutaArchivo?: string) {
     if (!currentUserId) return;
     
@@ -1213,17 +1234,14 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {doc.url && (
-                    <a
-                      href={doc.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors"
-                      title="Ver archivo"
-                    >
-                      Ver <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => verDocumento(doc)}
+                    className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                    title="Ver archivo"
+                  >
+                    Ver <ExternalLink className="h-3 w-3" />
+                  </button>
                   <button
                     onClick={() => borrarDocumento(doc.id, doc.ruta)}
                     className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
