@@ -20,6 +20,8 @@ import {
   Paperclip,
   FileText,
   Train,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import {
   eur,
@@ -218,7 +220,6 @@ function Panel() {
       .filter((m) => m.tipo === "gasto")
       .reduce((s, m) => s + m.importe, 0);
 
-    // El neto del turno es solo lo ingresado (lo facturado). Los gastos son informativos.
     const neto = ingresos;
     return { ingresos, gastos, neto };
   }, [movsDelTurnoActual]);
@@ -260,7 +261,6 @@ function Panel() {
       .filter((m) => m.tipo === "gasto")
       .reduce((s, m) => s + m.importe, 0);
 
-    // ¿Hay filtro activo? (personalizado o tipo distinto de "todos")
     const filtroActivo = periodo === "personalizado" || filtroTipo !== "todos";
 
     let neto: number;
@@ -269,23 +269,19 @@ function Panel() {
 
     if (filtroActivo) {
       if (filtroTipo === "gastos") {
-        // Solo gastos: neto en POSITIVO (importe absoluto de los gastos)
         neto = Math.abs(gastos);
         ingresosMostrados = 0;
         gastosMostrados = gastos;
       } else if (filtroTipo === "ingresos") {
-        // Solo ingresos: neto = ingresos
         neto = ingresos;
         ingresosMostrados = ingresos;
         gastosMostrados = 0;
       } else {
-        // Filtro "Neto" (personalizado con tipo todos): ingresos - gastos
         neto = ingresos - gastos;
         ingresosMostrados = ingresos;
         gastosMostrados = gastos;
       }
     } else {
-      // Sin filtro (panel día/semana/mes): neto = solo ingresos (gastos informativos)
       neto = periodo === "dia" ? totalesGenerales.ingresos : ingresos;
       ingresosMostrados = periodo === "dia" ? totalesGenerales.ingresos : ingresos;
       gastosMostrados = gastos;
@@ -419,13 +415,26 @@ function Panel() {
           ))}
         </div>
 
-        <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
+        <div
+          className={`relative mx-auto mt-4 max-w-sm rounded-3xl border p-5 text-center backdrop-blur transition-colors ${
+            totales.neto >= 0
+              ? "border-emerald-400/40 bg-emerald-500/10"
+              : "border-rose-400/40 bg-rose-500/10"
+          }`}
+        >
           <p className="text-xs tracking-wide text-white/70 uppercase">
             Neto acumulado {periodo === "personalizado" ? "filtrado" : periodoLabel}
           </p>
-          <p className="mt-1 font-display text-4xl font-bold text-white">
-            {eur(totales.neto)}
-          </p>
+          <div className="mt-1 flex items-center justify-center gap-2">
+            {totales.neto >= 0 ? (
+              <TrendingUp className="h-7 w-7 text-emerald-400" />
+            ) : (
+              <TrendingDown className="h-7 w-7 text-rose-400" />
+            )}
+            <p className="font-display text-4xl font-bold text-white">
+              {eur(totales.neto)}
+            </p>
+          </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-black/20 py-2.5 px-3 text-center">
@@ -486,18 +495,45 @@ function Panel() {
                 className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
               >
                 <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${
                     m.tipo === "ingreso"
                       ? "bg-primary/20 text-foreground"
                       : "bg-secondary text-muted-foreground"
                   }`}
                 >
-                  {m.tipo === "ingreso" ? <Plus className="h-5 w-5" /> : <Minus className="h-5 w-5" />}
+                  {(() => {
+                    const c = (m.concepto || "").toLowerCase();
+                    if (c.includes("aeropuerto")) return "✈️";
+                    if (c.includes("estación") || c.includes("estacion")) return "🚉";
+                    if (c.includes("combustible")) return "⛽";
+                    if (c.includes("lavado")) return "🧼";
+                    if (c.includes("taller")) return "🔧";
+                    if (c.includes("parking")) return "🅿️";
+                    if (c.includes("peaje")) return "🛣️";
+                    return m.tipo === "ingreso" ? "🚕" : "💸";
+                  })()}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-foreground">
-                    {m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}
-                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="truncate font-semibold text-foreground">
+                      {m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}
+                    </p>
+                    {m.tipo === "ingreso" && m.concepto?.match(/\((Efectivo|Tarjeta|Emisora|Bizum)\)/) && (
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded font-semibold shrink-0 ${
+                          m.concepto.includes("Efectivo")
+                            ? "bg-emerald-500/15 text-emerald-600"
+                            : m.concepto.includes("Tarjeta")
+                              ? "bg-blue-500/15 text-blue-600"
+                              : m.concepto.includes("Emisora")
+                                ? "bg-purple-500/15 text-purple-600"
+                                : "bg-amber-500/15 text-amber-600"
+                        }`}
+                      >
+                        {m.concepto.match(/\((Efectivo|Tarjeta|Emisora|Bizum)\)/)?.[1]}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {new Date(m.fecha).toLocaleDateString("es-ES", {
                       day: "2-digit",
@@ -548,316 +584,310 @@ function Panel() {
           </div>
         </button>
       </div>
-<section className="px-5 pt-8">
-  <div className="flex items-center justify-between">
-    <div>
-      <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
-      <p className="text-xs text-muted-foreground mt-0.5">Próximas 5 horas, según Aena. T4 incluye T4S.</p>
-    </div>
-    <button
-      onClick={actualizarTransportes}
-      disabled={vuelos.isFetching || trenes.isFetching}
-      aria-label="Actualizar vuelos"
-      className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
-    >
-      <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
-    </button>
-  </div>
-  {vuelos.isLoading ? (
-    <Cargando texto="Consultando vuelos…" />
-  ) : (
-    <div className="mt-3 space-y-3">
-      {(() => {
-        const listaVuelos = vuelos.data ?? [];
-        interface VueloItem {
-          id: string;
-          horaEstimada: string;
-          origen: string;
-          estadoVuelo?: string;
-        }
-        interface TerminalVuelos {
-          terminal?: string;
-          vuelos?: VueloItem[];
-        }
-        const t1 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T1"));
-        const t2t3 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
-        const t4t4s = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T4"));
+            <section className="px-5 pt-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Próximas 5 horas, según Aena. T4 incluye T4S.</p>
+          </div>
+          <button
+            onClick={actualizarTransportes}
+            disabled={vuelos.isFetching || trenes.isFetching}
+            aria-label="Actualizar vuelos"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+        {vuelos.isLoading ? (
+          <Cargando texto="Consultando vuelos…" />
+        ) : (
+          <div className="mt-3 space-y-3">
+            {(() => {
+              const listaVuelos = vuelos.data ?? [];
+              interface VueloItem {
+                id: string;
+                horaEstimada: string;
+                origen: string;
+                estadoVuelo?: string;
+              }
+              interface TerminalVuelos {
+                terminal?: string;
+                vuelos?: VueloItem[];
+              }
+              const t1 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T1"));
+              const t2t3 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
+              const t4t4s = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T4"));
 
-        return (
-          <>
-            {t1 && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                    <Plane className="h-4 w-4" />
-                  </span>
-                  <span className="font-display text-base font-bold text-foreground">T1</span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(t1.vuelos ?? []).map((v: VueloItem) => (
-                    <li key={v.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                      {v.estadoVuelo && (
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                          {v.estadoVuelo}
+              return (
+                <>
+                  {t1 && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                          <Plane className="h-4 w-4" />
                         </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                        <span className="font-display text-base font-bold text-foreground">T1</span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(t1.vuelos ?? []).map((v: VueloItem) => (
+                          <li key={v.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                            {v.estadoVuelo && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                                {v.estadoVuelo}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
-            {t2t3 && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                    <Plane className="h-4 w-4" />
-                  </span>
-                  <span className="font-display text-base font-bold text-foreground">T2 · T3</span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(t2t3.vuelos ?? []).map((v: VueloItem) => (
-                    <li key={v.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                      {v.estadoVuelo && (
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                          {v.estadoVuelo}
+                  {t2t3 && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                          <Plane className="h-4 w-4" />
                         </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                        <span className="font-display text-base font-bold text-foreground">T2 · T3</span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(t2t3.vuelos ?? []).map((v: VueloItem) => (
+                          <li key={v.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                            {v.estadoVuelo && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                                {v.estadoVuelo}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
-            {t4t4s && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                    <Plane className="h-4 w-4" />
-                  </span>
-                  <span className="font-display text-base font-bold text-foreground">T4 · T4S</span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(t4t4s.vuelos ?? []).map((v: VueloItem) => (
-                    <li key={v.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                      {v.estadoVuelo && (
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                          {v.estadoVuelo}
+                  {t4t4s && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                          <Plane className="h-4 w-4" />
                         </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </>
-        );
-      })()}
-    </div>
-  )}
-</section>
+                        <span className="font-display text-base font-bold text-foreground">T4 · T4S</span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(t4t4s.vuelos ?? []).map((v: VueloItem) => (
+                          <li key={v.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                            {v.estadoVuelo && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                                {v.estadoVuelo}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </section>
 
-<section className="px-5 pt-8">
-  <div className="flex items-center justify-between">
-    <div>
-      <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad y Larga Distancia</h2>
-      <p className="text-xs text-muted-foreground mt-0.5">Llegadas oficiales (Adif) a Atocha (60000) y Chamartín (17000).</p>
-    </div>
-    <button
-      onClick={actualizarTransportes}
-      disabled={vuelos.isFetching || trenes.isFetching}
-      aria-label="Actualizar trenes"
-      className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
-    >
-      <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
-    </button>
-  </div>
-  {trenes.isLoading ? (
-    <Cargando texto="Consultando trenes…" />
-  ) : (
-    <div className="mt-3 space-y-3">
-      {(() => {
-        const listaEstaciones = trenes.data ?? [];
-        interface TrenItem {
-          id: string;
-          horaEstado?: string;
-          hora?: string;
-          tipo?: string;
-          origen?: string;
-          estado?: string;
-        }
-        interface EstacionTrenes {
-          nombre?: string;
-          codigoAdif?: string;
-          trenes?: TrenItem[];
-        }
-        const atocha = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
-        const chamartin = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
+      <section className="px-5 pt-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad y Larga Distancia</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Llegadas oficiales (Adif) a Atocha (60000) y Chamartín (17000).</p>
+          </div>
+          <button
+            onClick={actualizarTransportes}
+            disabled={vuelos.isFetching || trenes.isFetching}
+            aria-label="Actualizar trenes"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+        {trenes.isLoading ? (
+          <Cargando texto="Consultando trenes…" />
+        ) : (
+          <div className="mt-3 space-y-3">
+            {(() => {
+              const listaEstaciones = trenes.data ?? [];
+              interface TrenItem {
+                id: string;
+                horaEstado?: string;
+                hora?: string;
+                tipo?: string;
+                origen?: string;
+                estado?: string;
+              }
+              interface EstacionTrenes {
+                nombre?: string;
+                codigoAdif?: string;
+                trenes?: TrenItem[];
+              }
+              const atocha = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
+              const chamartin = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
 
-        return (
-          <>
-            {atocha && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                      <Train className="h-4 w-4" />
-                    </span>
-                    <span className="font-display text-base font-bold text-foreground">Atocha</span>
-                  </div>
-                  <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
-                    Adif: 60000
-                  </span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(atocha.trenes ?? []).map((tr: TrenItem) => (
-                    <li key={tr.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">
-                        <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
-                        {tr.origen}
-                      </span>
-                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                        {tr.estado}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              return (
+                <>
+                  {atocha && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                            <Train className="h-4 w-4" />
+                          </span>
+                          <span className="font-display text-base font-bold text-foreground">Atocha</span>
+                        </div>
+                        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
+                          Adif: 60000
+                        </span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(atocha.trenes ?? []).map((tr: TrenItem) => (
+                          <li key={tr.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">
+                              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
+                              {tr.origen}
+                            </span>
+                            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                              {tr.estado}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
-            {chamartin && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                      <Train className="h-4 w-4" />
-                    </span>
-                    <span className="font-display text-base font-bold text-foreground">Chamartín</span>
-                  </div>
-                  <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
-                    Adif: 17000
-                  </span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(chamartin.trenes ?? []).map((tr: TrenItem) => (
-                    <li key={tr.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">
-                        <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
-                        {tr.origen}
-                      </span>
-                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                        {tr.estado}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </>
-        );
-      })()}
-    </div>
-  )}
-</section>
+                  {chamartin && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                            <Train className="h-4 w-4" />
+                          </span>
+                          <span className="font-display text-base font-bold text-foreground">Chamartín</span>
+                        </div>
+                        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
+                          Adif: 17000
+                        </span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(chamartin.trenes ?? []).map((tr: TrenItem) => (
+                          <li key={tr.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">
+                              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
+                              {tr.origen}
+                            </span>
+                            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                              {tr.estado}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </section>
 
-<div className="px-5 pt-8">
-  <button
-    onClick={() => abrirModal("factura")}
-    className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
-  >
-    <div className="flex items-center gap-3 min-w-0">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
-        <FileText className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <h3 className="font-display text-base font-bold text-amber-950">
-          Factura
-        </h3>
-        <p className="text-xs text-amber-900/80 mt-0.5 truncate">
-          Crea y descarga una factura con IVA del 10%.
-        </p>
-      </div>
-    </div>
-  </button>
-</div>
-
-<div className="px-5 mt-3">
-  <div className="rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3">
-    <div className="flex items-center gap-3 min-w-0">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
-        <BookOpenIcon className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <h3 className="font-display text-base font-bold text-amber-950">
-          Temario examen taxi
-        </h3>
-        <a
-          href="https://madrid.es/taxi"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-amber-950 underline font-semibold mt-0.5 inline-flex items-center gap-1 hover:opacity-80"
+      <div className="px-5 pt-8">
+        <button
+          onClick={() => abrirModal("factura")}
+          className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
         >
-          madrid.es/taxi <ExternalLink className="h-3 w-3" />
-        </a>
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
+              <FileText className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-bold text-amber-950">Factura</h3>
+              <p className="text-xs text-amber-900/80 mt-0.5 truncate">
+                Crea y descarga una factura con IVA del 10%.
+              </p>
+            </div>
+          </div>
+        </button>
       </div>
-    </div>
-  </div>
-</div>
 
-{/* Botones Flotantes (Filtrar y Turnos) */}
-<div className="fixed bottom-5 left-5 right-5 z-40 flex gap-3 max-w-sm mx-auto">
-  <button
-    onClick={() => abrirModal("filtros")}
-    className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
-  >
-    <Search className="h-5 w-5 text-amber-500" /> Filtrar
-  </button>
-  <button
-    onClick={() => abrirModal("turnos")}
-    className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
-  >
-    <Lock className="h-5 w-5 text-amber-500" /> Turnos
-  </button>
-</div>
+      <div className="px-5 mt-3">
+        <div className="rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
+              <BookOpenIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-bold text-amber-950">Temario examen taxi</h3>
+              <a
+                href="https://madrid.es/taxi"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-amber-950 underline font-semibold mt-0.5 inline-flex items-center gap-1 hover:opacity-80"
+              >
+                madrid.es/taxi <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
 
-{search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
-{search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
-{search.modal === "factura" && <VentanaFacturaModalPersonalizada onCerrar={cerrarModal} />}
-{search.modal === "filtros" && (
-  <VentanaFiltrosModal
-    onCerrar={cerrarModal}
-    rangoFechas={rangoFechas}
-    setRangoFechas={setRangoFechas}
-    setPeriodo={setPeriodo}
-    filtroTipo={filtroTipo}
-    setFiltroTipo={setFiltroTipo}
-  />
-)}
-{search.modal === "turnos" && (
-  <VentanaTurnosModal
-    totalesGenerales={totalesGeneralesTurno}
-    turnosCerrados={turnosCerrados}
-    onCerrar={cerrarModal}
-    onCerrarTurno={cerrarTurnoCompleto}
-  />
-)}
-{search.modal === "documentos" && <VentanaDocumentosModal onCerrar={cerrarModal} />}
+      <div className="fixed bottom-5 left-5 right-5 z-40 flex gap-3 max-w-sm mx-auto">
+        <button
+          onClick={() => abrirModal("filtros")}
+          className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
+        >
+          <Search className="h-5 w-5 text-amber-500" /> Filtrar
+        </button>
+        <button
+          onClick={() => abrirModal("turnos")}
+          className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
+        >
+          <Lock className="h-5 w-5 text-amber-500" /> Turnos
+        </button>
+      </div>
 
-<div className="px-5 pt-8">
-  <PieMarca oscuro />
-</div>
-</main>
-);
+      {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
+      {search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
+      {search.modal === "factura" && <VentanaFacturaModalPersonalizada onCerrar={cerrarModal} />}
+      {search.modal === "filtros" && (
+        <VentanaFiltrosModal
+          onCerrar={cerrarModal}
+          rangoFechas={rangoFechas}
+          setRangoFechas={setRangoFechas}
+          setPeriodo={setPeriodo}
+          filtroTipo={filtroTipo}
+          setFiltroTipo={setFiltroTipo}
+        />
+      )}
+      {search.modal === "turnos" && (
+        <VentanaTurnosModal
+          totalesGenerales={totalesGeneralesTurno}
+          turnosCerrados={turnosCerrados}
+          onCerrar={cerrarModal}
+          onCerrarTurno={cerrarTurnoCompleto}
+        />
+      )}
+      {search.modal === "documentos" && <VentanaDocumentosModal onCerrar={cerrarModal} />}
+
+      <div className="px-5 pt-8">
+        <PieMarca oscuro />
+      </div>
+    </main>
+  );
 }
-
 function BookOpenIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -1141,19 +1171,9 @@ function VentanaTurnosModal({
           </button>
         </div>
 
-        <div className="rounded-2xl bg-secondary p-4 mb-4 space-y-2 text-center">
+        <div className="rounded-2xl bg-secondary p-4 mb-4 text-center">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Importe Facturado (Neto del turno)</p>
-          <p className="font-display text-3xl font-bold text-foreground">{eur(totalesGenerales.neto)}</p>
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase">Ingresos informativos</p>
-              <p className="text-sm font-semibold text-primary">{eur(totalesGenerales.ingresos)}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase">Gastos informativos</p>
-              <p className="text-sm font-semibold text-destructive">{eur(totalesGenerales.gastos)}</p>
-            </div>
-          </div>
+          <p className="font-display text-3xl font-bold text-foreground mt-1">{eur(totalesGenerales.neto)}</p>
         </div>
 
         <button
@@ -1187,16 +1207,6 @@ function VentanaTurnosModal({
                     <div>
                       <p className="text-[9px] text-muted-foreground uppercase">Importe Facturado</p>
                       <p className="font-display text-base font-bold text-foreground">{eur(turno.neto)}</p>
-                    </div>
-                    <div className="text-right flex gap-2">
-                      <div>
-                        <p className="text-[9px] text-muted-foreground uppercase">Ingresos</p>
-                        <p className="text-xs font-semibold text-primary">+{eur(turno.ingresos)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] text-muted-foreground uppercase">Gastos</p>
-                        <p className="text-xs font-semibold text-destructive">-{eur(turno.gastos)}</p>
-                      </div>
                     </div>
                   </div>
                 </li>
@@ -1450,8 +1460,21 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
 
 function Cargando({ texto }: { texto: string }) {
   return (
-    <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-      {texto}
+    <div className="mt-3 space-y-3">
+      <p className="text-xs text-muted-foreground text-center">{texto}</p>
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4"
+        >
+          <div className="h-10 w-10 rounded-xl bg-secondary animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-2/3 rounded bg-secondary animate-pulse" />
+            <div className="h-2 w-1/2 rounded bg-secondary animate-pulse" />
+          </div>
+          <div className="h-5 w-16 rounded bg-secondary animate-pulse" />
+        </div>
+      ))}
     </div>
   );
 }
