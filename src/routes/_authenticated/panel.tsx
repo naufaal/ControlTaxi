@@ -218,7 +218,6 @@ function Panel() {
       .filter((m) => m.tipo === "gasto")
       .reduce((s, m) => s + m.importe, 0);
 
-    // El neto del turno es solo lo ingresado (lo facturado). Los gastos son informativos.
     const neto = ingresos;
     return { ingresos, gastos, neto };
   }, [movsDelTurnoActual]);
@@ -260,7 +259,6 @@ function Panel() {
       .filter((m) => m.tipo === "gasto")
       .reduce((s, m) => s + m.importe, 0);
 
-    // ¿Hay filtro activo? (personalizado o tipo distinto de "todos")
     const filtroActivo = periodo === "personalizado" || filtroTipo !== "todos";
 
     let neto: number;
@@ -269,23 +267,19 @@ function Panel() {
 
     if (filtroActivo) {
       if (filtroTipo === "gastos") {
-        // Solo gastos: neto en POSITIVO (importe absoluto de los gastos)
         neto = Math.abs(gastos);
         ingresosMostrados = 0;
         gastosMostrados = gastos;
       } else if (filtroTipo === "ingresos") {
-        // Solo ingresos: neto = ingresos
         neto = ingresos;
         ingresosMostrados = ingresos;
         gastosMostrados = 0;
       } else {
-        // Filtro "Neto" (personalizado con tipo todos): ingresos - gastos
         neto = ingresos - gastos;
         ingresosMostrados = ingresos;
         gastosMostrados = gastos;
       }
     } else {
-      // Sin filtro (panel día/semana/mes): neto = solo ingresos (gastos informativos)
       neto = periodo === "dia" ? totalesGenerales.ingresos : ingresos;
       ingresosMostrados = periodo === "dia" ? totalesGenerales.ingresos : ingresos;
       gastosMostrados = gastos;
@@ -548,314 +542,315 @@ function Panel() {
           </div>
         </button>
       </div>
-<section className="px-5 pt-8">
-  <div className="flex items-center justify-between">
-    <div>
-      <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
-      <p className="text-xs text-muted-foreground mt-0.5">Próximas 5 horas, según Aena. T4 incluye T4S.</p>
-    </div>
-    <button
-      onClick={actualizarTransportes}
-      disabled={vuelos.isFetching || trenes.isFetching}
-      aria-label="Actualizar vuelos"
-      className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
-    >
-      <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
-    </button>
-  </div>
-  {vuelos.isLoading ? (
-    <Cargando texto="Consultando vuelos…" />
-  ) : (
-    <div className="mt-3 space-y-3">
-      {(() => {
-        const listaVuelos = vuelos.data ?? [];
-        interface VueloItem {
-          id: string;
-          horaEstimada: string;
-          origen: string;
-          estadoVuelo?: string;
-        }
-        interface TerminalVuelos {
-          terminal?: string;
-          vuelos?: VueloItem[];
-        }
-        const t1 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T1"));
-        const t2t3 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
-        const t4t4s = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T4"));
 
-        return (
-          <>
-            {t1 && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                    <Plane className="h-4 w-4" />
-                  </span>
-                  <span className="font-display text-base font-bold text-foreground">T1</span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(t1.vuelos ?? []).map((v: VueloItem) => (
-                    <li key={v.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                      {v.estadoVuelo && (
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                          {v.estadoVuelo}
+      <section className="px-5 pt-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Próximas 5 horas, según Aena. T4 incluye T4S.</p>
+          </div>
+          <button
+            onClick={actualizarTransportes}
+            disabled={vuelos.isFetching || trenes.isFetching}
+            aria-label="Actualizar vuelos"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+        {vuelos.isLoading ? (
+          <Cargando texto="Consultando vuelos…" />
+        ) : (
+          <div className="mt-3 space-y-3">
+            {(() => {
+              const listaVuelos = vuelos.data ?? [];
+              interface VueloItem {
+                id: string;
+                horaEstimada: string;
+                origen: string;
+                estadoVuelo?: string;
+              }
+              interface TerminalVuelos {
+                terminal?: string;
+                vuelos?: VueloItem[];
+              }
+              const t1 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T1"));
+              const t2t3 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
+              const t4t4s = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T4"));
+
+              return (
+                <>
+                  {t1 && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                          <Plane className="h-4 w-4" />
                         </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                        <span className="font-display text-base font-bold text-foreground">T1</span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(t1.vuelos ?? []).map((v: VueloItem) => (
+                          <li key={v.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                            {v.estadoVuelo && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                                {v.estadoVuelo}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
-            {t2t3 && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                    <Plane className="h-4 w-4" />
-                  </span>
-                  <span className="font-display text-base font-bold text-foreground">T2 · T3</span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(t2t3.vuelos ?? []).map((v: VueloItem) => (
-                    <li key={v.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                      {v.estadoVuelo && (
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                          {v.estadoVuelo}
+                  {t2t3 && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                          <Plane className="h-4 w-4" />
                         </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                        <span className="font-display text-base font-bold text-foreground">T2 · T3</span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(t2t3.vuelos ?? []).map((v: VueloItem) => (
+                          <li key={v.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                            {v.estadoVuelo && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                                {v.estadoVuelo}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
-            {t4t4s && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                    <Plane className="h-4 w-4" />
-                  </span>
-                  <span className="font-display text-base font-bold text-foreground">T4 · T4S</span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(t4t4s.vuelos ?? []).map((v: VueloItem) => (
-                    <li key={v.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                      {v.estadoVuelo && (
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                          {v.estadoVuelo}
+                  {t4t4s && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                          <Plane className="h-4 w-4" />
                         </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </>
-        );
-      })()}
-    </div>
-  )}
-</section>
+                        <span className="font-display text-base font-bold text-foreground">T4 · T4S</span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(t4t4s.vuelos ?? []).map((v: VueloItem) => (
+                          <li key={v.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                            {v.estadoVuelo && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                                {v.estadoVuelo}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </section>
 
-<section className="px-5 pt-8">
-  <div className="flex items-center justify-between">
-    <div>
-      <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad y Larga Distancia</h2>
-      <p className="text-xs text-muted-foreground mt-0.5">Llegadas oficiales (Adif) a Atocha (60000) y Chamartín (17000).</p>
-    </div>
-    <button
-      onClick={actualizarTransportes}
-      disabled={vuelos.isFetching || trenes.isFetching}
-      aria-label="Actualizar trenes"
-      className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
-    >
-      <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
-    </button>
-  </div>
-  {trenes.isLoading ? (
-    <Cargando texto="Consultando trenes…" />
-  ) : (
-    <div className="mt-3 space-y-3">
-      {(() => {
-        const listaEstaciones = trenes.data ?? [];
-        interface TrenItem {
-          id: string;
-          horaEstado?: string;
-          hora?: string;
-          tipo?: string;
-          origen?: string;
-          estado?: string;
-        }
-        interface EstacionTrenes {
-          nombre?: string;
-          codigoAdif?: string;
-          trenes?: TrenItem[];
-        }
-        const atocha = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
-        const chamartin = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
+      <section className="px-5 pt-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad y Larga Distancia</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Llegadas oficiales (Adif) a Atocha (60000) y Chamartín (17000).</p>
+          </div>
+          <button
+            onClick={actualizarTransportes}
+            disabled={vuelos.isFetching || trenes.isFetching}
+            aria-label="Actualizar trenes"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+        {trenes.isLoading ? (
+          <Cargando texto="Consultando trenes…" />
+        ) : (
+          <div className="mt-3 space-y-3">
+            {(() => {
+              const listaEstaciones = trenes.data ?? [];
+              interface TrenItem {
+                id: string;
+                horaEstado?: string;
+                hora?: string;
+                tipo?: string;
+                origen?: string;
+                estado?: string;
+              }
+              interface EstacionTrenes {
+                nombre?: string;
+                codigoAdif?: string;
+                trenes?: TrenItem[];
+              }
+              const atocha = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
+              const chamartin = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
 
-        return (
-          <>
-            {atocha && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                      <Train className="h-4 w-4" />
-                    </span>
-                    <span className="font-display text-base font-bold text-foreground">Atocha</span>
-                  </div>
-                  <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
-                    Adif: 60000
-                  </span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(atocha.trenes ?? []).map((tr: TrenItem) => (
-                    <li key={tr.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">
-                        <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
-                        {tr.origen}
-                      </span>
-                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                        {tr.estado}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              return (
+                <>
+                  {atocha && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                            <Train className="h-4 w-4" />
+                          </span>
+                          <span className="font-display text-base font-bold text-foreground">Atocha</span>
+                        </div>
+                        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
+                          Adif: 60000
+                        </span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(atocha.trenes ?? []).map((tr: TrenItem) => (
+                          <li key={tr.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">
+                              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
+                              {tr.origen}
+                            </span>
+                            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                              {tr.estado}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
-            {chamartin && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                      <Train className="h-4 w-4" />
-                    </span>
-                    <span className="font-display text-base font-bold text-foreground">Chamartín</span>
-                  </div>
-                  <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
-                    Adif: 17000
-                  </span>
-                </div>
-                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {(chamartin.trenes ?? []).map((tr: TrenItem) => (
-                    <li key={tr.id} className="flex items-center gap-3 text-sm">
-                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">
-                        <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
-                        {tr.origen}
-                      </span>
-                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                        {tr.estado}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </>
-        );
-      })()}
-    </div>
-  )}
-</section>
+                  {chamartin && (
+                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                            <Train className="h-4 w-4" />
+                          </span>
+                          <span className="font-display text-base font-bold text-foreground">Chamartín</span>
+                        </div>
+                        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
+                          Adif: 17000
+                        </span>
+                      </div>
+                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {(chamartin.trenes ?? []).map((tr: TrenItem) => (
+                          <li key={tr.id} className="flex items-center gap-3 text-sm">
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">
+                              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
+                              {tr.origen}
+                            </span>
+                            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                              {tr.estado}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </section>
 
-<div className="px-5 pt-8">
-  <button
-    onClick={() => abrirModal("factura")}
-    className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
-  >
-    <div className="flex items-center gap-3 min-w-0">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
-        <FileText className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <h3 className="font-display text-base font-bold text-amber-950">
-          Factura
-        </h3>
-        <p className="text-xs text-amber-900/80 mt-0.5 truncate">
-          Crea y descarga una factura con IVA del 10%.
-        </p>
-      </div>
-    </div>
-  </button>
-</div>
-
-<div className="px-5 mt-3">
-  <div className="rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3">
-    <div className="flex items-center gap-3 min-w-0">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
-        <BookOpenIcon className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <h3 className="font-display text-base font-bold text-amber-950">
-          Temario examen taxi
-        </h3>
-        <a
-          href="https://madrid.es/taxi"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-amber-950 underline font-semibold mt-0.5 inline-flex items-center gap-1 hover:opacity-80"
+      <div className="px-5 pt-8">
+        <button
+          onClick={() => abrirModal("factura")}
+          className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
         >
-          madrid.es/taxi <ExternalLink className="h-3 w-3" />
-        </a>
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
+              <FileText className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-bold text-amber-950">
+                Factura
+              </h3>
+              <p className="text-xs text-amber-900/80 mt-0.5 truncate">
+                Crea y descarga una factura con IVA del 10%.
+              </p>
+            </div>
+          </div>
+        </button>
       </div>
-    </div>
-  </div>
-</div>
 
-{/* Botones Flotantes (Filtrar y Turnos) */}
-<div className="fixed bottom-5 left-5 right-5 z-40 flex gap-3 max-w-sm mx-auto">
-  <button
-    onClick={() => abrirModal("filtros")}
-    className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
-  >
-    <Search className="h-5 w-5 text-amber-500" /> Filtrar
-  </button>
-  <button
-    onClick={() => abrirModal("turnos")}
-    className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
-  >
-    <Lock className="h-5 w-5 text-amber-500" /> Turnos
-  </button>
-</div>
+      <div className="px-5 mt-3">
+        <div className="rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
+              <BookOpenIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-base font-bold text-amber-950">
+                Temario examen taxi
+              </h3>
+              <a
+                href="https://madrid.es/taxi"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-amber-950 underline font-semibold mt-0.5 inline-flex items-center gap-1 hover:opacity-80"
+              >
+                madrid.es/taxi <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
 
-{search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
-{search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
-{search.modal === "factura" && <VentanaFacturaModalPersonalizada onCerrar={cerrarModal} />}
-{search.modal === "filtros" && (
-  <VentanaFiltrosModal
-    onCerrar={cerrarModal}
-    rangoFechas={rangoFechas}
-    setRangoFechas={setRangoFechas}
-    setPeriodo={setPeriodo}
-    filtroTipo={filtroTipo}
-    setFiltroTipo={setFiltroTipo}
-  />
-)}
-{search.modal === "turnos" && (
-  <VentanaTurnosModal
-    totalesGenerales={totalesGeneralesTurno}
-    turnosCerrados={turnosCerrados}
-    onCerrar={cerrarModal}
-    onCerrarTurno={cerrarTurnoCompleto}
-  />
-)}
-{search.modal === "documentos" && <VentanaDocumentosModal onCerrar={cerrarModal} />}
+      {/* Botones Flotantes (Filtrar y Turnos) */}
+      <div className="fixed bottom-5 left-5 right-5 z-40 flex gap-3 max-w-sm mx-auto">
+        <button
+          onClick={() => abrirModal("filtros")}
+          className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
+        >
+          <Search className="h-5 w-5 text-amber-500" /> Filtrar
+        </button>
+        <button
+          onClick={() => abrirModal("turnos")}
+          className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
+        >
+          <Lock className="h-5 w-5 text-amber-500" /> Turnos
+        </button>
+      </div>
 
-<div className="px-5 pt-8">
-  <PieMarca oscuro />
-</div>
-</main>
-);
+      {search.modal === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
+      {search.modal === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
+      {search.modal === "factura" && <VentanaFacturaModalPersonalizada onCerrar={cerrarModal} />}
+      {search.modal === "filtros" && (
+        <VentanaFiltrosModal
+          onCerrar={cerrarModal}
+          rangoFechas={rangoFechas}
+          setRangoFechas={setRangoFechas}
+          setPeriodo={setPeriodo}
+          filtroTipo={filtroTipo}
+          setFiltroTipo={setFiltroTipo}
+        />
+      )}
+      {search.modal === "turnos" && (
+        <VentanaTurnosModal
+          totalesGenerales={totalesGeneralesTurno}
+          turnosCerrados={turnosCerrados}
+          onCerrar={cerrarModal}
+          onCerrarTurno={cerrarTurnoCompleto}
+        />
+      )}
+      {search.modal === "documentos" && <VentanaDocumentosModal onCerrar={cerrarModal} currentUserId={currentUserId} />}
+
+      <div className="px-5 pt-8">
+        <PieMarca oscuro />
+      </div>
+    </main>
+  );
 }
 
 function BookOpenIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -1026,22 +1021,111 @@ function VentanaFiltrosModal({
   );
 }
 
-function VentanaDocumentosModal({ onCerrar }: { onCerrar: () => void }) {
-  const [documentos, setDocumentos] = useState<Array<{ id: string; nombre: string; fecha: string }>>([
-    { id: "1", nombre: "ITS_2024-10-2469.pdf", fecha: "08 sept 2026" },
-    { id: "2", nombre: "ITS_2024-12-1201.pdf", fecha: "08 sept 2026" },
-  ]);
-  const [nuevoNombre, setNuevoNombre] = useState("");
+function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => void; currentUserId: string | null }) {
+  const queryClient = useQueryClient();
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [nombrePersonalizado, setNombrePersonalizado] = useState("");
+  const [subiendo, setSubiendo] = useState(false);
 
-  function agregarDocumento(e: React.FormEvent) {
+  const documentosQuery = useQuery({
+    queryKey: ["documentos", currentUserId],
+    queryFn: async () => {
+      if (!currentUserId) return [];
+      const { data, error } = await supabase
+        .from("documentos")
+        .select("*")
+        .eq("user_id", currentUserId)
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.error("Error al cargar documentos:", error);
+        return [];
+      }
+      return data ?? [];
+    },
+    enabled: !!currentUserId,
+  });
+
+  async function subirDocumento(e: React.FormEvent) {
     e.preventDefault();
-    if (!nuevoNombre.trim()) return;
-    setDocumentos([
-      ...documentos,
-      { id: crypto.randomUUID(), nombre: nuevoNombre.trim(), fecha: "08 sept 2026" },
-    ]);
-    setNuevoNombre("");
+    if (!archivo || !currentUserId) {
+      alert("Por favor, selecciona un archivo.");
+      return;
+    }
+
+    setSubiendo(true);
+    try {
+      const fileExt = archivo.name.split(".").pop();
+      const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, archivo);
+
+      if (uploadError) {
+        console.error("Error storage:", uploadError);
+        alert("Error al subir el archivo. Asegúrate de haber creado el bucket 'documentos' en Supabase.");
+        setSubiendo(false);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("documentos")
+        .getPublicUrl(fileName);
+
+      const nombreFinal = nombrePersonalizado.trim() || archivo.name;
+
+      const { error: dbError } = await supabase.from("documentos").insert({
+        user_id: currentUserId,
+        nombre: nombreFinal,
+        ruta: fileName,
+        url: publicUrlData.publicUrl,
+        tipo: archivo.type,
+        tamano: archivo.size,
+      });
+
+      if (dbError) {
+        console.error("Error al guardar en BD:", dbError);
+        alert("El archivo se subió pero hubo un error al guardarlo en la base de datos.");
+      } else {
+        setArchivo(null);
+        setNombrePersonalizado("");
+        await queryClient.invalidateQueries({ queryKey: ["documentos", currentUserId] });
+      }
+    } catch (err) {
+      console.error("Error general:", err);
+      alert("Ocurrió un error inesperado al adjuntar el archivo.");
+    } finally {
+      setSubiendo(false);
+    }
   }
+
+  async function borrarDocumento(id: string, rutaArchivo?: string) {
+    if (!currentUserId) return;
+    
+    if (rutaArchivo) {
+      try {
+        await supabase.storage.from("documentos").remove([rutaArchivo]);
+      } catch {
+        // Ignorar fallo de almacenamiento al borrar
+      }
+    }
+
+    const { error } = await supabase
+      .from("documentos")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      console.error("Error al borrar documento:", error);
+      alert("No se pudo eliminar el documento.");
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["documentos", currentUserId] });
+  }
+
+  const documentos = documentosQuery.data ?? [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
@@ -1063,47 +1147,91 @@ function VentanaDocumentosModal({ onCerrar }: { onCerrar: () => void }) {
         </div>
 
         <p className="text-xs text-muted-foreground mb-4">
-          Guarda tus permisos, seguros o recibos de forma sincronizada.
+          Sube tus permisos, seguros o recibos de forma sincronizada.
         </p>
 
-        <form onSubmit={agregarDocumento} className="flex gap-2 mb-4">
-          <input
-            type="text"
-            placeholder="Ej: Seguro coche, ITV, Permiso..."
-            value={nuevoNombre}
-            onChange={(e) => setNuevoNombre(e.target.value)}
-            className="flex-1 h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground outline-none focus:border-primary"
-          />
-          <button
-            type="submit"
-            className="h-12 px-5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm shadow"
-          >
-            Adjuntar
-          </button>
+        <form onSubmit={subirDocumento} className="rounded-3xl border border-dashed border-border bg-secondary/30 p-4 mb-5 space-y-3">
+          <div>
+            <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Nombre personalizado (opcional)</label>
+            <input
+              type="text"
+              placeholder="Ej: Seguro del coche, ITV..."
+              value={nombrePersonalizado}
+              onChange={(e) => setNombrePersonalizado(e.target.value)}
+              className="w-full h-11 rounded-xl bg-secondary border border-input px-3 text-sm text-foreground outline-none focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Archivo del dispositivo</label>
+            <div className="flex items-center gap-2">
+              <label className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-input bg-secondary px-4 text-xs font-medium text-foreground cursor-pointer hover:bg-secondary/80 transition-colors truncate">
+                <Paperclip className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate">{archivo ? archivo.name : "Seleccionar PDF o imagen..."}</span>
+                <input
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(e) => setArchivo(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={subiendo || !archivo}
+                className="h-12 px-5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow disabled:opacity-50 shrink-0"
+              >
+                {subiendo ? "Subiendo..." : "Adjuntar"}
+              </button>
+            </div>
+          </div>
         </form>
 
         <div className="space-y-2">
-          {documentos.length === 0 ? (
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tus archivos guardados</h4>
+          {documentosQuery.isLoading ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-              No hay documentos registrados.
+              Cargando tus documentos...
+            </div>
+          ) : documentos.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+              No tienes documentos subidos todavía.
             </div>
           ) : (
-            documentos.map((doc) => (
+            documentos.map((doc: { id: string; nombre: string; created_at: string; url?: string; ruta?: string }) => (
               <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FileText className="h-4 w-4 text-primary shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-foreground truncate">{doc.nombre}</p>
-                    <p className="text-[10px] text-muted-foreground">{doc.fecha}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(doc.created_at).toLocaleDateString("es-ES", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setDocumentos(documentos.filter((d) => d.id !== doc.id))}
-                  className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  aria-label="Borrar documento"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {doc.url && (
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors"
+                      title="Ver archivo"
+                    >
+                      Ver <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => borrarDocumento(doc.id, doc.ruta)}
+                    className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    aria-label="Borrar documento"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             ))
           )}
