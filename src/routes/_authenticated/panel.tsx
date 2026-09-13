@@ -1028,11 +1028,11 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
   const [subiendo, setSubiendo] = useState(false);
 
   const documentosQuery = useQuery({
-    queryKey: ["documentos_usuario", currentUserId],
+    queryKey: ["documentos", currentUserId],
     queryFn: async () => {
       if (!currentUserId) return [];
       const { data, error } = await supabase
-        .from("documentos_usuario")
+        .from("documentos")
         .select("*")
         .eq("user_id", currentUserId)
         .order("created_at", { ascending: false });
@@ -1080,7 +1080,7 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
 
       const nombreFinal = nombrePersonalizado.trim() || archivo.name;
 
-      const { error: dbError } = await supabase.from("documentos_usuario").insert({
+      const { error: dbError } = await supabase.from("documentos").insert({
         user_id: currentUserId,
         nombre: nombreFinal,
         fecha: fechaStr,
@@ -1093,7 +1093,7 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
       } else {
         setArchivo(null);
         setNombrePersonalizado("");
-        await queryClient.invalidateQueries({ queryKey: ["documentos_usuario", currentUserId] });
+        await queryClient.invalidateQueries({ queryKey: ["documentos", currentUserId] });
       }
     } catch (err) {
       console.error("Error general:", err);
@@ -1118,7 +1118,7 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
     }
 
     const { error } = await supabase
-      .from("documentos_usuario")
+      .from("documentos")
       .delete()
       .eq("id", id)
       .eq("user_id", currentUserId);
@@ -1129,7 +1129,7 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
       return;
     }
 
-    await queryClient.invalidateQueries({ queryKey: ["documentos_usuario", currentUserId] });
+    await queryClient.invalidateQueries({ queryKey: ["documentos", currentUserId] });
   }
 
   const documentos = documentosQuery.data ?? [];
