@@ -1072,19 +1072,15 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
         .from("documentos")
         .getPublicUrl(fileName);
 
-      const fechaStr = new Date().toLocaleDateString("es-ES", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-
       const nombreFinal = nombrePersonalizado.trim() || archivo.name;
 
       const { error: dbError } = await supabase.from("documentos").insert({
         user_id: currentUserId,
         nombre: nombreFinal,
-        fecha: fechaStr,
-        url_archivo: publicUrlData.publicUrl,
+        ruta: fileName,
+        url: publicUrlData.publicUrl,
+        tipo: archivo.type,
+        tamano: archivo.size,
       });
 
       if (dbError) {
@@ -1103,15 +1099,12 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
     }
   }
 
-  async function borrarDocumento(id: string, urlArchivo?: string) {
+  async function borrarDocumento(id: string, rutaArchivo?: string) {
     if (!currentUserId) return;
     
-    if (urlArchivo) {
+    if (rutaArchivo) {
       try {
-        const pathMatch = urlArchivo.split("/documentos/")[1];
-        if (pathMatch) {
-          await supabase.storage.from("documentos").remove([pathMatch]);
-        }
+        await supabase.storage.from("documentos").remove([rutaArchivo]);
       } catch {
         // Ignorar fallo de almacenamiento al borrar
       }
@@ -1204,19 +1197,25 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
               No tienes documentos subidos todavía.
             </div>
           ) : (
-            documentos.map((doc: { id: string; nombre: string; fecha: string; url_archivo?: string }) => (
+            documentos.map((doc: { id: string; nombre: string; created_at: string; url?: string; ruta?: string }) => (
               <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FileText className="h-4 w-4 text-primary shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-foreground truncate">{doc.nombre}</p>
-                    <p className="text-[10px] text-muted-foreground">{doc.fecha}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(doc.created_at).toLocaleDateString("es-ES", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {doc.url_archivo && (
+                  {doc.url && (
                     <a
-                      href={doc.url_archivo}
+                      href={doc.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors"
@@ -1226,7 +1225,7 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
                     </a>
                   )}
                   <button
-                    onClick={() => borrarDocumento(doc.id, doc.url_archivo)}
+                    onClick={() => borrarDocumento(doc.id, doc.ruta)}
                     className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
                     aria-label="Borrar documento"
                   >
