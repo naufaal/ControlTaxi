@@ -39,6 +39,33 @@ import { Marca, PieMarca } from "@/components/marca";
 
 type Periodo = "dia" | "semana" | "mes" | "personalizado";
 
+interface VueloItem {
+  id: string;
+  horaEstimada: string;
+  origen: string;
+  estadoVuelo?: string;
+}
+
+interface TerminalVuelos {
+  terminal?: string;
+  vuelos?: VueloItem[];
+}
+
+interface TrenItem {
+  id: string;
+  horaEstado?: string;
+  hora?: string;
+  tipo?: string;
+  origen?: string;
+  estado?: string;
+}
+
+interface EstacionTrenes {
+  nombre?: string;
+  codigoAdif?: string;
+  trenes?: TrenItem[];
+}
+
 function obtenerDiaLaboral(fechaStr: string): string {
   const fecha = new Date(fechaStr);
   const horaLocal = parseInt(
@@ -206,7 +233,7 @@ function Panel() {
   }
 
   const movsDelTurnoActual = useMemo(
-    () => movs.filter((m) => (!ultimoCorte || m.fecha > ultimoCorte)),
+    () => movs.filter((m) => !ultimoCorte || m.fecha > ultimoCorte),
     [movs, ultimoCorte]
   );
 
@@ -292,30 +319,35 @@ function Panel() {
     };
   }, [movsFiltrados, periodo, totalesGenerales, filtroTipo]);
 
-  const periodoLabel = periodo === "dia" ? "del turno" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "filtrado";
+  const periodoLabel =
+    periodo === "dia"
+      ? "del turno"
+      : periodo === "semana"
+        ? "de la semana"
+        : periodo === "mes"
+          ? "del mes"
+          : "filtrado";
 
   async function guardar(m: Movimiento) {
-    if (currentUserId) {
-      try {
-        await guardarMovimiento(currentUserId, m);
-        await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
-        cerrarModal();
-      } catch (error) {
-        console.error("Error al guardar:", error);
-        alert("No se pudo guardar en Supabase.");
-      }
+    if (!currentUserId) return;
+    try {
+      await guardarMovimiento(currentUserId, m);
+      await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
+      cerrarModal();
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      alert("No se pudo guardar en Supabase.");
     }
   }
 
   async function borrar(id: string) {
-    if (currentUserId) {
-      try {
-        await borrarMovimiento(currentUserId, id);
-        await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
-      } catch (error) {
-        console.error("Error al borrar:", error);
-        alert("Error al eliminar el registro.");
-      }
+    if (!currentUserId) return;
+    try {
+      await borrarMovimiento(currentUserId, id);
+      await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
+    } catch (error) {
+      console.error("Error al borrar:", error);
+      alert("Error al eliminar el registro.");
     }
   }
 
@@ -417,9 +449,7 @@ function Panel() {
           <p className="text-xs tracking-wide text-white/70 uppercase">
             Neto acumulado {periodo === "personalizado" ? "filtrado" : periodoLabel}
           </p>
-          <p className="mt-1 font-display text-4xl font-bold text-white">
-            {eur(totales.neto)}
-          </p>
+          <p className="mt-1 font-display text-4xl font-bold text-white">{eur(totales.neto)}</p>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-black/20 py-2.5 px-3 text-center">
@@ -468,9 +498,7 @@ function Panel() {
         ) : movsFiltrados.length === 0 ? (
           <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center">
             <CarTaxiFront className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="mt-3 text-sm text-muted-foreground">
-              No hay movimientos en este periodo o filtro.
-            </p>
+            <p className="mt-3 text-sm text-muted-foreground">No hay movimientos en este periodo o filtro.</p>
           </div>
         ) : (
           <ul className="mt-3 space-y-3">
@@ -481,9 +509,7 @@ function Panel() {
               >
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                    m.tipo === "ingreso"
-                      ? "bg-primary/20 text-foreground"
-                      : "bg-secondary text-muted-foreground"
+                    m.tipo === "ingreso" ? "bg-primary/20 text-foreground" : "bg-secondary text-muted-foreground"
                   }`}
                 >
                   {m.tipo === "ingreso" ? <Plus className="h-5 w-5" /> : <Minus className="h-5 w-5" />}
@@ -532,9 +558,7 @@ function Panel() {
               <Paperclip className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="font-display text-base font-bold text-foreground">
-                Documentación a almacenar
-              </h3>
+              <h3 className="font-display text-base font-bold text-foreground">Documentación a almacenar</h3>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">
                 Guarda tus permisos, seguros o recibos de forma sincronizada.
               </p>
@@ -564,18 +588,10 @@ function Panel() {
           <div className="mt-3 space-y-3">
             {(() => {
               const listaVuelos = vuelos.data ?? [];
-              interface VueloItem {
-                id: string;
-                horaEstimada: string;
-                origen: string;
-                estadoVuelo?: string;
-              }
-              interface TerminalVuelos {
-                terminal?: string;
-                vuelos?: VueloItem[];
-              }
               const t1 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T1"));
-              const t2t3 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
+              const t2t3 = listaVuelos.find(
+                (t: TerminalVuelos) => t.terminal?.includes("T2") || t.terminal?.includes("T3")
+              );
               const t4t4s = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T4"));
 
               return (
@@ -591,7 +607,9 @@ function Panel() {
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
                         {(t1.vuelos ?? []).map((v: VueloItem) => (
                           <li key={v.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">
+                              {v.horaEstimada}
+                            </span>
                             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
                             {v.estadoVuelo && (
                               <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
@@ -615,7 +633,9 @@ function Panel() {
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
                         {(t2t3.vuelos ?? []).map((v: VueloItem) => (
                           <li key={v.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">
+                              {v.horaEstimada}
+                            </span>
                             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
                             {v.estadoVuelo && (
                               <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
@@ -639,7 +659,9 @@ function Panel() {
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
                         {(t4t4s.vuelos ?? []).map((v: VueloItem) => (
                           <li key={v.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">
+                              {v.horaEstimada}
+                            </span>
                             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
                             {v.estadoVuelo && (
                               <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
@@ -662,7 +684,9 @@ function Panel() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad y Larga Distancia</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Llegadas oficiales (Adif) a Atocha (60000) y Chamartín (17000).</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Llegadas oficiales (Adif) a Atocha (60000) y Chamartín (17000).
+            </p>
           </div>
           <button
             onClick={actualizarTransportes}
@@ -679,21 +703,16 @@ function Panel() {
           <div className="mt-3 space-y-3">
             {(() => {
               const listaEstaciones = trenes.data ?? [];
-              interface TrenItem {
-                id: string;
-                horaEstado?: string;
-                hora?: string;
-                tipo?: string;
-                origen?: string;
-                estado?: string;
-              }
-              interface EstacionTrenes {
-                nombre?: string;
-                codigoAdif?: string;
-                trenes?: TrenItem[];
-              }
-              const atocha = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
-              const chamartin = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
+              const atocha = listaEstaciones.find(
+                (e: EstacionTrenes) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000"
+              );
+              const chamartin = listaEstaciones.find(
+                (e: EstacionTrenes) =>
+                  e.nombre?.toLowerCase().includes("atocha") === false &&
+                  (e.nombre?.toLowerCase().includes("chamartín") ||
+                    e.nombre?.toLowerCase().includes("chamartin") ||
+                    e.codigoAdif === "17000")
+              );
 
               return (
                 <>
@@ -713,7 +732,9 @@ function Panel() {
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
                         {(atocha.trenes ?? []).map((tr: TrenItem) => (
                           <li key={tr.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">
+                              {tr.horaEstado || tr.hora}
+                            </span>
                             <span className="min-w-0 flex-1 truncate text-foreground">
                               <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
                               {tr.origen}
@@ -743,7 +764,9 @@ function Panel() {
                       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
                         {(chamartin.trenes ?? []).map((tr: TrenItem) => (
                           <li key={tr.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                            <span className="w-11 shrink-0 font-display font-bold text-foreground">
+                              {tr.horaEstado || tr.hora}
+                            </span>
                             <span className="min-w-0 flex-1 truncate text-foreground">
                               <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
                               {tr.origen}
@@ -773,12 +796,8 @@ function Panel() {
               <FileText className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="font-display text-base font-bold text-amber-950">
-                Factura
-              </h3>
-              <p className="text-xs text-amber-900/80 mt-0.5 truncate">
-                Crea y descarga una factura con IVA del 10%.
-              </p>
+              <h3 className="font-display text-base font-bold text-amber-950">Factura</h3>
+              <p className="text-xs text-amber-900/80 mt-0.5 truncate">Crea y descarga una factura con IVA del 10%.</p>
             </div>
           </div>
         </button>
@@ -791,9 +810,7 @@ function Panel() {
               <BookOpenIcon className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="font-display text-base font-bold text-amber-950">
-                Temario examen taxi
-              </h3>
+              <h3 className="font-display text-base font-bold text-amber-950">Temario examen taxi</h3>
               <a
                 href="https://madrid.es/taxi"
                 target="_blank"
@@ -807,7 +824,6 @@ function Panel() {
         </div>
       </div>
 
-      {/* Botones Flotantes (Filtrar y Turnos) */}
       <div className="fixed bottom-5 left-5 right-5 z-40 flex gap-3 max-w-sm mx-auto">
         <button
           onClick={() => abrirModal("filtros")}
@@ -907,7 +923,7 @@ function VentanaFiltrosModal({
   setRangoFechas,
   setPeriodo,
   filtroTipo,
-  setFiltroTipo
+  setFiltroTipo,
 }: {
   onCerrar: () => void;
   rangoFechas: { inicio: string; fin: string };
@@ -959,7 +975,9 @@ function VentanaFiltrosModal({
 
         <form onSubmit={aplicarFiltro} className="space-y-4">
           <div>
-            <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">Tipo de movimiento</label>
+            <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">
+              Tipo de movimiento
+            </label>
             <div className="grid grid-cols-3 gap-2">
               {(["todos", "ingresos", "gastos"] as const).map((t) => (
                 <button
@@ -1021,7 +1039,13 @@ function VentanaFiltrosModal({
   );
 }
 
-function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => void; currentUserId: string | null }) {
+function VentanaDocumentosModal({
+  onCerrar,
+  currentUserId,
+}: {
+  onCerrar: () => void;
+  currentUserId: string | null;
+}) {
   const queryClient = useQueryClient();
   const [archivo, setArchivo] = useState<File | null>(null);
   const [nombrePersonalizado, setNombrePersonalizado] = useState("");
@@ -1056,10 +1080,8 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
     try {
       const fileExt = archivo.name.split(".").pop();
       const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from("documentos")
-        .upload(fileName, archivo);
+
+      const { error: uploadError } = await supabase.storage.from("documentos").upload(fileName, archivo);
 
       if (uploadError) {
         console.error("Error storage:", uploadError);
@@ -1068,9 +1090,7 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
         return;
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from("documentos")
-        .getPublicUrl(fileName);
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
 
       const nombreFinal = nombrePersonalizado.trim() || archivo.name;
 
@@ -1102,9 +1122,7 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
   async function verDocumento(doc: { ruta?: string; url?: string }) {
     if (doc.ruta) {
       try {
-        const { data, error } = await supabase.storage
-          .from("documentos")
-          .download(doc.ruta);
+        const { data, error } = await supabase.storage.from("documentos").download(doc.ruta);
         if (error) throw error;
         if (data) {
           const blobUrl = URL.createObjectURL(data);
@@ -1122,7 +1140,7 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
 
   async function borrarDocumento(id: string, rutaArchivo?: string) {
     if (!currentUserId) return;
-    
+
     if (rutaArchivo) {
       try {
         await supabase.storage.from("documentos").remove([rutaArchivo]);
@@ -1131,11 +1149,7 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
       }
     }
 
-    const { error } = await supabase
-      .from("documentos")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", currentUserId);
+    const { error } = await supabase.from("documentos").delete().eq("id", id).eq("user_id", currentUserId);
 
     if (error) {
       console.error("Error al borrar documento:", error);
@@ -1171,9 +1185,14 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
           Sube tus permisos, seguros o recibos de forma sincronizada.
         </p>
 
-        <form onSubmit={subirDocumento} className="rounded-3xl border border-dashed border-border bg-secondary/30 p-4 mb-5 space-y-3">
+        <form
+          onSubmit={subirDocumento}
+          className="rounded-3xl border border-dashed border-border bg-secondary/30 p-4 mb-5 space-y-3"
+        >
           <div>
-            <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Nombre personalizado (opcional)</label>
+            <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">
+              Nombre personalizado (opcional)
+            </label>
             <input
               type="text"
               placeholder="Ej: Seguro del coche, ITV..."
@@ -1184,7 +1203,9 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
           </div>
 
           <div>
-            <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Archivo del dispositivo</label>
+            <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">
+              Archivo del dispositivo
+            </label>
             <div className="flex items-center gap-2">
               <label className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-input bg-secondary px-4 text-xs font-medium text-foreground cursor-pointer hover:bg-secondary/80 transition-colors truncate">
                 <Paperclip className="h-4 w-4 text-primary shrink-0" />
@@ -1208,7 +1229,9 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
         </form>
 
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tus archivos guardados</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Tus archivos guardados
+          </h4>
           {documentosQuery.isLoading ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
               Cargando tus documentos...
@@ -1218,40 +1241,45 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
               No tienes documentos subidos todavía.
             </div>
           ) : (
-            documentos.map((doc: { id: string; nombre: string; created_at: string; url?: string; ruta?: string }) => (
-              <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <FileText className="h-4 w-4 text-primary shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-foreground truncate">{doc.nombre}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {new Date(doc.created_at).toLocaleDateString("es-ES", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </p>
+            documentos.map(
+              (doc: { id: string; nombre: string; created_at: string; url?: string; ruta?: string }) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <FileText className="h-4 w-4 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{doc.nombre}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(doc.created_at).toLocaleDateString("es-ES", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => verDocumento(doc)}
+                      className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                      title="Ver archivo"
+                    >
+                      Ver <ExternalLink className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => borrarDocumento(doc.id, doc.ruta)}
+                      className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      aria-label="Borrar documento"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => verDocumento(doc)}
-                    className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-                    title="Ver archivo"
-                  >
-                    Ver <ExternalLink className="h-3 w-3" />
-                  </button>
-                  <button
-                    onClick={() => borrarDocumento(doc.id, doc.ruta)}
-                    className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
-                    aria-label="Borrar documento"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))
+              )
+            )
           )}
         </div>
       </div>
@@ -1321,13 +1349,19 @@ function VentanaTurnosModal({
           ) : (
             <ul className="space-y-3">
               {turnosCerrados.map((turno) => (
-                <li
-                  key={turno.id}
-                  className="rounded-2xl border border-border bg-secondary/50 p-3 shadow-sm space-y-2"
-                >
+                <li key={turno.id} className="rounded-2xl border border-border bg-secondary/50 p-3 shadow-sm space-y-2">
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground border-b border-border pb-1.5">
-                    <span>Inicio: {new Date(turno.fechaInicio).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
-                    <span>Fin: {new Date(turno.fechaFin).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
+                    <span>
+                      Inicio:{" "}
+                      {new Date(turno.fechaInicio).toLocaleString("es-ES", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                    <span>
+                      Fin:{" "}
+                      {new Date(turno.fechaFin).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between pt-0.5">
                     <div>
@@ -1355,7 +1389,13 @@ function VentanaTurnosModal({
   );
 }
 
-function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+function FormularioIngreso({
+  onCerrar,
+  onGuardar,
+}: {
+  onCerrar: () => void;
+  onGuardar: (m: Movimiento) => void;
+}) {
   const [importe, setImporte] = useState("");
   const [metodo, setMetodo] = useState<"Efectivo" | "Tarjeta" | "Emisora" | "Bizum">("Efectivo");
   const [concepto, setConcepto] = useState("Carrera");
@@ -1376,7 +1416,9 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
       return;
     }
 
-    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
+    const fechaFinal = fecha
+      ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString()
+      : new Date().toISOString();
 
     onGuardar({
       id: crypto.randomUUID(),
@@ -1485,7 +1527,13 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
   );
 }
 
-function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+function FormularioGasto({
+  onCerrar,
+  onGuardar,
+}: {
+  onCerrar: () => void;
+  onGuardar: (m: Movimiento) => void;
+}) {
   const [importe, setImporte] = useState("");
   const [concepto, setConcepto] = useState("Combustible");
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
@@ -1505,7 +1553,9 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
       return;
     }
 
-    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
+    const fechaFinal = fecha
+      ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString()
+      : new Date().toISOString();
 
     onGuardar({
       id: crypto.randomUUID(),
