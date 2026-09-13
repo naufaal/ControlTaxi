@@ -227,6 +227,11 @@ function Panel() {
     [movsDelTurnoActual]
   );
 
+  const totalesGenerales = useMemo(() => {
+    const ingresos = movimientosIngresosTurnoActual.reduce((s, m) => s + m.importe, 0);
+    return { ingresos, gastos: 0, neto: ingresos };
+  }, [movimientosIngresosTurnoActual]);
+
   const movsFiltrados = useMemo(
     () =>
       movs.filter((movimiento) => {
@@ -275,8 +280,8 @@ function Panel() {
         gastosMostrados = gastos;
       }
     } else {
-      neto = periodo === "dia" ? totalesGeneralesTurno.ingresos : ingresos;
-      ingresosMostrados = periodo === "dia" ? totalesGeneralesTurno.ingresos : ingresos;
+      neto = periodo === "dia" ? totalesGenerales.ingresos : ingresos;
+      ingresosMostrados = periodo === "dia" ? totalesGenerales.ingresos : ingresos;
       gastosMostrados = gastos;
     }
 
@@ -285,7 +290,7 @@ function Panel() {
       gastos: gastosMostrados,
       neto,
     };
-  }, [movsFiltrados, periodo, totalesGeneralesTurno, filtroTipo]);
+  }, [movsFiltrados, periodo, totalesGenerales, filtroTipo]);
 
   const periodoLabel = periodo === "dia" ? "del turno" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "filtrado";
 
@@ -531,7 +536,7 @@ function Panel() {
                 Documentación a aportar
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                Guarda tus permisos, seguros o recibos de forma sincronizada y privada.
+                Guarda tus permisos, seguros o recibos de forma sincronizada.
               </p>
             </div>
           </div>
@@ -1018,7 +1023,9 @@ function VentanaFiltrosModal({
 
 function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => void; currentUserId: string | null }) {
   const queryClient = useQueryClient();
-  const [nuevoNombre, setNuevoNombre] = useState("");
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [nombrePersonalizado, setNombrePersonalizado] = useState("");
+  const [subiendo, setSubiendo] = useState(false);
 
   const documentosQuery = useQuery({
     queryKey: ["documentos_usuario", currentUserId],
@@ -1038,34 +1045,78 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
     enabled: !!currentUserId,
   });
 
-  async function agregarDocumento(e: React.FormEvent) {
+  async function subirDocumento(e: React.FormEvent) {
     e.preventDefault();
-    if (!nuevoNombre.trim() || !currentUserId) return;
-
-    const fechaStr = new Date().toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-
-    const { error } = await supabase.from("documentos_usuario").insert({
-      user_id: currentUserId,
-      nombre: nuevoNombre.trim(),
-      fecha: fechaStr,
-    });
-
-    if (error) {
-      console.error("Error al guardar documento:", error);
-      alert("No se pudo guardar el documento.");
+    if (!archivo || !currentUserId) {
+      alert("Por favor, selecciona un archivo.");
       return;
     }
 
-    setNuevoNombre("");
-    await queryClient.invalidateQueries({ queryKey: ["documentos_usuario", currentUserId] });
+    setSubiendo(true);
+    try {
+      const fileExt = archivo.name.split(".").pop();
+      const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, archivo);
+
+      if (uploadError) {
+        console.error("Error storage:", uploadError);
+        alert("Error al subir el archivo. Asegúrate de haber creado el bucket 'documentos' en Supabase.");
+        setSubiendo(false);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("documentos")
+        .getPublicUrl(fileName);
+
+      const fechaStr = new Date().toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+
+      const nombreFinal = nombrePersonalizado.trim() || archivo.name;
+
+      const { error: dbError } = await supabase.from("documentos_usuario").insert({
+        user_id: currentUserId,
+        nombre: nombreFinal,
+        fecha: fechaStr,
+        url_archivo: publicUrlData.publicUrl,
+      });
+
+      if (dbError) {
+        console.error("Error al guardar en BD:", dbError);
+        alert("El archivo se subió pero hubo un error al guardarlo en la base de datos.");
+      } else {
+        setArchivo(null);
+        setNombrePersonalizado("");
+        await queryClient.invalidateQueries({ queryKey: ["documentos_usuario", currentUserId] });
+      }
+    } catch (err) {
+      console.error("Error general:", err);
+      alert("Ocurrió un error inesperado al adjuntar el archivo.");
+    } finally {
+      setSubiendo(false);
+    }
   }
 
-  async function borrarDocumento(id: string) {
+  async function borrarDocumento(id: string, urlArchivo?: string) {
     if (!currentUserId) return;
+    
+    if (urlArchivo) {
+      try {
+        const pathMatch = urlArchivo.split("/documentos/")[1];
+        if (pathMatch) {
+          await supabase.storage.from("documentos").remove([pathMatch]);
+        }
+      } catch {
+        // Ignorar fallo de almacenamiento al borrar
+      }
+    }
+
     const { error } = await supabase
       .from("documentos_usuario")
       .delete()
@@ -1103,36 +1154,57 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
         </div>
 
         <p className="text-xs text-muted-foreground mb-4">
-          Guarda tus permisos, seguros o recibos privados de forma sincronizada.
+          Sube tus permisos, seguros o recibos de forma sincronizada.
         </p>
 
-        <form onSubmit={agregarDocumento} className="flex gap-2 mb-4">
-          <input
-            type="text"
-            placeholder="Ej: Seguro coche, ITV, Permiso..."
-            value={nuevoNombre}
-            onChange={(e) => setNuevoNombre(e.target.value)}
-            className="flex-1 h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground outline-none focus:border-primary"
-          />
-          <button
-            type="submit"
-            className="h-12 px-5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm shadow"
-          >
-            Adjuntar
-          </button>
+        <form onSubmit={subirDocumento} className="rounded-3xl border border-dashed border-border bg-secondary/30 p-4 mb-5 space-y-3">
+          <div>
+            <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Nombre personalizado (opcional)</label>
+            <input
+              type="text"
+              placeholder="Ej: Seguro del coche, ITV..."
+              value={nombrePersonalizado}
+              onChange={(e) => setNombrePersonalizado(e.target.value)}
+              className="w-full h-11 rounded-xl bg-secondary border border-input px-3 text-sm text-foreground outline-none focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Archivo del dispositivo</label>
+            <div className="flex items-center gap-2">
+              <label className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-input bg-secondary px-4 text-xs font-medium text-foreground cursor-pointer hover:bg-secondary/80 transition-colors truncate">
+                <Paperclip className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate">{archivo ? archivo.name : "Seleccionar PDF o imagen..."}</span>
+                <input
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(e) => setArchivo(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={subiendo || !archivo}
+                className="h-12 px-5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow disabled:opacity-50 shrink-0"
+              >
+                {subiendo ? "Subiendo..." : "Adjuntar"}
+              </button>
+            </div>
+          </div>
         </form>
 
         <div className="space-y-2">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tus archivos guardados</h4>
           {documentosQuery.isLoading ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
               Cargando tus documentos...
             </div>
           ) : documentos.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-              No tienes documentos registrados.
+              No tienes documentos subidos todavía.
             </div>
           ) : (
-            documentos.map((doc: { id: string; nombre: string; fecha: string }) => (
+            documentos.map((doc: { id: string; nombre: string; fecha: string; url_archivo?: string }) => (
               <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FileText className="h-4 w-4 text-primary shrink-0" />
@@ -1141,13 +1213,26 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
                     <p className="text-[10px] text-muted-foreground">{doc.fecha}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => borrarDocumento(doc.id)}
-                  className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  aria-label="Borrar documento"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {doc.url_archivo && (
+                    <a
+                      href={doc.url_archivo}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors"
+                      title="Ver archivo"
+                    >
+                      Ver <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => borrarDocumento(doc.id, doc.url_archivo)}
+                    className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    aria-label="Borrar documento"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             ))
           )}
