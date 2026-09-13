@@ -548,231 +548,230 @@ function Panel() {
           </div>
         </button>
       </div>
+<section className="px-5 pt-8">
+  <div className="flex items-center justify-between">
+    <div>
+      <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
+      <p className="text-xs text-muted-foreground mt-0.5">Próximas 5 horas, según Aena. T4 incluye T4S.</p>
+    </div>
+    <button
+      onClick={actualizarTransportes}
+      disabled={vuelos.isFetching || trenes.isFetching}
+      aria-label="Actualizar vuelos"
+      className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
+    >
+      <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
+    </button>
+  </div>
+  {vuelos.isLoading ? (
+    <Cargando texto="Consultando vuelos…" />
+  ) : (
+    <div className="mt-3 space-y-3">
+      {(() => {
+        const listaVuelos = vuelos.data ?? [];
+        interface VueloItem {
+          id: string;
+          horaEstimada: string;
+          origen: string;
+          estadoVuelo?: string;
+        }
+        interface TerminalVuelos {
+          terminal?: string;
+          vuelos?: VueloItem[];
+        }
+        const t1 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T1"));
+        const t2t3 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
+        const t4t4s = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T4"));
 
-      <section className="px-5 pt-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Próximas 5 horas, según Aena. T4 incluye T4S.</p>
-          </div>
-          <button
-            onClick={actualizarTransportes}
-            disabled={vuelos.isFetching || trenes.isFetching}
-            aria-label="Actualizar vuelos"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
-          >
-            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-        {vuelos.isLoading ? (
-          <Cargando texto="Consultando vuelos…" />
-        ) : (
-          <div className="mt-3 space-y-3">
-            {(() => {
-              const listaVuelos = vuelos.data ?? [];
-              interface VueloItem {
-                id: string;
-                horaEstimada: string;
-                origen: string;
-                estadoVuelo?: string;
-              }
-              interface TerminalVuelos {
-                terminal?: string;
-                vuelos?: VueloItem[];
-              }
-              const t1 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T1"));
-              const t2t3 = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
-              const t4t4s = listaVuelos.find((t: TerminalVuelos) => t.terminal?.includes("T4"));
-
-              return (
-                <>
-                  {t1 && (
-                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                          <Plane className="h-4 w-4" />
+        return (
+          <>
+            {t1 && (
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                    <Plane className="h-4 w-4" />
+                  </span>
+                  <span className="font-display text-base font-bold text-foreground">T1</span>
+                </div>
+                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                  {(t1.vuelos ?? []).map((v: VueloItem) => (
+                    <li key={v.id} className="flex items-center gap-3 text-sm">
+                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                      <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                      {v.estadoVuelo && (
+                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                          {v.estadoVuelo}
                         </span>
-                        <span className="font-display text-base font-bold text-foreground">T1</span>
-                      </div>
-                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(t1.vuelos ?? []).map((v: VueloItem) => (
-                          <li key={v.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
-                            <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                            {v.estadoVuelo && (
-                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                                {v.estadoVuelo}
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-                  {t2t3 && (
-                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                          <Plane className="h-4 w-4" />
+            {t2t3 && (
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                    <Plane className="h-4 w-4" />
+                  </span>
+                  <span className="font-display text-base font-bold text-foreground">T2 · T3</span>
+                </div>
+                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                  {(t2t3.vuelos ?? []).map((v: VueloItem) => (
+                    <li key={v.id} className="flex items-center gap-3 text-sm">
+                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                      <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                      {v.estadoVuelo && (
+                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                          {v.estadoVuelo}
                         </span>
-                        <span className="font-display text-base font-bold text-foreground">T2 · T3</span>
-                      </div>
-                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(t2t3.vuelos ?? []).map((v: VueloItem) => (
-                          <li key={v.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
-                            <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                            {v.estadoVuelo && (
-                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                                {v.estadoVuelo}
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-                  {t4t4s && (
-                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                          <Plane className="h-4 w-4" />
+            {t4t4s && (
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                    <Plane className="h-4 w-4" />
+                  </span>
+                  <span className="font-display text-base font-bold text-foreground">T4 · T4S</span>
+                </div>
+                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                  {(t4t4s.vuelos ?? []).map((v: VueloItem) => (
+                    <li key={v.id} className="flex items-center gap-3 text-sm">
+                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+                      <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
+                      {v.estadoVuelo && (
+                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                          {v.estadoVuelo}
                         </span>
-                        <span className="font-display text-base font-bold text-foreground">T4 · T4S</span>
-                      </div>
-                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(t4t4s.vuelos ?? []).map((v: VueloItem) => (
-                          <li key={v.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
-                            <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-                            {v.estadoVuelo && (
-                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                                {v.estadoVuelo}
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        )}
-      </section>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        );
+      })()}
+    </div>
+  )}
+</section>
 
-      <section className="px-5 pt-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad y Larga Distancia</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Llegadas oficiales (Adif) a Atocha (60000) y Chamartín (17000).</p>
-          </div>
-          <button
-            onClick={actualizarTransportes}
-            disabled={vuelos.isFetching || trenes.isFetching}
-            aria-label="Actualizar trenes"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
-          >
-            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-        {trenes.isLoading ? (
-          <Cargando texto="Consultando trenes…" />
-        ) : (
-          <div className="mt-3 space-y-3">
-            {(() => {
-              const listaEstaciones = trenes.data ?? [];
-              interface TrenItem {
-                id: string;
-                horaEstado?: string;
-                hora?: string;
-                tipo?: string;
-                origen?: string;
-                estado?: string;
-              }
-              interface EstacionTrenes {
-                nombre?: string;
-                codigoAdif?: string;
-                trenes?: TrenItem[];
-              }
-              const atocha = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
-              const chamartin = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
+<section className="px-5 pt-8">
+  <div className="flex items-center justify-between">
+    <div>
+      <h2 className="font-display text-lg font-semibold text-foreground">Alta velocidad y Larga Distancia</h2>
+      <p className="text-xs text-muted-foreground mt-0.5">Llegadas oficiales (Adif) a Atocha (60000) y Chamartín (17000).</p>
+    </div>
+    <button
+      onClick={actualizarTransportes}
+      disabled={vuelos.isFetching || trenes.isFetching}
+      aria-label="Actualizar trenes"
+      className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
+    >
+      <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
+    </button>
+  </div>
+  {trenes.isLoading ? (
+    <Cargando texto="Consultando trenes…" />
+  ) : (
+    <div className="mt-3 space-y-3">
+      {(() => {
+        const listaEstaciones = trenes.data ?? [];
+        interface TrenItem {
+          id: string;
+          horaEstado?: string;
+          hora?: string;
+          tipo?: string;
+          origen?: string;
+          estado?: string;
+        }
+        interface EstacionTrenes {
+          nombre?: string;
+          codigoAdif?: string;
+          trenes?: TrenItem[];
+        }
+        const atocha = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
+        const chamartin = listaEstaciones.find((e: EstacionTrenes) => e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000");
 
-              return (
-                <>
-                  {atocha && (
-                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                            <Train className="h-4 w-4" />
-                          </span>
-                          <span className="font-display text-base font-bold text-foreground">Atocha</span>
-                        </div>
-                        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
-                          Adif: 60000
-                        </span>
-                      </div>
-                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(atocha.trenes ?? []).map((tr: TrenItem) => (
-                          <li key={tr.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
-                            <span className="min-w-0 flex-1 truncate text-foreground">
-                              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
-                              {tr.origen}
-                            </span>
-                            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                              {tr.estado}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+        return (
+          <>
+            {atocha && (
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                      <Train className="h-4 w-4" />
+                    </span>
+                    <span className="font-display text-base font-bold text-foreground">Atocha</span>
+                  </div>
+                  <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
+                    Adif: 60000
+                  </span>
+                </div>
+                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                  {(atocha.trenes ?? []).map((tr: TrenItem) => (
+                    <li key={tr.id} className="flex items-center gap-3 text-sm">
+                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                      <span className="min-w-0 flex-1 truncate text-foreground">
+                        <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
+                        {tr.origen}
+                      </span>
+                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                        {tr.estado}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-                  {chamartin && (
-                    <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                            <Train className="h-4 w-4" />
-                          </span>
-                          <span className="font-display text-base font-bold text-foreground">Chamartín</span>
-                        </div>
-                        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
-                          Adif: 17000
-                        </span>
-                      </div>
-                      <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
-                        {(chamartin.trenes ?? []).map((tr: TrenItem) => (
-                          <li key={tr.id} className="flex items-center gap-3 text-sm">
-                            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
-                            <span className="min-w-0 flex-1 truncate text-foreground">
-                              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
-                              {tr.origen}
-                            </span>
-                            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                              {tr.estado}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        )}
-      </section>
+            {chamartin && (
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+                      <Train className="h-4 w-4" />
+                    </span>
+                    <span className="font-display text-base font-bold text-foreground">Chamartín</span>
+                  </div>
+                  <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
+                    Adif: 17000
+                  </span>
+                </div>
+                <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+                  {(chamartin.trenes ?? []).map((tr: TrenItem) => (
+                    <li key={tr.id} className="flex items-center gap-3 text-sm">
+                      <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
+                      <span className="min-w-0 flex-1 truncate text-foreground">
+                        <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
+                        {tr.origen}
+                      </span>
+                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                        {tr.estado}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        );
+      })()}
+    </div>
+  )}
+</section>
 
-      <div className="px-5 pt-8">
-        <button
-          onClick={() => abrirModal("factura")}
-          className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="flex h-10 w-10 shrink-0
+<div className="px-5 pt-8">
+  <button
+    onClick={() => abrirModal("factura")}
+    className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 text-amber-950 shadow-sm flex items-center justify-between gap-3 transition-transform active:scale-[0.98]"
+  >
+    <div className="flex items-center gap-3 min-w-0">
+      <span className="flex h-      
