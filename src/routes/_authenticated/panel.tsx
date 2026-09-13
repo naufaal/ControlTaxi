@@ -20,8 +20,6 @@ import {
   Paperclip,
   FileText,
   Train,
-  TrendingUp,
-  TrendingDown,
 } from "lucide-react";
 import {
   eur,
@@ -229,11 +227,6 @@ function Panel() {
     [movsDelTurnoActual]
   );
 
-  const totalesGenerales = useMemo(() => {
-    const ingresos = movimientosIngresosTurnoActual.reduce((s, m) => s + m.importe, 0);
-    return { ingresos, gastos: 0, neto: ingresos };
-  }, [movimientosIngresosTurnoActual]);
-
   const movsFiltrados = useMemo(
     () =>
       movs.filter((movimiento) => {
@@ -282,8 +275,8 @@ function Panel() {
         gastosMostrados = gastos;
       }
     } else {
-      neto = periodo === "dia" ? totalesGenerales.ingresos : ingresos;
-      ingresosMostrados = periodo === "dia" ? totalesGenerales.ingresos : ingresos;
+      neto = periodo === "dia" ? totalesGeneralesTurno.ingresos : ingresos;
+      ingresosMostrados = periodo === "dia" ? totalesGeneralesTurno.ingresos : ingresos;
       gastosMostrados = gastos;
     }
 
@@ -292,7 +285,7 @@ function Panel() {
       gastos: gastosMostrados,
       neto,
     };
-  }, [movsFiltrados, periodo, totalesGenerales, filtroTipo]);
+  }, [movsFiltrados, periodo, totalesGeneralesTurno, filtroTipo]);
 
   const periodoLabel = periodo === "dia" ? "del turno" : periodo === "semana" ? "de la semana" : periodo === "mes" ? "del mes" : "filtrado";
 
@@ -415,26 +408,13 @@ function Panel() {
           ))}
         </div>
 
-        <div
-          className={`relative mx-auto mt-4 max-w-sm rounded-3xl border p-5 text-center backdrop-blur transition-colors ${
-            totales.neto >= 0
-              ? "border-emerald-400/40 bg-emerald-500/10"
-              : "border-rose-400/40 bg-rose-500/10"
-          }`}
-        >
+        <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
           <p className="text-xs tracking-wide text-white/70 uppercase">
             Neto acumulado {periodo === "personalizado" ? "filtrado" : periodoLabel}
           </p>
-          <div className="mt-1 flex items-center justify-center gap-2">
-            {totales.neto >= 0 ? (
-              <TrendingUp className="h-7 w-7 text-emerald-400" />
-            ) : (
-              <TrendingDown className="h-7 w-7 text-rose-400" />
-            )}
-            <p className="font-display text-4xl font-bold text-white">
-              {eur(totales.neto)}
-            </p>
-          </div>
+          <p className="mt-1 font-display text-4xl font-bold text-white">
+            {eur(totales.neto)}
+          </p>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-black/20 py-2.5 px-3 text-center">
@@ -495,45 +475,18 @@ function Panel() {
                 className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
               >
                 <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                     m.tipo === "ingreso"
                       ? "bg-primary/20 text-foreground"
                       : "bg-secondary text-muted-foreground"
                   }`}
                 >
-                  {(() => {
-                    const c = (m.concepto || "").toLowerCase();
-                    if (c.includes("aeropuerto")) return "✈️";
-                    if (c.includes("estación") || c.includes("estacion")) return "🚉";
-                    if (c.includes("combustible")) return "⛽";
-                    if (c.includes("lavado")) return "🧼";
-                    if (c.includes("taller")) return "🔧";
-                    if (c.includes("parking")) return "🅿️";
-                    if (c.includes("peaje")) return "🛣️";
-                    return m.tipo === "ingreso" ? "🚕" : "💸";
-                  })()}
+                  {m.tipo === "ingreso" ? <Plus className="h-5 w-5" /> : <Minus className="h-5 w-5" />}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="truncate font-semibold text-foreground">
-                      {m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}
-                    </p>
-                    {m.tipo === "ingreso" && m.concepto?.match(/\((Efectivo|Tarjeta|Emisora|Bizum)\)/) && (
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded font-semibold shrink-0 ${
-                          m.concepto.includes("Efectivo")
-                            ? "bg-emerald-500/15 text-emerald-600"
-                            : m.concepto.includes("Tarjeta")
-                              ? "bg-blue-500/15 text-blue-600"
-                              : m.concepto.includes("Emisora")
-                                ? "bg-purple-500/15 text-purple-600"
-                                : "bg-amber-500/15 text-amber-600"
-                        }`}
-                      >
-                        {m.concepto.match(/\((Efectivo|Tarjeta|Emisora|Bizum)\)/)?.[1]}
-                      </span>
-                    )}
-                  </div>
+                  <p className="truncate font-semibold text-foreground">
+                    {m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(m.fecha).toLocaleDateString("es-ES", {
                       day: "2-digit",
@@ -578,13 +531,14 @@ function Panel() {
                 Documentación a aportar
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                Guarda tus permisos, seguros o recibos de forma sincronizada.
+                Guarda tus permisos, seguros o recibos de forma sincronizada y privada.
               </p>
             </div>
           </div>
         </button>
       </div>
-            <section className="px-5 pt-8">
+
+      <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
@@ -814,7 +768,9 @@ function Panel() {
               <FileText className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="font-display text-base font-bold text-amber-950">Factura</h3>
+              <h3 className="font-display text-base font-bold text-amber-950">
+                Factura
+              </h3>
               <p className="text-xs text-amber-900/80 mt-0.5 truncate">
                 Crea y descarga una factura con IVA del 10%.
               </p>
@@ -830,7 +786,9 @@ function Panel() {
               <BookOpenIcon className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="font-display text-base font-bold text-amber-950">Temario examen taxi</h3>
+              <h3 className="font-display text-base font-bold text-amber-950">
+                Temario examen taxi
+              </h3>
               <a
                 href="https://madrid.es/taxi"
                 target="_blank"
@@ -844,6 +802,7 @@ function Panel() {
         </div>
       </div>
 
+      {/* Botones Flotantes (Filtrar y Turnos) */}
       <div className="fixed bottom-5 left-5 right-5 z-40 flex gap-3 max-w-sm mx-auto">
         <button
           onClick={() => abrirModal("filtros")}
@@ -880,7 +839,7 @@ function Panel() {
           onCerrarTurno={cerrarTurnoCompleto}
         />
       )}
-      {search.modal === "documentos" && <VentanaDocumentosModal onCerrar={cerrarModal} />}
+      {search.modal === "documentos" && <VentanaDocumentosModal onCerrar={cerrarModal} currentUserId={currentUserId} />}
 
       <div className="px-5 pt-8">
         <PieMarca oscuro />
@@ -888,6 +847,7 @@ function Panel() {
     </main>
   );
 }
+
 function BookOpenIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -1056,22 +1016,72 @@ function VentanaFiltrosModal({
   );
 }
 
-function VentanaDocumentosModal({ onCerrar }: { onCerrar: () => void }) {
-  const [documentos, setDocumentos] = useState<Array<{ id: string; nombre: string; fecha: string }>>([
-    { id: "1", nombre: "ITS_2024-10-2469.pdf", fecha: "08 sept 2026" },
-    { id: "2", nombre: "ITS_2024-12-1201.pdf", fecha: "08 sept 2026" },
-  ]);
+function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => void; currentUserId: string | null }) {
+  const queryClient = useQueryClient();
   const [nuevoNombre, setNuevoNombre] = useState("");
 
-  function agregarDocumento(e: React.FormEvent) {
+  const documentosQuery = useQuery({
+    queryKey: ["documentos_usuario", currentUserId],
+    queryFn: async () => {
+      if (!currentUserId) return [];
+      const { data, error } = await supabase
+        .from("documentos_usuario")
+        .select("*")
+        .eq("user_id", currentUserId)
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.error("Error al cargar documentos:", error);
+        return [];
+      }
+      return data ?? [];
+    },
+    enabled: !!currentUserId,
+  });
+
+  async function agregarDocumento(e: React.FormEvent) {
     e.preventDefault();
-    if (!nuevoNombre.trim()) return;
-    setDocumentos([
-      ...documentos,
-      { id: crypto.randomUUID(), nombre: nuevoNombre.trim(), fecha: "08 sept 2026" },
-    ]);
+    if (!nuevoNombre.trim() || !currentUserId) return;
+
+    const fechaStr = new Date().toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    const { error } = await supabase.from("documentos_usuario").insert({
+      user_id: currentUserId,
+      nombre: nuevoNombre.trim(),
+      fecha: fechaStr,
+    });
+
+    if (error) {
+      console.error("Error al guardar documento:", error);
+      alert("No se pudo guardar el documento.");
+      return;
+    }
+
     setNuevoNombre("");
+    await queryClient.invalidateQueries({ queryKey: ["documentos_usuario", currentUserId] });
   }
+
+  async function borrarDocumento(id: string) {
+    if (!currentUserId) return;
+    const { error } = await supabase
+      .from("documentos_usuario")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      console.error("Error al borrar documento:", error);
+      alert("No se pudo eliminar el documento.");
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["documentos_usuario", currentUserId] });
+  }
+
+  const documentos = documentosQuery.data ?? [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
@@ -1093,7 +1103,7 @@ function VentanaDocumentosModal({ onCerrar }: { onCerrar: () => void }) {
         </div>
 
         <p className="text-xs text-muted-foreground mb-4">
-          Guarda tus permisos, seguros o recibos de forma sincronizada.
+          Guarda tus permisos, seguros o recibos privados de forma sincronizada.
         </p>
 
         <form onSubmit={agregarDocumento} className="flex gap-2 mb-4">
@@ -1113,12 +1123,16 @@ function VentanaDocumentosModal({ onCerrar }: { onCerrar: () => void }) {
         </form>
 
         <div className="space-y-2">
-          {documentos.length === 0 ? (
+          {documentosQuery.isLoading ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-              No hay documentos registrados.
+              Cargando tus documentos...
+            </div>
+          ) : documentos.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+              No tienes documentos registrados.
             </div>
           ) : (
-            documentos.map((doc) => (
+            documentos.map((doc: { id: string; nombre: string; fecha: string }) => (
               <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FileText className="h-4 w-4 text-primary shrink-0" />
@@ -1128,7 +1142,7 @@ function VentanaDocumentosModal({ onCerrar }: { onCerrar: () => void }) {
                   </div>
                 </div>
                 <button
-                  onClick={() => setDocumentos(documentos.filter((d) => d.id !== doc.id))}
+                  onClick={() => borrarDocumento(doc.id)}
                   className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
                   aria-label="Borrar documento"
                 >
@@ -1171,9 +1185,19 @@ function VentanaTurnosModal({
           </button>
         </div>
 
-        <div className="rounded-2xl bg-secondary p-4 mb-4 text-center">
+        <div className="rounded-2xl bg-secondary p-4 mb-4 space-y-2 text-center">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Importe Facturado (Neto del turno)</p>
-          <p className="font-display text-3xl font-bold text-foreground mt-1">{eur(totalesGenerales.neto)}</p>
+          <p className="font-display text-3xl font-bold text-foreground">{eur(totalesGenerales.neto)}</p>
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Ingresos informativos</p>
+              <p className="text-sm font-semibold text-primary">{eur(totalesGenerales.ingresos)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Gastos informativos</p>
+              <p className="text-sm font-semibold text-destructive">{eur(totalesGenerales.gastos)}</p>
+            </div>
+          </div>
         </div>
 
         <button
@@ -1207,6 +1231,16 @@ function VentanaTurnosModal({
                     <div>
                       <p className="text-[9px] text-muted-foreground uppercase">Importe Facturado</p>
                       <p className="font-display text-base font-bold text-foreground">{eur(turno.neto)}</p>
+                    </div>
+                    <div className="text-right flex gap-2">
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase">Ingresos</p>
+                        <p className="text-xs font-semibold text-primary">+{eur(turno.ingresos)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase">Gastos</p>
+                        <p className="text-xs font-semibold text-destructive">-{eur(turno.gastos)}</p>
+                      </div>
                     </div>
                   </div>
                 </li>
@@ -1460,21 +1494,8 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
 
 function Cargando({ texto }: { texto: string }) {
   return (
-    <div className="mt-3 space-y-3">
-      <p className="text-xs text-muted-foreground text-center">{texto}</p>
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4"
-        >
-          <div className="h-10 w-10 rounded-xl bg-secondary animate-pulse" />
-          <div className="flex-1 space-y-2">
-            <div className="h-3 w-2/3 rounded bg-secondary animate-pulse" />
-            <div className="h-2 w-1/2 rounded bg-secondary animate-pulse" />
-          </div>
-          <div className="h-5 w-16 rounded bg-secondary animate-pulse" />
-        </div>
-      ))}
+    <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+      {texto}
     </div>
   );
 }
