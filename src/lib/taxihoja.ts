@@ -46,16 +46,14 @@ export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
 }
 
 export async function guardarMovimiento(userId: string, m: Movimiento) {
-  const { error } = await (supabase as any).from("movimientos").insert([
-    {
-      id: m.id,
-      user_id: userId,
-      tipo: m.tipo,
-      importe: m.importe,
-      concepto: m.concepto,
-      fecha: m.fecha,
-    },
-  ]);
+  const { error } = await (supabase as any).from("movimientos").insert({
+    id: m.id,
+    user_id: userId, // <-- ¡Importante! Aseguramos que se guarde asociado al usuario actual
+    tipo: m.tipo,
+    importe: m.importe,
+    concepto: m.concepto,
+    fecha: m.fecha,
+  });
 
   if (error) {
     console.error("Error al guardar movimiento:", error);
@@ -99,17 +97,15 @@ export async function cargarTurnos(userId: string): Promise<TurnoGuardado[]> {
 }
 
 export async function guardarTurnoSupabase(userId: string, t: TurnoGuardado) {
-  const { error } = await (supabase as any).from("turnos_historial").insert([
-    {
-      id: t.id,
-      user_id: userId,
-      fecha_inicio: t.fechaInicio,
-      fecha_fin: t.fechaFin,
-      ingresos: t.ingresos,
-      gastos: t.gastos,
-      neto: t.neto,
-    },
-  ]);
+  const { error } = await (supabase as any).from("turnos_historial").insert({
+    id: t.id,
+    user_id: userId,
+    fecha_inicio: t.fechaInicio,
+    fecha_fin: t.fechaFin,
+    ingresos: t.ingresos,
+    gastos: t.gastos,
+    neto: t.neto,
+  });
 
   if (error) {
     console.error("Error al guardar turno en Supabase:", error);

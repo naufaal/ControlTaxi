@@ -41,7 +41,7 @@ function Admin() {
       }
       setMetricas(data as unknown as Metricas);
     });
-    void supabase.rpc("registrar_uso", { p_event: "admin_view", p_path: "/admin" });
+    
     return () => {
       activo = false;
     };
