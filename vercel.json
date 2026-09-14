@@ -1,13 +1,5 @@
-# 1. Asegúrate de estar en main
-git checkout main
-
-# 2. Traer solo el archivo vercel.json desde la rama Test
-git checkout Test -- vercel.json
-
-# 3. Guardar y subir a producción
-git add vercel.json
-git commit -m "fix: añadir vercel.json a main"
-git push origin main
-
-# 4. Volver a la rama de desarrollo
-git checkout Test
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
