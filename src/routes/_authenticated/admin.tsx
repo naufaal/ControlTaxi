@@ -22,7 +22,7 @@ type Metricas = {
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
     const { data, error } = await supabase.rpc("es_admin");
-    if (error || !data) throw redirect({ to: "/panel" });
+    if (error || !data) throw redirect({ to: "/panel", search: { modal: null } });
   },
   component: Admin,
 });

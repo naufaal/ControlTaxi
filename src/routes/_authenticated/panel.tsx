@@ -51,7 +51,7 @@ interface VueloItem {
 
 interface TerminalVuelos {
   terminal?: string;
-  vuelos?: VueloItem[];
+  vuelos?: VueloItem[] | undefined;
 }
 
 interface TrenItem {
@@ -66,7 +66,7 @@ interface TrenItem {
 interface EstacionTrenes {
   nombre?: string;
   codigoAdif?: string;
-  trenes?: TrenItem[];
+  trenes?: TrenItem[] | undefined;
 }
 
 // --- UTILIDADES ---
@@ -358,7 +358,7 @@ function Panel() {
               key={opcion}
               onClick={() => { setPeriodo(opcion); setRangoFechas({ inicio: "", fin: "" }); setFiltroTipo("todos"); }}
               className={`h-10 min-w-20 rounded-xl px-4 text-sm font-semibold transition-colors ${
-                periodo === opcion && periodo !== "personalizado"
+                periodo === opcion
                   ? "bg-primary text-primary-foreground"
                   : "border border-white/20 bg-white/10 text-white"
               }`}
@@ -565,7 +565,7 @@ function Cargando({ texto }: { texto: string }) {
   return <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{texto}</div>;
 }
 
-function TerminalCard({ titulo, vuelos }: { titulo: string; vuelos?: VueloItem[] }) {
+function TerminalCard({ titulo, vuelos }: { titulo: string; vuelos?: VueloItem[] | undefined }) {
   if (!vuelos?.length) return null;
   return (
     <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
@@ -586,7 +586,7 @@ function TerminalCard({ titulo, vuelos }: { titulo: string; vuelos?: VueloItem[]
   );
 }
 
-function EstacionCard({ titulo, codigoAdif, trenes }: { titulo: string; codigoAdif: string; trenes?: TrenItem[] }) {
+function EstacionCard({ titulo, codigoAdif, trenes }: { titulo: string; codigoAdif: string; trenes?: TrenItem[] | undefined }) {
   if (!trenes?.length) return null;
   return (
     <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
