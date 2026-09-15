@@ -81,12 +81,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "robots", content: "index, follow" },
       { title: "ControlTaxi - Cuentas, jornadas y documentación de taxi" },
       { name: "description", content: "Cuentas, jornadas y documentación de taxi desde el móvil." },
-      { name: "author", content: "Lovable" },
+      { name: "author", content: "ControlTaxi" },
       { property: "og:title", content: "ControlTaxi" },
       { property: "og:description", content: "Cuentas, jornadas y documentación de taxi desde el móvil." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
