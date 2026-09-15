@@ -117,7 +117,7 @@ function perteneceAlPeriodo(
 // --- DEFINICIÓN DE RUTA ---
 export const Route = createFileRoute("/_authenticated/panel")({
   validateSearch: (search: Record<string, unknown>) => ({
-    modal: (search.modal as ModalType | undefined) ?? null,
+    modal: (search['modal'] as ModalType | undefined) ?? null,
   }),
   head: () => ({
     meta: [
@@ -137,8 +137,8 @@ function Panel() {
   const [rangoFechas, setRangoFechas] = useState({ inicio: "", fin: "" });
   const [filtroTipo, setFiltroTipo] = useState<"todos" | "ingresos" | "gastos">("todos");
 
-  const abrirModal = (tipo: ModalType) => navigate({ search: { modal: tipo } });
-  const cerrarModal = () => navigate({ search: { modal: undefined } });
+  const abrirModal = (tipo: ModalType) => navigate({ to: "/panel", search: { modal: tipo } });
+  const cerrarModal = () => navigate({ to: "/panel", search: { modal: null } });
 
   // Queries
   const usuarioQuery = useQuery({
@@ -291,7 +291,7 @@ function Panel() {
     const ahoraIso = new Date().toISOString();
     const nuevoTurno: TurnoGuardado = {
       id: crypto.randomUUID(),
-      fechaInicio: movsDelTurnoActual[movsDelTurnoActual.length - 1].fecha,
+      fechaInicio: movsDelTurnoActual[movsDelTurnoActual.length - 1]?.fecha ?? ahoraIso,
       fechaFin: ahoraIso,
       ingresos: totalesGeneralesTurno.ingresos,
       gastos: totalesGeneralesTurno.gastos,
