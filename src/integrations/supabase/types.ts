@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      configuracion_usuario: {
+        Row: {
+          dia_laboral_activo: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          dia_laboral_activo?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          dia_laboral_activo?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       documentos: {
         Row: {
           categoria: string
@@ -23,6 +41,7 @@ export type Database = {
           ruta: string
           tamano: number
           tipo: string | null
+          url: string | null
           user_id: string
         }
         Insert: {
@@ -33,6 +52,7 @@ export type Database = {
           ruta: string
           tamano?: number
           tipo?: string | null
+          url?: string | null
           user_id: string
         }
         Update: {
@@ -43,10 +63,35 @@ export type Database = {
           ruta?: string
           tamano?: number
           tipo?: string | null
+          url?: string | null
           user_id?: string
         }
         Relationships: []
-      },
+      }
+      eventos_uso: {
+        Row: {
+          created_at: string
+          event: string
+          id: string
+          path: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          id?: string
+          path?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          id?: string
+          path?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       facturas: {
         Row: {
           base: number
@@ -62,16 +107,16 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          base: number
-          cliente: Json
-          concepto: string
+          base?: number
+          cliente?: Json
+          concepto?: string
           created_at?: string
-          emisor: Json
-          fecha: string
+          emisor?: Json
+          fecha?: string
           id?: string
-          iva: number
+          iva?: number
           numero: string
-          total: number
+          total?: number
           user_id: string
         }
         Update: {
@@ -89,30 +134,110 @@ export type Database = {
         }
         Relationships: []
       }
+      movimientos: {
+        Row: {
+          concepto: string
+          created_at: string
+          fecha: string
+          id: string
+          importe: number
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          concepto?: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          importe?: number
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          concepto?: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          importe?: number
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      turnos_historial: {
+        Row: {
+          created_at: string
+          fecha_fin: string
+          fecha_inicio: string
+          gastos: number
+          id: string
+          ingresos: number
+          neto: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fecha_fin: string
+          fecha_inicio: string
+          gastos?: number
+          id?: string
+          ingresos?: number
+          neto?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fecha_fin?: string
+          fecha_inicio?: string
+          gastos?: number
+          id?: string
+          ingresos?: number
+          neto?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      es_admin: {
-        Args: Record<PropertyKey, never>
+      delete_user_account: { Args: never; Returns: undefined }
+      es_admin: { Args: never; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
         Returns: boolean
       }
-      metricas_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      metricas_admin: { Args: never; Returns: Json }
       registrar_uso: {
         Args: { p_event: string; p_path: string }
         Returns: undefined
       }
-      siguiente_numero_factura: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      siguiente_numero_factura: { Args: never; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -239,6 +364,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const

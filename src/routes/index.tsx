@@ -34,7 +34,7 @@ function Inicio() {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
         // Si el usuario ya está autenticado, redirige al panel directamente
-        navigate({ to: "/panel", replace: true });
+        navigate({ to: "/panel", search: { modal: null }, replace: true });
       } else {
         setComprobando(false);
       }

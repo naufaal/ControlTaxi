@@ -48,7 +48,7 @@ function Auth() {
         if (typeof window !== "undefined") {
           window.history.replaceState(null, "", "/panel");
         }
-        navigate({ to: "/panel", replace: true });
+        navigate({ to: "/panel", search: { modal: null }, replace: true });
       }
     };
     comprobarSesion();
@@ -129,7 +129,7 @@ function Auth() {
       if (typeof window !== "undefined") {
         window.history.replaceState(null, "", "/panel");
       }
-      navigate({ to: "/panel", replace: true });
+      navigate({ to: "/panel", search: { modal: null }, replace: true });
     } finally {
       setCargando(false);
     }
