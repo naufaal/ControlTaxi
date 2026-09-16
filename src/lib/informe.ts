@@ -1,7 +1,6 @@
-"use client"; // Indicamos a Next.js que esto solo debe ejecutarse en el navegador
+"use client";
 
-// Ajustamos las importaciones según los archivos que creamos en el paso anterior:
-import type { Movimiento } from "./acciones"; // o "./db", donde pusieras los tipos
+import type { Movimiento } from "./taxihoja";
 import { eur } from "./utils";
 
 export function abrirInforme(
