@@ -1,3 +1,5 @@
+"use client";
+
 import { ModalBase } from "./ModalBase";
 
 export function DocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => void; currentUserId: string | null }) {

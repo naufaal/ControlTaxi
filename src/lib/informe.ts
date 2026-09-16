@@ -1,4 +1,8 @@
-import { eur, type Movimiento } from "./taxihoja";
+"use client"; // Indicamos a Next.js que esto solo debe ejecutarse en el navegador
+
+// Ajustamos las importaciones según los archivos que creamos en el paso anterior:
+import type { Movimiento } from "./acciones"; // o "./db", donde pusieras los tipos
+import { eur } from "./utils";
 
 export function abrirInforme(
   movs: Movimiento[],
@@ -56,6 +60,9 @@ export function abrirInforme(
 <tbody>${filas || `<tr><td colspan="4" style="color:#666;padding:14px 4px">Sin movimientos en este periodo.</td></tr>`}</tbody></table>
 <script>window.onload=function(){setTimeout(function(){window.print()},350)}</script>
 </body></html>`;
+
+  // Comprobación de seguridad recomendada en Next.js
+  if (typeof window === "undefined") return false;
 
   const w = window.open("", "_blank");
   if (!w) return false;

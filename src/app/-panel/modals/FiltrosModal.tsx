@@ -1,3 +1,5 @@
+"use client";
+
 import { ModalBase } from "./ModalBase";
 import type { FiltroTipo, Periodo } from "../types";
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { ModalBase } from "./ModalBase";
 
 export function FacturaModal({ onCerrar }: { onCerrar: () => void }) {

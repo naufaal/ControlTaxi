@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { X, Calendar } from "lucide-react";
 import type { Movimiento } from "@/lib/taxihoja";
@@ -22,12 +24,15 @@ export function IngresoModal({ onCerrar, onGuardar }: IngresoModalProps) {
     if (isNaN(num) || num <= 0) return;
 
     onGuardar({
-      id: crypto.randomUUID(), // <-- Generamos el ID único aquí
+      id: crypto.randomUUID(),
       tipo: "ingreso",
       importe: num,
       concepto: `${concepto} (${formaPago})`,
       fecha: new Date(fecha).toISOString(),
     });
+    
+    // Cerramos el modal automáticamente tras guardar
+    onCerrar();
   }
 
   return (

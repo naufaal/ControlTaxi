@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
@@ -33,11 +33,12 @@ import {
   type Movimiento,
   type TurnoGuardado,
 } from "@/lib/taxihoja";
-import { getLlegadasBarajas, getLlegadasTrenes } from "@/lib/transporte.functions";
+import type { TerminalResumen, EstacionResumen } from "@/lib/transporte.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { VentanaFacturaModal } from "@/components/factura";
 import { abrirInforme } from "@/lib/informe";
 import { Marca, PieMarca } from "@/components/marca";
+import { eur } from "@/lib/utils";
 
 // --- TIPOS ---
 type Periodo = "dia" | "semana" | "mes" | "personalizado";
@@ -63,13 +64,6 @@ interface TrenItem {
 }
 
 // --- UTILIDADES ---
-function eur(valor: number): string {
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-  }).format(valor);
-}
-
 function obtenerDiaLaboral(fechaStr: string): string {
   const fecha = new Date(fechaStr);
   const horaLocal = parseInt(
@@ -136,7 +130,8 @@ export default function PanelPage() {
   const cerrarModal = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("modal");
-    router.push(`${pathname}?${params.toString()}`);
+    const stringParams = params.toString();
+    router.push(stringParams ? `${pathname}?${stringParams}` : pathname);
   };
 
   const usuarioQuery = useQuery({
@@ -186,21 +181,32 @@ export default function PanelPage() {
   });
   const turnosCerrados = turnosQuery.data ?? [];
 
-  const vuelos = useQuery({
-    queryKey: ["llegadas-barajas"],
+    const transportesQuery = useQuery({
+    queryKey: ["transporte"],
     queryFn: async () => {
-      try { return await getLlegadasBarajas(); } catch { return []; }
+      const res = await fetch("/api/transporte", { cache: "no-store" });
+      if (!res.ok) throw new Error("Error al cargar transportes");
+      return (await res.json()) as {
+        vuelos: TerminalResumen[];
+        trenes: EstacionResumen[];
+      };
     },
     refetchInterval: 120_000,
   });
 
-  const trenes = useQuery({
-    queryKey: ["llegadas-trenes"],
-    queryFn: async () => {
-      try { return await getLlegadasTrenes(); } catch { return []; }
-    },
-    refetchInterval: 180_000,
-  });
+  const vuelos = {
+    data: transportesQuery.data?.vuelos ?? [],
+    isLoading: transportesQuery.isLoading,
+    isFetching: transportesQuery.isFetching,
+    refetch: transportesQuery.refetch,
+  };
+
+  const trenes = {
+    data: transportesQuery.data?.trenes ?? [],
+    isLoading: transportesQuery.isLoading,
+    isFetching: transportesQuery.isFetching,
+    refetch: transportesQuery.refetch,
+  };
 
   function actualizarTransportes() {
     void Promise.all([vuelos.refetch(), trenes.refetch()]);
@@ -254,15 +260,18 @@ export default function PanelPage() {
       : periodo === "mes" ? "del mes"
       : "filtrado";
 
-  async function guardar(m: Movimiento) {
-    if (!currentUserId) return;
+ async function guardar(m: Movimiento) {
+    if (!currentUserId) {
+      alert("⚠️ No se ha detectado tu usuario. Por favor, recarga la página.");
+      return;
+    }
     try {
       await guardarMovimiento(currentUserId, m);
       await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
       cerrarModal();
     } catch (error) {
       console.error("Error al guardar:", error);
-      alert("No se pudo guardar en Supabase.");
+      alert("No se pudo guardar en Supabase. Revisa tu conexión.");
     }
   }
 
@@ -652,4 +661,361 @@ function VentanaFiltrosModal({ onCerrar, rangoFechas, setRangoFechas, setPeriodo
   }
 
   return (
-    <ModalBase onCerrar={
+    <ModalBase onCerrar={onCerrar}>
+      <ModalHeader titulo="Filtrar movimientos" icono={History} onCerrar={onCerrar} />
+      <form onSubmit={aplicarFiltro} className="space-y-4">
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">Tipo de movimiento</label>
+          <div className="grid grid-cols-3 gap-2">
+            {(["todos", "ingresos", "gastos"] as const).map((t) => (
+              <button
+                type="button" key={t} onClick={() => setTipoTemp(t)}
+                className={`h-11 rounded-xl text-xs font-semibold border transition-colors ${tipoTemp === t ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-secondary text-foreground border-input hover:bg-secondary/80"}`}
+              >
+                {t === "todos" ? "Neto" : t === "ingresos" ? "Ingresos" : "Gastos"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">Desde / Fecha inicial</label>
+          <input type="date" max={hoyMax} value={inicioTemp} onChange={(e) => setInicioTemp(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">Hasta / Fecha final</label>
+          <input type="date" max={hoyMax} value={finTemp} onChange={(e) => setFinTemp(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none" />
+        </div>
+        <div className="pt-2 space-y-2">
+          <button type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98]">Aplicar filtros</button>
+          <button type="button" onClick={limpiarFiltro} className="w-full h-12 rounded-2xl bg-secondary text-foreground font-semibold text-sm hover:bg-secondary/80 transition-colors">Limpiar filtro</button>
+        </div>
+      </form>
+    </ModalBase>
+  );
+}
+
+function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => void; currentUserId: string | null }) {
+  const queryClient = useQueryClient();
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [nombrePersonalizado, setNombrePersonalizado] = useState("");
+  const [subiendo, setSubiendo] = useState(false);
+  const inputFileRef = useRef<HTMLInputElement>(null);
+
+  const documentosQuery = useQuery({
+    queryKey: ["documentos", currentUserId],
+    queryFn: async () => {
+      if (!currentUserId) return [];
+      const { data, error } = await supabase.from("documentos").select("*").eq("user_id", currentUserId).order("created_at", { ascending: false });
+      if (error) return [];
+      return data ?? [];
+    },
+    enabled: !!currentUserId,
+  });
+
+  async function subirDocumento(e: React.FormEvent) {
+    e.preventDefault();
+    if (!archivo || !currentUserId) return alert("Por favor, selecciona un archivo.");
+    setSubiendo(true);
+    try {
+      const fileExt = archivo.name.split(".").pop();
+      const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from("documentos").upload(fileName, archivo);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+      const nombreFinal = nombrePersonalizado.trim() || archivo.name;
+
+      const { error: dbError } = await supabase.from("documentos").insert({
+        user_id: currentUserId, nombre: nombreFinal, ruta: fileName, url: publicUrlData.publicUrl, tipo: archivo.type, tamano: archivo.size,
+      });
+
+      if (dbError) throw dbError;
+      setArchivo(null);
+      setNombrePersonalizado("");
+      if (inputFileRef.current) inputFileRef.current.value = "";
+      await queryClient.invalidateQueries({ queryKey: ["documentos", currentUserId] });
+    } catch (err) {
+      console.error(err);
+      alert("Error al subir el archivo.");
+      if (inputFileRef.current) inputFileRef.current.value = "";
+    } finally {
+      setSubiendo(false);
+    }
+  }
+
+  async function borrarDocumento(id: string, rutaArchivo?: string) {
+    if (!currentUserId) return;
+    if (rutaArchivo) await supabase.storage.from("documentos").remove([rutaArchivo]).catch(() => {});
+    const { error } = await supabase.from("documentos").delete().eq("id", id).eq("user_id", currentUserId);
+    if (error) return alert("No se pudo eliminar el documento.");
+    await queryClient.invalidateQueries({ queryKey: ["documentos", currentUserId] });
+  }
+
+  function abrirArchivo(doc: any) {
+    const esPdf = doc.tipo === "application/pdf" || doc.url?.toLowerCase().endsWith(".pdf");
+    const urlFinal = esPdf
+      ? `https://docs.google.com/viewer?url=${encodeURIComponent(doc.url)}&embedded=true`
+      : doc.url;
+    window.open(urlFinal, "_blank");
+  }
+
+  return (
+    <ModalBase onCerrar={onCerrar}>
+      <ModalHeader titulo="Documentos y Archivos" icono={Paperclip} onCerrar={onCerrar} />
+      <p className="text-xs text-muted-foreground mb-4">Sube tus permisos, seguros o recibos de forma sincronizada.</p>
+
+      <form
+        onSubmit={(e) => { e.preventDefault(); subirDocumento(e); }}
+        className="rounded-3xl border border-dashed border-border bg-secondary/30 p-4 mb-5 space-y-3"
+      >
+        <div>
+          <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Nombre personalizado (opcional)</label>
+          <input type="text" placeholder="Ej: Seguro del coche, ITV..." value={nombrePersonalizado} onChange={(e) => setNombrePersonalizado(e.target.value)} className="w-full h-11 rounded-xl bg-secondary border border-input px-3 text-sm text-foreground outline-none focus:border-primary" />
+        </div>
+        <div>
+          <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Archivo del dispositivo</label>
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="input-documento"
+              className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-input bg-secondary px-4 text-xs font-medium text-foreground cursor-pointer hover:bg-secondary/80 transition-colors truncate"
+            >
+              <Paperclip className="h-4 w-4 text-primary shrink-0" />
+              <span className="truncate">{archivo ? archivo.name : "Seleccionar PDF o imagen..."}</span>
+            </label>
+            <input
+              ref={inputFileRef}
+              id="input-documento"
+              type="file"
+              accept=".pdf,image/*"
+              onChange={(e) => setArchivo(e.target.files?.[0] || null)}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); subirDocumento(e as any); }}
+              disabled={subiendo || !archivo}
+              className="h-12 px-5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow disabled:opacity-50 shrink-0"
+            >
+              {subiendo ? "Subiendo..." : "Adjuntar"}
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tus archivos guardados</h4>
+        {documentosQuery.isLoading ? (
+          <Cargando texto="Cargando tus documentos..." />
+        ) : documentosQuery.data?.length === 0 ? (
+          <Cargando texto="No tienes documentos subidos todavía." />
+        ) : (
+          documentosQuery.data?.map((doc: any) => (
+            <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <FileText className="h-4 w-4 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-foreground truncate">{doc.nombre}</p>
+                  <p className="text-[10px] text-muted-foreground">{new Date(doc.created_at).toLocaleDateString("es-ES")}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button type="button" onClick={() => abrirArchivo(doc)} className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer" title="Ver archivo">
+                  Ver <ExternalLink className="h-3 w-3" />
+                </button>
+                <button onClick={() => borrarDocumento(doc.id, doc.ruta)} className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </ModalBase>
+  );
+}
+
+function VentanaTurnosModal({ totalesGenerales, turnosCerrados, onCerrar, onCerrarTurno }: any) {
+  return (
+    <ModalBase onCerrar={onCerrar}>
+      <ModalHeader titulo="Turnos" onCerrar={onCerrar} />
+      <div className="rounded-2xl bg-secondary p-4 mb-4 space-y-2 text-center">
+        <p className="text-xs text-muted-foreground uppercase tracking-wide">Importe Facturado (Neto del turno)</p>
+        <p className="font-display text-3xl font-bold text-foreground">{eur(totalesGenerales.neto)}</p>
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase">Ingresos informativos</p>
+            <p className="text-sm font-semibold text-primary">{eur(totalesGenerales.ingresos)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase">Gastos informativos</p>
+            <p className="text-sm font-semibold text-destructive">{eur(totalesGenerales.gastos)}</p>
+          </div>
+        </div>
+      </div>
+      <button onClick={onCerrarTurno} className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] hover:bg-emerald-700 mb-6">
+        <Lock className="h-5 w-5" /> Cerrar turno actual
+      </button>
+
+      <div className="border-t border-border pt-4">
+        <h4 className="font-display text-base font-semibold text-foreground flex items-center gap-2 mb-3">
+          <Clock className="h-4 w-4 text-primary" /> Historial de Turnos
+        </h4>
+        {turnosCerrados.length === 0 ? (
+          <Cargando texto="Aún no hay turnos cerrados guardados en Supabase." />
+        ) : (
+          <ul className="space-y-3">
+            {turnosCerrados.map((turno: TurnoGuardado) => (
+              <li key={turno.id} className="rounded-2xl border border-border bg-secondary/50 p-3 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground border-b border-border pb-1.5">
+                  <span>Inicio: {new Date(turno.fechaInicio).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
+                  <span>Fin: {new Date(turno.fechaFin).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
+                </div>
+                <div className="flex items-center justify-between pt-0.5">
+                  <div>
+                    <p className="text-[9px] text-muted-foreground uppercase">Importe Facturado</p>
+                    <p className="font-display text-base font-bold text-foreground">{eur(turno.neto)}</p>
+                  </div>
+                  <div className="text-right flex gap-2">
+                    <div>
+                      <p className="text-[9px] text-muted-foreground uppercase">Ingresos</p>
+                      <p className="text-xs font-semibold text-primary">+{eur(turno.ingresos)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-muted-foreground uppercase">Gastos</p>
+                      <p className="text-xs font-semibold text-destructive">-{eur(turno.gastos)}</p>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </ModalBase>
+  );
+}
+
+// Función auxiliar para generar IDs sin que rompa en móviles por red local
+function generarUUID() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+  const [importe, setImporte] = useState("");
+  const [metodo, setMetodo] = useState<"Efectivo" | "Tarjeta" | "Emisora" | "Bizum">("Efectivo");
+  const [concepto, setConcepto] = useState("Carrera");
+  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
+  const hoyMax = new Date().toISOString().slice(0, 10);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const num = parseFloat(importe.replace(",", "."));
+    if (isNaN(num) || num <= 0) return alert("Introduce un importe válido");
+    if (fecha > hoyMax) return alert("No se permiten fechas futuras.");
+
+    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
+    
+    onGuardar({ 
+      id: generarUUID(), 
+      tipo: "ingreso", 
+      importe: num, 
+      concepto: `${concepto.trim() || "Carrera"} (${metodo})`, 
+      fecha: fechaFinal 
+    });
+  }
+
+  return (
+    <ModalBase onCerrar={onCerrar}>
+      <ModalHeader titulo="Nuevo ingreso" onCerrar={onCerrar} />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">Importe €</label>
+          <input type="text" inputMode="decimal" placeholder="0,00" autoFocus value={importe} onChange={(e) => setImporte(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-primary outline-none" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">Forma de pago</label>
+          <div className="grid grid-cols-2 gap-2">
+            {(["Efectivo", "Tarjeta", "Emisora", "Bizum"] as const).map((m) => (
+              <button type="button" key={m} onClick={() => setMetodo(m)} className={`h-11 rounded-2xl text-xs font-semibold border transition-colors ${metodo === m ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-secondary text-foreground border-input hover:bg-secondary/80"}`}>{m}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-primary" /> Fecha
+          </label>
+          <input type="date" max={hoyMax} value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
+          <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary" />
+          <div className="flex flex-wrap gap-2 mt-2">
+            {["Carrera", "Aeropuerto", "Estación"].map((c) => (
+              <button type="button" key={c} onClick={() => setConcepto(c)} className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-primary/10 hover:border-primary transition-colors">{c}</button>
+            ))}
+          </div>
+        </div>
+        <button type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2">Guardar ingreso</button>
+      </form>
+    </ModalBase>
+  );
+}
+
+function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+  const [importe, setImporte] = useState("");
+  const [concepto, setConcepto] = useState("Combustible");
+  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
+  const hoyMax = new Date().toISOString().slice(0, 10);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const num = parseFloat(importe.replace(",", "."));
+    if (isNaN(num) || num <= 0) return alert("Introduce un importe válido");
+    if (fecha > hoyMax) return alert("No se permiten fechas futuras.");
+
+    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
+    
+    onGuardar({ 
+      id: generarUUID(), 
+      tipo: "gasto", 
+      importe: num, 
+      concepto: concepto.trim() || "Gasto", 
+      fecha: fechaFinal 
+    });
+  }
+
+  return (
+    <ModalBase onCerrar={onCerrar}>
+      <ModalHeader titulo="Nuevo gasto" onCerrar={onCerrar} />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">Importe €</label>
+          <input type="text" inputMode="decimal" placeholder="0,00" autoFocus value={importe} onChange={(e) => setImporte(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-red-500 outline-none" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-red-500" /> Fecha
+          </label>
+          <input type="date" max={hoyMax} value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-red-500" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
+          <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-red-500" />
+          <div className="flex flex-wrap gap-2 mt-2">
+            {["Combustible", "Lavado", "Taller", "Parking", "Peaje"].map((c) => (
+              <button type="button" key={c} onClick={() => setConcepto(c)} className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-red-500/10 hover:border-red-500 transition-colors">{c}</button>
+            ))}
+          </div>
+        </div>
+        <button type="submit" className="w-full h-14 rounded-2xl bg-red-600 text-white font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2">Guardar gasto</button>
+      </form>
+    </ModalBase>
+  );
+}

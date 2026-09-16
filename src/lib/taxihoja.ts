@@ -1,3 +1,5 @@
+"use server";
+
 import { supabase } from "@/integrations/supabase/client";
 
 export type Movimiento = {
@@ -16,13 +18,6 @@ export type TurnoGuardado = {
   gastos: number;
   neto: number;
 };
-
-export function eur(valor: number): string {
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-  }).format(valor);
-}
 
 export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
   const { data, error } = await (supabase as any)
@@ -48,7 +43,7 @@ export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
 export async function guardarMovimiento(userId: string, m: Movimiento) {
   const { error } = await (supabase as any).from("movimientos").insert({
     id: m.id,
-    user_id: userId, // <-- ¡Importante! Aseguramos que se guarde asociado al usuario actual
+    user_id: userId,
     tipo: m.tipo,
     importe: m.importe,
     concepto: m.concepto,
@@ -111,14 +106,4 @@ export async function guardarTurnoSupabase(userId: string, t: TurnoGuardado) {
     console.error("Error al guardar turno en Supabase:", error);
     throw error;
   }
-}
-
-export function obtenerUltimoCorteTurno(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem("taxihoja:ultimo_corte");
-}
-
-export function guardarUltimoCorteTurno(fechaIso: string) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem("taxihoja:ultimo_corte", fechaIso);
 }

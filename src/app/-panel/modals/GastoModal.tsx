@@ -1,6 +1,8 @@
+"use client"; // <-- Solo añadimos esto
+
 import { useState } from "react";
 import { X, Calendar } from "lucide-react";
-import type { Movimiento } from "@/lib/taxihoja";
+import type { Movimiento } from "@/lib/taxihoja"; // Ajusta si la ruta cambió
 
 interface GastoModalProps {
   onCerrar: () => void;

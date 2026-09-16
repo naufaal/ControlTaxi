@@ -1,6 +1,7 @@
+"use client";
 import { ModalBase } from "./ModalBase";
-import { eur, type TurnoGuardado } from "@/lib/taxihoja";
-
+import type { TurnoGuardado } from "@/lib/taxihoja"; 
+import { eur } from "@/lib/utils"; // Asumiendo que pusiste eur() en tu archivo utils.ts
 interface Props {
   totalesGenerales: { ingresos: number; gastos: number; neto: number };
   turnosCerrados: TurnoGuardado[];
