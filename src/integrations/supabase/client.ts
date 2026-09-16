@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
-import { brokeredPreviewStorage } from './previewAuthStorage';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -39,7 +38,7 @@ function createSupabaseClient() {
     throw new Error(message);
   }
 
-  const customStorage = typeof window !== 'undefined' ? window.localStorage : brokeredPreviewStorage();
+  const customStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: {
