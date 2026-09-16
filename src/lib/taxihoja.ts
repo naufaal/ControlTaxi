@@ -1,5 +1,3 @@
-"use server";
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type Movimiento = {
