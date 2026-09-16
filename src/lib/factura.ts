@@ -1,3 +1,4 @@
+const eur = (val: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
 import { jsPDF } from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 

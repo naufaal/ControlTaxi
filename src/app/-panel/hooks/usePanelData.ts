@@ -25,7 +25,8 @@ export function usePanelData() {
     queryKey: ["configuracion_usuario", currentUserId],
     queryFn: async () => {
       if (!currentUserId) return null;
-      const { data, error } = await supabase
+      // Usamos (supabase as any) para bypass temporal de tipos estrictos
+      const { data, error } = await (supabase as any)
         .from("configuracion_usuario")
         .select("dia_laboral_activo")
         .eq("user_id", currentUserId)
@@ -35,8 +36,10 @@ export function usePanelData() {
     },
     enabled: !!currentUserId,
   });
-  const ultimoCorte = configQuery.data?.dia_laboral_activo
-    ? new Date(configQuery.data.dia_laboral_activo).toISOString()
+
+  const configData = configQuery.data as any;
+  const ultimoCorte = configData?.dia_laboral_activo
+    ? new Date(configData.dia_laboral_activo).toISOString()
     : null;
 
   const movimientosQuery = useQuery({
@@ -109,10 +112,14 @@ export function usePanelData() {
 
     try {
       await guardarTurnoSupabase(currentUserId, nuevoTurno);
-      const { error: upsertError } = await supabase.from("configuracion_usuario").upsert(
-        { user_id: currentUserId, dia_laboral_activo: ahoraIso, updated_at: ahoraIso },
-        { onConflict: "user_id" }
-      );
+      
+      // Aplicamos (supabase as any) para permitir el upsert sin error de tipos
+      const { error: upsertError } = await (supabase as any)
+        .from("configuracion_usuario")
+        .upsert(
+          { user_id: currentUserId, dia_laboral_activo: ahoraIso, updated_at: ahoraIso },
+          { onConflict: "user_id" }
+        );
       if (upsertError) throw upsertError;
 
       await queryClient.resetQueries({ queryKey: ["configuracion_usuario", currentUserId] });
