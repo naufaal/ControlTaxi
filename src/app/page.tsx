@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
@@ -141,6 +141,12 @@ export default function PanelPage() {
   });
   const currentUserId = usuarioQuery.data?.id ?? null;
   const currentCorreo = usuarioQuery.data?.email ?? "";
+
+  useEffect(() => {
+    if (usuarioQuery.isSuccess && !usuarioQuery.data) {
+      router.replace("/auth?modo=acceso");
+    }
+  }, [usuarioQuery.isSuccess, usuarioQuery.data, router]);
 
   const configQuery = useQuery({
     queryKey: ["configuracion_usuario", currentUserId],

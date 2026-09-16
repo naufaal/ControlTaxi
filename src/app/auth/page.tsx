@@ -88,7 +88,9 @@ function FormularioAutenticacion() {
     <main className="flex min-h-dvh flex-col items-center justify-center bg-background p-5">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <Marca />
+          <div className="flex justify-center">
+            <Marca />
+          </div>
           <p className="mt-2 text-sm text-muted-foreground">
             Tus ingresos, gastos y facturas, siempre a mano.
           </p>
