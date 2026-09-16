@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+export const dynamic = 'force-dynamic';
 import {
   CarTaxiFront,
   FileDown,
