@@ -62,10 +62,13 @@ function FormularioAutenticacion() {
           password: clave,
         });
         if (errorRegistro) {
+          const mensaje = errorRegistro.message.toLowerCase();
           setError(
-            errorRegistro.message.toLowerCase().includes("already")
+            mensaje.includes("already")
               ? "Ese correo ya tiene una cuenta. Inicia sesión."
-              : errorRegistro.message,
+              : mensaje.includes("weak") || mensaje.includes("pwned")
+                ? "Esa contraseña es demasiado fácil de adivinar. Usa otra con letras, números y algún símbolo."
+                : errorRegistro.message,
           );
           return;
         }
