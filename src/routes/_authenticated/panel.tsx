@@ -473,11 +473,12 @@ function Panel() {
       : periodo === "mes" ? "del mes"
       : "filtrado";
 
-  // Acciones DB
+ // Acciones DB
   async function guardar(m: Movimiento) {
     if (!currentUserId) return;
     try {
-      await guardarMovimiento(currentUserId, m);
+      // ✅ Pasamos solo 'm' como objeto único, tal como lo espera guardarMovimiento
+      await guardarMovimiento(m); 
       await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
       cerrarModal();
     } catch (error) {
