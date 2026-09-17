@@ -53,17 +53,27 @@ export async function cargarMovimientos() {
 export async function guardarMovimiento(mov: any) {
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Buscamos las propiedades sin importar cómo las llame el formulario
-  const importeRaw = mov.importe ?? mov.monto ?? mov.amount ?? mov.valor ?? 0;
-  const conceptoRaw = mov.concepto ?? mov.descripcion ?? mov.title ?? mov.nombre ?? "Sin concepto";
-  const tipoRaw = mov.tipo ?? mov.type ?? "ingreso";
-  const categoriaRaw = mov.categoria ?? mov.category ?? null;
-  const formaPagoRaw = mov.formaPago ?? mov.forma_pago ?? mov.metodoPago ?? null;
-  const fechaRaw = mov.fecha ?? mov.date ?? new Date().toISOString();
+  // Si por error pasas un evento de formulario (onSubmit), extraemos los datos automáticamente con FormData
+  let datos = mov;
+  if (mov && (mov.nativeEvent || mov instanceof Event || mov?.target?.tagName === "FORM")) {
+    const form = mov.target?.tagName === "FORM" ? mov.target : mov.currentTarget;
+    if (form) {
+      const formData = new FormData(form);
+      datos = Object.fromEntries(formData.entries());
+    }
+  }
+
+  // Buscamos las propiedades sin importar cómo las llame el formulario o el objeto
+  const importeRaw = datos?.importe ?? datos?.monto ?? datos?.amount ?? datos?.valor ?? 0;
+  const conceptoRaw = datos?.concepto ?? datos?.descripcion ?? datos?.title ?? datos?.nombre ?? "Sin concepto";
+  const tipoRaw = datos?.tipo ?? datos?.type ?? "ingreso";
+  const categoriaRaw = datos?.categoria ?? datos?.category ?? null;
+  const formaPagoRaw = datos?.formaPago ?? datos?.forma_pago ?? datos?.metodoPago ?? null;
+  const fechaRaw = datos?.fecha ?? datos?.date ?? new Date().toISOString();
 
   const payload = {
-    id: mov.id || crypto.randomUUID(),
-    user_id: user?.id || mov.user_id || null,
+    id: datos?.id || crypto.randomUUID(),
+    user_id: user?.id || datos?.user_id || null,
     tipo: tipoRaw,
     importe: Number(importeRaw) || 0,
     concepto: String(conceptoRaw).trim() || "Sin concepto",
@@ -72,7 +82,7 @@ export async function guardarMovimiento(mov: any) {
     fecha: fechaRaw,
   };
 
-  console.log("Payload final enviado a Supabase:", payload);
+  console.log("🚀 Payload final enviado a Supabase:", payload);
 
   const { data, error } = await supabase
     .from("movimientos")
@@ -80,7 +90,7 @@ export async function guardarMovimiento(mov: any) {
     .select();
 
   if (error) {
-    console.error("Error detallado de Supabase:", error);
+    console.error("❌ Error detallado de Supabase:", error);
     throw error;
   }
 
