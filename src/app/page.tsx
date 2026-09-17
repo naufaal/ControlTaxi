@@ -1,93 +1,5 @@
 'use client';
 
-function getIconoMovimiento(concepto: string, tipo: "ingreso" | "gasto", metodoPago?: string) {
-  const m = (metodoPago || "").toLowerCase().trim();
-  const c = (concepto || "").toLowerCase().trim();
-
-  // 1. EVALUAR MÉTODO DE PAGO (EFECTIVO, TARJETA, EMISORA, BIZUM)
-  if (m === "efectivo" || c.includes("efectivo") || c.includes("cash")) {
-    return <Banknote className="h-4 w-4 text-emerald-500" />;
-  }
-  if (m === "tarjeta" || c.includes("tarjeta") || c.includes("tpv") || c.includes("pos")) {
-    return <CreditCard className="h-4 w-4 text-blue-400" />;
-  }
-  if (m === "emisora" || c.includes("emisora") || c.includes("app") || c.includes("freenow") || c.includes("uber") || c.includes("cabify") || c.includes("bolt")) {
-    return <Radio className="h-4 w-4 text-amber-400" />;
-  }
-  if (m === "bizum" || c.includes("bizum")) {
-    return <Smartphone className="h-4 w-4 text-cyan-400" />;
-  }
-
-  // 2. SI ES GASTO POR CONCEPTO
-  if (tipo === "gasto") {
-    if (/gasolina|diesel|diésel|repostaje|combustible|gas|gasolinera|glp/i.test(c)) {
-      return <Fuel className="h-4 w-4 text-amber-500" />;
-    }
-    if (/taller|mecanico|mecánico|averia|avería|rueda|neumatico|neumático|mantenimiento/i.test(c)) {
-      return <Wrench className="h-4 w-4 text-rose-500" />;
-    }
-    if (/lavado|limpieza|lavar|túnel|tunel/i.test(c)) {
-      return <CarTaxiFront className="h-4 w-4 text-blue-500" />;
-    }
-    if (/comida|cafe|café|almuerzo|menu|menú|desayuno|restaurante/i.test(c)) {
-      return <Utensils className="h-4 w-4 text-orange-500" />;
-    }
-    if (/parking|aparcamiento|estacionamiento|zona verde|zona azul/i.test(c)) {
-      return <ParkingCircle className="h-4 w-4 text-indigo-500" />;
-    }
-    if (/seguro|itv|licencia|impuesto|gestoria|gestoría/i.test(c)) {
-      return <ShieldCheck className="h-4 w-4 text-emerald-500" />;
-    }
-    return <Receipt className="h-4 w-4 text-rose-400" />;
-  }
-
-  // 3. SI ES INGRESO POR DESTINO/CONCEPTO
-  if (/aeropuerto|barajas|vuelo|t1|t2|t3|t4|t4s/i.test(c)) {
-    return <Plane className="h-4 w-4 text-cyan-400" />;
-  }
-  if (/estacion|estación|atocha|chamartin|chamartín|renfe|adif|tren/i.test(c)) {
-    return <Train className="h-4 w-4 text-purple-400" />;
-  }
-
-  return <Plus className="h-4 w-4 text-primary" />;
-}
-
-function getIconoConcepto(concepto: string, tipo: "ingreso" | "gasto") {
-  const c = (concepto || "").toLowerCase().trim();
-
-  // SI ES UN GASTO
-  if (tipo === "gasto") {
-    if (/gasolina|diesel|diésel|repostaje|combustible|gas|gasolinera|glp/i.test(c)) {
-      return <Fuel className="h-4 w-4 text-amber-500" />;
-    }
-    if (/taller|mecanico|mecánico|averia|avería|rueda|neumatico|neumático|mantenimiento/i.test(c)) {
-      return <Wrench className="h-4 w-4 text-rose-500" />;
-    }
-    if (/lavado|limpieza|lavar|túnel|tunel/i.test(c)) {
-      return <CarTaxiFront className="h-4 w-4 text-blue-500" />;
-    }
-    if (/comida|cafe|café|almuerzo|menu|menú|desayuno|restaurante/i.test(c)) {
-      return <Utensils className="h-4 w-4 text-orange-500" />;
-    }
-    if (/parking|aparcamiento|estacionamiento|zona verde|zona azul/i.test(c)) {
-      return <ParkingCircle className="h-4 w-4 text-indigo-500" />;
-    }
-    if (/seguro|itv|licencia|impuesto|gestoria|gestoría/i.test(c)) {
-      return <ShieldCheck className="h-4 w-4 text-emerald-500" />;
-    }
-    return <Receipt className="h-4 w-4 text-rose-400" />;
-  }
-
-  // SI ES UN INGRESO
-  if (/aeropuerto|barajas|vuelo|t1|t2|t3|t4|t4s/i.test(c)) {
-    return <Plane className="h-4 w-4 text-cyan-400" />;
-  }
-  if (/estacion|estación|atocha|chamartin|chamartín|renfe|adif|tren/i.test(c)) {
-    return <Train className="h-4 w-4 text-purple-400" />;
-  }
-
-  return <Plus className="h-4 w-4 text-primary" />;
-}
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -137,6 +49,69 @@ import { VentanaFacturaModal } from "@/components/factura";
 import { abrirInforme } from "@/lib/informe";
 import { Marca, PieMarca } from "@/components/marca";
 import { eur } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
+
+// --- ICONOS POR CONCEPTO / MÉTODO ---
+function getIconoMovimiento(concepto: string, tipo: "ingreso" | "gasto", metodoPago?: string) {
+  const m = (metodoPago || "").toLowerCase().trim();
+  const c = (concepto || "").toLowerCase().trim();
+
+  // 1. MÉTODO DE PAGO
+  if (m === "efectivo" || c.includes("efectivo") || c.includes("cash")) {
+    return <Banknote className="h-4 w-4 text-emerald-500" />;
+  }
+  if (m === "tarjeta" || c.includes("tarjeta") || c.includes("tpv") || c.includes("pos")) {
+    return <CreditCard className="h-4 w-4 text-blue-400" />;
+  }
+  if (
+    m === "emisora" ||
+    c.includes("emisora") ||
+    c.includes("app") ||
+    c.includes("freenow") ||
+    c.includes("uber") ||
+    c.includes("cabify") ||
+    c.includes("bolt")
+  ) {
+    return <Radio className="h-4 w-4 text-amber-400" />;
+  }
+  if (m === "bizum" || c.includes("bizum")) {
+    return <Smartphone className="h-4 w-4 text-cyan-400" />;
+  }
+
+  // 2. GASTO POR CONCEPTO
+  if (tipo === "gasto") {
+    if (/gasolina|diesel|diésel|repostaje|combustible|gas|gasolinera|glp/i.test(c)) {
+      return <Fuel className="h-4 w-4 text-amber-500" />;
+    }
+    if (/taller|mecanico|mecánico|averia|avería|rueda|neumatico|neumático|mantenimiento/i.test(c)) {
+      return <Wrench className="h-4 w-4 text-rose-500" />;
+    }
+    if (/lavado|limpieza|lavar|túnel|tunel/i.test(c)) {
+      return <CarTaxiFront className="h-4 w-4 text-blue-500" />;
+    }
+    if (/comida|cafe|café|almuerzo|menu|menú|desayuno|restaurante/i.test(c)) {
+      return <Utensils className="h-4 w-4 text-orange-500" />;
+    }
+    if (/parking|aparcamiento|estacionamiento|zona verde|zona azul/i.test(c)) {
+      return <ParkingCircle className="h-4 w-4 text-indigo-500" />;
+    }
+    if (/seguro|itv|licencia|impuesto|gestoria|gestoría/i.test(c)) {
+      return <ShieldCheck className="h-4 w-4 text-emerald-500" />;
+    }
+    return <Receipt className="h-4 w-4 text-rose-400" />;
+  }
+
+  // 3. INGRESO POR DESTINO/CONCEPTO
+  if (/aeropuerto|barajas|vuelo|t1|t2|t3|t4|t4s/i.test(c)) {
+    return <Plane className="h-4 w-4 text-cyan-400" />;
+  }
+  if (/estacion|estación|atocha|chamartin|chamartín|renfe|adif|tren/i.test(c)) {
+    return <Train className="h-4 w-4 text-purple-400" />;
+  }
+
+  return <Plus className="h-4 w-4 text-primary" />;
+}
 
 // --- TIPOS ---
 type Periodo = "dia" | "semana" | "mes" | "personalizado";
@@ -285,7 +260,7 @@ function PanelPage() {
   });
   const turnosCerrados = turnosQuery.data ?? [];
 
-    const transportesQuery = useQuery({
+  const transportesQuery = useQuery({
     queryKey: ["transporte"],
     queryFn: async () => {
       const res = await fetch("/api/transporte", { cache: "no-store" });
@@ -322,8 +297,12 @@ function PanelPage() {
   );
 
   const totalesGeneralesTurno = useMemo(() => {
-    const ingresos = movsDelTurnoActual.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + m.importe, 0);
-    const gastos = movsDelTurnoActual.filter((m) => m.tipo === "gasto").reduce((s, m) => s + m.importe, 0);
+    const ingresos = movsDelTurnoActual
+      .filter((m) => m.tipo === "ingreso")
+      .reduce((s, m) => s + m.importe, 0);
+    const gastos = movsDelTurnoActual
+      .filter((m) => m.tipo === "gasto")
+      .reduce((s, m) => s + m.importe, 0);
     return { ingresos, gastos, neto: ingresos };
   }, [movsDelTurnoActual]);
 
@@ -345,7 +324,9 @@ function PanelPage() {
     const ingresos = movsFiltrados
       .filter((m: Movimiento) => m.tipo === "ingreso")
       .reduce((s: number, m: Movimiento) => s + m.importe, 0);
-    const gastos = movsFiltrados.filter((m) => m.tipo === "gasto").reduce((s, m) => s + m.importe, 0);
+    const gastos = movsFiltrados
+      .filter((m) => m.tipo === "gasto")
+      .reduce((s, m) => s + m.importe, 0);
     const filtroActivo = periodo === "personalizado" || filtroTipo !== "todos";
 
     if (filtroActivo) {
@@ -361,12 +342,15 @@ function PanelPage() {
   }, [movsFiltrados, periodo, totalesGeneralesTurno, filtroTipo]);
 
   const periodoLabel =
-    periodo === "dia" ? "del turno"
-      : periodo === "semana" ? "de la semana"
-      : periodo === "mes" ? "del mes"
+    periodo === "dia"
+      ? "del turno"
+      : periodo === "semana"
+      ? "de la semana"
+      : periodo === "mes"
+      ? "del mes"
       : "filtrado";
 
- async function guardar(m: Movimiento) {
+  async function guardar(m: Movimiento) {
     if (!currentUserId) {
       alert("⚠️ No se ha detectado tu usuario. Por favor, recarga la página.");
       return;
@@ -393,7 +377,12 @@ function PanelPage() {
   }
 
   async function cerrarTurnoCompleto() {
-    if (!window.confirm("¿Está usted seguro de cerrar el turno? Los contadores se pondrán a cero, pero tus movimientos se guardarán.")) return;
+    if (
+      !window.confirm(
+        "¿Está usted seguro de cerrar el turno? Los contadores se pondrán a cero, pero tus movimientos se guardarán."
+      )
+    )
+      return;
     if (!currentUserId || movsDelTurnoActual.length === 0) {
       alert("No hay movimientos nuevos en este turno para cerrar.");
       return;
@@ -401,7 +390,7 @@ function PanelPage() {
 
     const ahoraIso = new Date().toISOString();
     const nuevoTurno: TurnoGuardado = {
-      id: crypto.randomUUID(),
+      id: generarUUID(),
       fechaInicio: movsDelTurnoActual[movsDelTurnoActual.length - 1]?.fecha ?? ahoraIso,
       fechaFin: ahoraIso,
       ingresos: totalesGeneralesTurno.ingresos,
@@ -435,164 +424,215 @@ function PanelPage() {
 
   const listaVuelos = vuelos.data ?? [];
   const t1 = listaVuelos.find((t) => t.terminal?.includes("T1"));
-  const t2t3 = listaVuelos.find((t) => t.terminal?.includes("T2") || t.terminal?.includes("T3"));
+  const t2t3 = listaVuelos.find(
+    (t) => t.terminal?.includes("T2") || t.terminal?.includes("T3")
+  );
   const t4t4s = listaVuelos.find((t) => t.terminal?.includes("T4"));
 
   const listaEstaciones = trenes.data ?? [];
-  const atocha = listaEstaciones.find((e) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000");
-  const chamartin = listaEstaciones.find((e) =>
-    e.nombre?.toLowerCase().includes("atocha") === false &&
-    (e.nombre?.toLowerCase().includes("chamartín") || e.nombre?.toLowerCase().includes("chamartin") || e.codigoAdif === "17000")
+  const atocha = listaEstaciones.find(
+    (e) => e.nombre?.toLowerCase().includes("atocha") || e.codigoAdif === "60000"
+  );
+  const chamartin = listaEstaciones.find(
+    (e) =>
+      e.nombre?.toLowerCase().includes("atocha") === false &&
+      (e.nombre?.toLowerCase().includes("chamartín") ||
+        e.nombre?.toLowerCase().includes("chamartin") ||
+        e.codigoAdif === "17000")
   );
 
   return (
-  <main className="min-h-dvh bg-background pb-28">
-    <div className="relative overflow-hidden rounded-b-[2rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8">
-      <div className="pointer-events-none absolute -top-20 -right-10 h-52 w-52 rounded-full bg-primary/25 blur-3xl" />
-      
-      {/* CABECERA CON LOGO Y CORREO */}
-      {/* CABECERA EXACTA A LA IMAGEN */}
-{/* CABECERA CON EMAIL MÁS GRANDE */}
-{/* CABECERA CON FUENTE Y ESTILO REFINADO */}
-<div className="relative flex items-start justify-between gap-3">
-  <div className="space-y-1">
-    {/* LOGO CONTROLTAXI */}
-    <div className="flex items-center gap-2.5">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-black shadow-md">
-        <CarTaxiFront className="h-5 w-5 stroke-[2.5]" />
-      </div>
-      <span className="font-black text-2xl tracking-tight text-white font-sans">
-        Control<span className="text-[#FFCC00]">Taxi</span>
-      </span>
-    </div>
+    <main className="min-h-dvh bg-background pb-28">
+      <div className="relative overflow-hidden rounded-b-[2rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8">
+        <div className="pointer-events-none absolute -top-20 -right-10 h-52 w-52 rounded-full bg-primary/25 blur-3xl" />
 
-    {/* EMAIL CON FUENTE MODERNA, ESTILIZADA Y ELEGANTE */}
-    <p className="text-lg font-semibold tracking-wide text-slate-100/90 font-mono sm:font-sans">
-      {currentCorreo || "naufaal@outlook.com"}
-    </p>
-  </div>
+        {/* CABECERA */}
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-black shadow-md">
+                <CarTaxiFront className="h-5 w-5 stroke-[2.5]" />
+              </div>
+              <span className="font-black text-2xl tracking-tight text-white font-sans">
+                Control<span className="text-[#FFCC00]">Taxi</span>
+              </span>
+            </div>
 
-  {/* BOTÓN CERRAR SESIÓN */}
-  <button 
-    onClick={salir} 
-    aria-label="Cerrar sesión" 
-    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 transition-colors"
-  >
-    <LogOut className="h-5 w-5" />
-  </button>
-</div>
+            <p className="text-lg font-semibold tracking-wide text-slate-100/90 font-mono sm:font-sans">
+              {currentCorreo || "naufaal@outlook.com"}
+            </p>
+          </div>
 
-      {/* SELECTOR DÍA / SEMANA / MES */}
-      <div className="relative mt-7 flex justify-center gap-2" role="group">
-        {(["dia", "semana", "mes"] as const).map((opcion) => (
           <button
-            key={opcion}
-            onClick={() => { setPeriodo(opcion); setRangoFechas({ inicio: "", fin: "" }); setFiltroTipo("todos"); }}
-            className={`h-10 min-w-20 rounded-xl px-4 text-sm font-semibold transition-colors ${
-              periodo === opcion
-                ? "bg-primary text-primary-foreground"
-                : "border border-white/20 bg-white/10 text-white"
-            }`}
+            onClick={salir}
+            aria-label="Cerrar sesión"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 transition-colors"
           >
-            {opcion === "dia" ? "Día" : opcion === "semana" ? "Semana" : "Mes"}
+            <LogOut className="h-5 w-5" />
           </button>
-        ))}
-      </div>
+        </div>
 
-      {/* TARJETA DE ACUMULADO FACTURADO */}
-      <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
-        <p className="text-xs tracking-wide text-white/70 uppercase">
-          Facturado {periodo === "personalizado" ? "filtrado" : periodoLabel}
-        </p>
-        <p className="mt-1 font-display text-4xl font-bold text-white">{eur(totales.neto)}</p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-black/20 py-2.5 px-3">
-            <p className="text-[10px] tracking-wide text-white/60 uppercase">Ingresos</p>
-            <p className="text-sm font-semibold text-white mt-0.5">{eur(totales.ingresos)}</p>
+        {/* SELECTOR DÍA / SEMANA / MES */}
+        <div className="relative mt-7 flex justify-center gap-2" role="group">
+          {(["dia", "semana", "mes"] as const).map((opcion) => (
+            <button
+              key={opcion}
+              onClick={() => {
+                setPeriodo(opcion);
+                setRangoFechas({ inicio: "", fin: "" });
+                setFiltroTipo("todos");
+              }}
+              className={`h-10 min-w-20 rounded-xl px-4 text-sm font-semibold transition-colors ${
+                periodo === opcion
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-white/20 bg-white/10 text-white"
+              }`}
+            >
+              {opcion === "dia" ? "Día" : opcion === "semana" ? "Semana" : "Mes"}
+            </button>
+          ))}
+        </div>
+
+        {/* TARJETA ACUMULADO */}
+        <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
+          <p className="text-xs tracking-wide text-white/70 uppercase">
+            Facturado {periodo === "personalizado" ? "filtrado" : periodoLabel}
+          </p>
+          <p className="mt-1 font-display text-4xl font-bold text-white">{eur(totales.neto)}</p>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-black/20 py-2.5 px-3">
+              <p className="text-[10px] tracking-wide text-white/60 uppercase">Ingresos</p>
+              <p className="text-sm font-semibold text-white mt-0.5">{eur(totales.ingresos)}</p>
+            </div>
+            <div className="rounded-2xl bg-black/20 py-2.5 px-3">
+              <p className="text-[10px] tracking-wide text-white/60 uppercase">Gastos</p>
+              <p className="text-sm font-semibold text-white mt-0.5">{eur(totales.gastos)}</p>
+            </div>
           </div>
-          <div className="rounded-2xl bg-black/20 py-2.5 px-3">
-            <p className="text-[10px] tracking-wide text-white/60 uppercase">Gastos</p>
-            <p className="text-sm font-semibold text-white mt-0.5">{eur(totales.gastos)}</p>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => abrirModal("ingreso")}
+              className="flex h-14 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground shadow-md transition-transform active:scale-[0.97]"
+            >
+              <Plus className="h-5 w-5" /> Ingreso
+            </button>
+            <button
+              onClick={() => abrirModal("gasto")}
+              className="flex h-14 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 text-base font-semibold text-white shadow-md transition-transform active:scale-[0.97]"
+            >
+              <Minus className="h-5 w-5" /> Gasto
+            </button>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <button onClick={() => abrirModal("ingreso")} className="flex h-14 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground shadow-md transition-transform active:scale-[0.97]">
-            <Plus className="h-5 w-5" /> Ingreso
-          </button>
-          <button onClick={() => abrirModal("gasto")} className="flex h-14 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 text-base font-semibold text-white shadow-md transition-transform active:scale-[0.97]">
-            <Minus className="h-5 w-5" /> Gasto
-          </button>
-        </div>
-      </div>
-    </div>
-
-    {/* LISTADO DE MOVIMIENTOS */}
-    <section className="px-5 pt-7">
-      <h2 className="font-display text-lg font-semibold text-foreground mb-3">Movimientos</h2>
-      <button onClick={() => abrirInforme(movsFiltrados, currentCorreo, periodoLabel)} className="mt-3 flex h-14 w-full items-center gap-3 rounded-2xl bg-foreground px-4 text-left text-base font-semibold text-background transition-transform active:scale-[0.98]">
-        <FileDown className="h-5 w-5 shrink-0" /> Exportar a PDF
-      </button>
-
-      {movimientosQuery.isLoading ? (
-        <Cargando texto="Cargando movimientos..." />
-      ) : movsFiltrados.length === 0 ? (
-        <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center">
-          <CarTaxiFront className="mx-auto h-8 w-8 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">No hay movimientos en este periodo o filtro.</p>
-        </div>
-      ) : (
-      <ul className="mt-3 space-y-3">
-  {movsFiltrados.map((m) => (
-    <li key={m.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-      
-      {/* ICONO DINÁMICO SEGÚN MÉTODO DE PAGO O CONCEPTO */}
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary border border-border">
-        {getIconoMovimiento(m.concepto, m.tipo, (m as any).metodoPago || (m as any).metodo_pago)}
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-foreground text-sm">
-          {m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {new Date(m.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })} · {new Date(m.fecha).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-        </p>
       </div>
 
-      <p className={`font-display text-base font-bold ${m.tipo === "gasto" ? "text-destructive" : "text-emerald-500"}`}>
-        {m.tipo === "gasto" ? "−" : "+"}{eur(m.importe)}
-      </p>
+      {/* LISTADO DE MOVIMIENTOS */}
+      <section className="px-5 pt-7">
+        <h2 className="font-display text-lg font-semibold text-foreground mb-3">Movimientos</h2>
+        <button
+          onClick={() => abrirInforme(movsFiltrados, currentCorreo, periodoLabel)}
+          className="mt-3 flex h-14 w-full items-center gap-3 rounded-2xl bg-foreground px-4 text-left text-base font-semibold text-background transition-transform active:scale-[0.98]"
+        >
+          <FileDown className="h-5 w-5 shrink-0" /> Exportar a PDF
+        </button>
 
-      <button onClick={() => borrar(m.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-destructive transition-colors">
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </li>
-  ))}
-</ul>
-      )}
-    </section>
+        {movimientosQuery.isLoading ? (
+          <Cargando texto="Cargando movimientos..." />
+        ) : movsFiltrados.length === 0 ? (
+          <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center">
+            <CarTaxiFront className="mx-auto h-8 w-8 text-muted-foreground" />
+            <p className="mt-3 text-sm text-muted-foreground">
+              No hay movimientos en este periodo o filtro.
+            </p>
+          </div>
+        ) : (
+          <ul className="mt-3 space-y-3">
+            {movsFiltrados.map((m) => (
+              <li
+                key={m.id}
+                className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary border border-border">
+                  {getIconoMovimiento(
+                    m.concepto,
+                    m.tipo,
+                    (m as any).metodoPago || (m as any).metodo_pago
+                  )}
+                </span>
 
-    {/* DOCUMENTACIÓN A ALMACENAR */}
-    <div className="px-5 pt-7">
-      <button onClick={() => abrirModal("documentos")} className="w-full text-left rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)] flex items-center gap-3 transition-transform active:scale-[0.98]">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-primary">
-          <Paperclip className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <h3 className="font-display text-base font-bold text-foreground">Documentación a almacenar</h3>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">Guarda tus permisos, seguros o recibos.</p>
-        </div>
-      </button>
-    </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-foreground text-sm">
+                    {m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {new Date(m.fecha).toLocaleDateString("es-ES", {
+                      day: "2-digit",
+                      month: "short",
+                    })}{" "}
+                    ·{" "}
+                    {new Date(m.fecha).toLocaleTimeString("es-ES", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
 
+                <p
+                  className={`font-display text-base font-bold ${
+                    m.tipo === "gasto" ? "text-destructive" : "text-emerald-500"
+                  }`}
+                >
+                  {m.tipo === "gasto" ? "−" : "+"}
+                  {eur(m.importe)}
+                </p>
+
+                <button
+                  onClick={() => borrar(m.id)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* DOCUMENTACIÓN */}
+      <div className="px-5 pt-7">
+        <button
+          onClick={() => abrirModal("documentos")}
+          className="w-full text-left rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)] flex items-center gap-3 transition-transform active:scale-[0.98]"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-primary">
+            <Paperclip className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="font-display text-base font-bold text-foreground">
+              Documentación a almacenar
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              Guarda tus permisos, seguros o recibos.
+            </p>
+          </div>
+        </button>
+      </div>
+
+      {/* LLEGADAS BARAJAS */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-lg font-semibold text-foreground">Llegadas a Barajas</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Próximas 5 horas, según Aena.</p>
           </div>
-          <button onClick={actualizarTransportes} disabled={vuelos.isFetching || trenes.isFetching} className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0">
-            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
+          <button
+            onClick={actualizarTransportes}
+            disabled={vuelos.isFetching || trenes.isFetching}
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`}
+            />
           </button>
         </div>
         {vuelos.isLoading ? (
@@ -606,14 +646,21 @@ function PanelPage() {
         )}
       </section>
 
+      {/* LLEGADAS TRENES */}
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-lg font-semibold text-foreground">Llegadas de Trenes</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Llegadas oficiales (Adif).</p>
           </div>
-          <button onClick={actualizarTransportes} disabled={vuelos.isFetching || trenes.isFetching} className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0">
-            <RefreshCw className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`} />
+          <button
+            onClick={actualizarTransportes}
+            disabled={vuelos.isFetching || trenes.isFetching}
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground disabled:opacity-60 shrink-0"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${vuelos.isFetching || trenes.isFetching ? "animate-spin" : ""}`}
+            />
           </button>
         </div>
         {trenes.isLoading ? (
@@ -626,44 +673,72 @@ function PanelPage() {
         )}
       </section>
 
+      {/* FACTURA */}
       <div className="px-5 pt-8">
-        <button onClick={() => abrirModal("factura")} className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 shadow-sm flex items-center gap-3 transition-transform active:scale-[0.98]">
+        <button
+          onClick={() => abrirModal("factura")}
+          className="w-full text-left rounded-3xl border border-amber-300/50 bg-amber-400 p-4 shadow-sm flex items-center gap-3 transition-transform active:scale-[0.98]"
+        >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
             <FileText className="h-5 w-5" />
           </span>
           <div className="min-w-0">
             <h3 className="font-display text-base font-bold text-amber-950">Factura</h3>
-            <p className="text-xs text-amber-900/80 mt-0.5 truncate">Crea y descarga una factura con IVA del 10%.</p>
+            <p className="text-xs text-amber-900/80 mt-0.5 truncate">
+              Crea y descarga una factura con IVA del 10%.
+            </p>
           </div>
         </button>
       </div>
 
+      {/* TEMARIO */}
       <div className="px-5 mt-3">
         <div className="rounded-3xl border border-amber-300/50 bg-amber-400 p-4 shadow-sm flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/30 text-amber-950">
             <BookOpen className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <h3 className="font-display text-base font-bold text-amber-950">Temario examen taxi</h3>
-            <a href="https://madrid.es/taxi" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-950 underline font-semibold mt-0.5 inline-flex items-center gap-1 hover:opacity-80">
+            <h3 className="font-display text-base font-bold text-amber-950">
+              Temario examen taxi
+            </h3>
+            <a
+              href="https://madrid.es/taxi"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-amber-950 underline font-semibold mt-0.5 inline-flex items-center gap-1 hover:opacity-80"
+            >
               madrid.es/taxi <ExternalLink className="h-3 w-3" />
             </a>
           </div>
         </div>
       </div>
 
+      {/* BOTONES FLOTANTES */}
       <div className="fixed bottom-5 left-5 right-5 z-40 flex gap-3 max-w-sm mx-auto">
-        <button onClick={() => abrirModal("filtros")} className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]">
+        <button
+          onClick={() => abrirModal("filtros")}
+          className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
+        >
           <Search className="h-5 w-5 text-amber-500" /> Filtrar
         </button>
-        <button onClick={() => abrirModal("turnos")} className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]">
+        <button
+          onClick={() => abrirModal("turnos")}
+          className="flex-1 h-14 flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground font-semibold text-base shadow-xl border border-border transition-transform active:scale-[0.97]"
+        >
           <Lock className="h-5 w-5 text-amber-500" /> Turnos
         </button>
       </div>
 
-      {modalActual === "ingreso" && <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />}
-      {modalActual === "gasto" && <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />}
-      {modalActual === "factura" && <VentanaFacturaModalPersonalizada onCerrar={cerrarModal} />}
+      {/* MODALES */}
+      {modalActual === "ingreso" && (
+        <FormularioIngreso onCerrar={cerrarModal} onGuardar={guardar} />
+      )}
+      {modalActual === "gasto" && (
+        <FormularioGasto onCerrar={cerrarModal} onGuardar={guardar} />
+      )}
+      {modalActual === "factura" && (
+        <VentanaFacturaModalPersonalizada onCerrar={cerrarModal} />
+      )}
       {modalActual === "filtros" && (
         <VentanaFiltrosModal
           onCerrar={cerrarModal}
@@ -675,14 +750,15 @@ function PanelPage() {
         />
       )}
       {modalActual === "turnos" && (
-        <VentanaTurnosModal
-          totalesGenerales={totalesGeneralesTurno}
+        <VentanaTurnosModal          totalesGenerales={totalesGeneralesTurno}
           turnosCerrados={turnosCerrados}
           onCerrar={cerrarModal}
           onCerrarTurno={cerrarTurnoCompleto}
         />
       )}
-      {modalActual === "documentos" && <VentanaDocumentosModal onCerrar={cerrarModal} currentUserId={currentUserId} />}
+      {modalActual === "documentos" && (
+        <VentanaDocumentosModal onCerrar={cerrarModal} currentUserId={currentUserId} />
+      )}
 
       <div className="px-5 pt-8">
         <PieMarca oscuro />
@@ -691,24 +767,44 @@ function PanelPage() {
   );
 }
 
+// --- COMPONENTES AUXILIARES ---
+
 function Cargando({ texto }: { texto: string }) {
-  return <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{texto}</div>;
+  return (
+    <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+      {texto}
+    </div>
+  );
 }
 
-function TerminalCard({ titulo, vuelos }: { titulo: string; vuelos?: VueloItem[] | undefined }) {
+function TerminalCard({
+  titulo,
+  vuelos,
+}: {
+  titulo: string;
+  vuelos?: VueloItem[] | undefined;
+}) {
   if (!vuelos?.length) return null;
   return (
     <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
       <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground"><Plane className="h-4 w-4" /></span>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+          <Plane className="h-4 w-4" />
+        </span>
         <span className="font-display text-base font-bold text-foreground">{titulo}</span>
       </div>
       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
         {vuelos.map((v) => (
           <li key={v.id} className="flex items-center gap-3 text-sm">
-            <span className="w-11 shrink-0 font-display font-bold text-foreground">{v.horaEstimada}</span>
+            <span className="w-11 shrink-0 font-display font-bold text-foreground">
+              {v.horaEstimada}
+            </span>
             <span className="min-w-0 flex-1 truncate text-foreground">{v.origen}</span>
-            {v.estadoVuelo && <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">{v.estadoVuelo}</span>}
+            {v.estadoVuelo && (
+              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                {v.estadoVuelo}
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -716,25 +812,42 @@ function TerminalCard({ titulo, vuelos }: { titulo: string; vuelos?: VueloItem[]
   );
 }
 
-function EstacionCard({ titulo, codigoAdif, trenes }: { titulo: string; codigoAdif: string; trenes?: TrenItem[] | undefined }) {
+function EstacionCard({
+  titulo,
+  codigoAdif,
+  trenes,
+}: {
+  titulo: string;
+  codigoAdif: string;
+  trenes?: TrenItem[] | undefined;
+}) {
   if (!trenes?.length) return null;
   return (
     <div className="rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground"><Train className="h-4 w-4" /></span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
+            <Train className="h-4 w-4" />
+          </span>
           <span className="font-display text-base font-bold text-foreground">{titulo}</span>
         </div>
-        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">Adif: {codigoAdif}</span>
+        <span className="text-[10px] bg-secondary px-2 py-1 rounded-md text-muted-foreground font-semibold">
+          Adif: {codigoAdif}
+        </span>
       </div>
       <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
         {trenes.map((tr) => (
           <li key={tr.id} className="flex items-center gap-3 text-sm">
-            <span className="w-11 shrink-0 font-display font-bold text-foreground">{tr.horaEstado || tr.hora}</span>
-            <span className="min-w-0 flex-1 truncate text-foreground">
-              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>{tr.origen}
+            <span className="w-11 shrink-0 font-display font-bold text-foreground">
+              {tr.horaEstado || tr.hora}
             </span>
-            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">{tr.estado}</span>
+            <span className="min-w-0 flex-1 truncate text-foreground">
+              <span className="font-semibold text-xs text-primary mr-1">[{tr.tipo}]</span>
+              {tr.origen}
+            </span>
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+              {tr.estado}
+            </span>
           </li>
         ))}
       </ul>
@@ -742,24 +855,45 @@ function EstacionCard({ titulo, codigoAdif, trenes }: { titulo: string; codigoAd
   );
 }
 
-function ModalBase({ onCerrar, children }: { onCerrar: () => void; children: React.ReactNode }) {
+function ModalBase({
+  onCerrar,
+  children,
+}: {
+  onCerrar: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onCerrar}>
-      <div onClick={(e) => e.stopPropagation()} className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 text-foreground">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 text-foreground"
+      >
         {children}
       </div>
     </div>
   );
 }
 
-function ModalHeader({ titulo, icono: Icon, onCerrar }: { titulo: string; icono?: React.ElementType; onCerrar: () => void }) {
+function ModalHeader({
+  titulo,
+  icono: Icon,
+  onCerrar,
+}: {
+  titulo: string;
+  icono?: React.ElementType;
+  onCerrar: () => void;
+}) {
   return (
     <div className="flex items-center justify-between pb-2 mb-2">
       <h3 className="font-display text-xl font-bold flex items-center gap-2">
         {Icon && <Icon className="h-5 w-5 text-primary" />}
         {titulo}
       </h3>
-      <button onClick={onCerrar} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors" aria-label="Cerrar">
+      <button
+        onClick={onCerrar}
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="Cerrar"
+      >
         <X className="h-5 w-5" />
       </button>
     </div>
@@ -770,13 +904,22 @@ function VentanaFacturaModalPersonalizada({ onCerrar }: { onCerrar: () => void }
   return (
     <ModalBase onCerrar={onCerrar}>
       <ModalHeader titulo="Factura" icono={FileText} onCerrar={onCerrar} />
-      <p className="text-xs text-muted-foreground mb-4">Genera y descarga tu factura oficial con el desglose de IVA (10%).</p>
+      <p className="text-xs text-muted-foreground mb-4">
+        Genera y descarga tu factura oficial con el desglose de IVA (10%).
+      </p>
       <VentanaFacturaModal onCerrar={onCerrar} />
     </ModalBase>
   );
 }
 
-function VentanaFiltrosModal({ onCerrar, rangoFechas, setRangoFechas, setPeriodo, filtroTipo, setFiltroTipo }: any) {
+function VentanaFiltrosModal({
+  onCerrar,
+  rangoFechas,
+  setRangoFechas,
+  setPeriodo,
+  filtroTipo,
+  setFiltroTipo,
+}: any) {
   const [inicioTemp, setInicioTemp] = useState(rangoFechas.inicio);
   const [finTemp, setFinTemp] = useState(rangoFechas.fin);
   const [tipoTemp, setTipoTemp] = useState(filtroTipo);
@@ -803,12 +946,20 @@ function VentanaFiltrosModal({ onCerrar, rangoFechas, setRangoFechas, setPeriodo
       <ModalHeader titulo="Filtrar movimientos" icono={History} onCerrar={onCerrar} />
       <form onSubmit={aplicarFiltro} className="space-y-4">
         <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">Tipo de movimiento</label>
+          <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">
+            Tipo de movimiento
+          </label>
           <div className="grid grid-cols-3 gap-2">
             {(["todos", "ingresos", "gastos"] as const).map((t) => (
               <button
-                type="button" key={t} onClick={() => setTipoTemp(t)}
-                className={`h-11 rounded-xl text-xs font-semibold border transition-colors ${tipoTemp === t ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-secondary text-foreground border-input hover:bg-secondary/80"}`}
+                type="button"
+                key={t}
+                onClick={() => setTipoTemp(t)}
+                className={`h-11 rounded-xl text-xs font-semibold border transition-colors ${
+                  tipoTemp === t
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-secondary text-foreground border-input hover:bg-secondary/80"
+                }`}
               >
                 {t === "todos" ? "Neto" : t === "ingresos" ? "Ingresos" : "Gastos"}
               </button>
@@ -816,23 +967,56 @@ function VentanaFiltrosModal({ onCerrar, rangoFechas, setRangoFechas, setPeriodo
           </div>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold">Desde / Fecha inicial</label>
-          <input type="date" max={hoyMax} value={inicioTemp} onChange={(e) => setInicioTemp(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none" />
+          <label className="text-xs text-muted-foreground uppercase font-semibold">
+            Desde / Fecha inicial
+          </label>
+          <input
+            type="date"
+            max={hoyMax}
+            value={inicioTemp}
+            onChange={(e) => setInicioTemp(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none"
+          />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold">Hasta / Fecha final</label>
-          <input type="date" max={hoyMax} value={finTemp} onChange={(e) => setFinTemp(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none" />
+          <label className="text-xs text-muted-foreground uppercase font-semibold">
+            Hasta / Fecha final
+          </label>
+          <input
+            type="date"
+            max={hoyMax}
+            value={finTemp}
+            onChange={(e) => setFinTemp(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 focus:border-primary outline-none"
+          />
         </div>
         <div className="pt-2 space-y-2">
-          <button type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98]">Aplicar filtros</button>
-          <button type="button" onClick={limpiarFiltro} className="w-full h-12 rounded-2xl bg-secondary text-foreground font-semibold text-sm hover:bg-secondary/80 transition-colors">Limpiar filtro</button>
+          <button
+            type="submit"
+            className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98]"
+          >
+            Aplicar filtros
+          </button>
+          <button
+            type="button"
+            onClick={limpiarFiltro}
+            className="w-full h-12 rounded-2xl bg-secondary text-foreground font-semibold text-sm hover:bg-secondary/80 transition-colors"
+          >
+            Limpiar filtro
+          </button>
         </div>
       </form>
     </ModalBase>
   );
 }
 
-function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => void; currentUserId: string | null }) {
+function VentanaDocumentosModal({
+  onCerrar,
+  currentUserId,
+}: {
+  onCerrar: () => void;
+  currentUserId: string | null;
+}) {
   const queryClient = useQueryClient();
   const [archivo, setArchivo] = useState<File | null>(null);
   const [nombrePersonalizado, setNombrePersonalizado] = useState("");
@@ -843,7 +1027,11 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
     queryKey: ["documentos", currentUserId],
     queryFn: async () => {
       if (!currentUserId) return [];
-      const { data, error } = await supabase.from("documentos").select("*").eq("user_id", currentUserId).order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("documentos")
+        .select("*")
+        .eq("user_id", currentUserId)
+        .order("created_at", { ascending: false });
       if (error) return [];
       return data ?? [];
     },
@@ -857,15 +1045,24 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
     try {
       const fileExt = archivo.name.split(".").pop();
       const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from("documentos").upload(fileName, archivo);
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, archivo);
 
       if (uploadError) throw uploadError;
 
-      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+      const { data: publicUrlData } = supabase.storage
+        .from("documentos")
+        .getPublicUrl(fileName);
       const nombreFinal = nombrePersonalizado.trim() || archivo.name;
 
       const { error: dbError } = await supabase.from("documentos").insert({
-        user_id: currentUserId, nombre: nombreFinal, ruta: fileName, url: publicUrlData.publicUrl, tipo: archivo.type, tamano: archivo.size,
+        user_id: currentUserId,
+        nombre: nombreFinal,
+        ruta: fileName,
+        url: publicUrlData.publicUrl,
+        tipo: archivo.type,
+        tamano: archivo.size,
       });
 
       if (dbError) throw dbError;
@@ -884,8 +1081,13 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
 
   async function borrarDocumento(id: string, rutaArchivo?: string) {
     if (!currentUserId) return;
-    if (rutaArchivo) await supabase.storage.from("documentos").remove([rutaArchivo]).catch(() => {});
-    const { error } = await supabase.from("documentos").delete().eq("id", id).eq("user_id", currentUserId);
+    if (rutaArchivo)
+      await supabase.storage.from("documentos").remove([rutaArchivo]).catch(() => {});
+    const { error } = await supabase
+      .from("documentos")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", currentUserId);
     if (error) return alert("No se pudo eliminar el documento.");
     await queryClient.invalidateQueries({ queryKey: ["documentos", currentUserId] });
   }
@@ -901,25 +1103,42 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
   return (
     <ModalBase onCerrar={onCerrar}>
       <ModalHeader titulo="Documentos y Archivos" icono={Paperclip} onCerrar={onCerrar} />
-      <p className="text-xs text-muted-foreground mb-4">Sube tus permisos, seguros o recibos de forma sincronizada.</p>
+      <p className="text-xs text-muted-foreground mb-4">
+        Sube tus permisos, seguros o recibos de forma sincronizada.
+      </p>
 
       <form
-        onSubmit={(e) => { e.preventDefault(); subirDocumento(e); }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          subirDocumento(e);
+        }}
         className="rounded-3xl border border-dashed border-border bg-secondary/30 p-4 mb-5 space-y-3"
       >
         <div>
-          <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Nombre personalizado (opcional)</label>
-          <input type="text" placeholder="Ej: Seguro del coche, ITV..." value={nombrePersonalizado} onChange={(e) => setNombrePersonalizado(e.target.value)} className="w-full h-11 rounded-xl bg-secondary border border-input px-3 text-sm text-foreground outline-none focus:border-primary" />
+          <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">
+            Nombre personalizado (opcional)
+          </label>
+          <input
+            type="text"
+            placeholder="Ej: Seguro del coche, ITV..."
+            value={nombrePersonalizado}
+            onChange={(e) => setNombrePersonalizado(e.target.value)}
+            className="w-full h-11 rounded-xl bg-secondary border border-input px-3 text-sm text-foreground outline-none focus:border-primary"
+          />
         </div>
         <div>
-          <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">Archivo del dispositivo</label>
+          <label className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">
+            Archivo del dispositivo
+          </label>
           <div className="flex items-center gap-2">
             <label
               htmlFor="input-documento"
               className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-input bg-secondary px-4 text-xs font-medium text-foreground cursor-pointer hover:bg-secondary/80 transition-colors truncate"
             >
               <Paperclip className="h-4 w-4 text-primary shrink-0" />
-              <span className="truncate">{archivo ? archivo.name : "Seleccionar PDF o imagen..."}</span>
+              <span className="truncate">
+                {archivo ? archivo.name : "Seleccionar PDF o imagen..."}
+              </span>
             </label>
             <input
               ref={inputFileRef}
@@ -931,7 +1150,10 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
             />
             <button
               type="button"
-              onClick={(e) => { e.preventDefault(); subirDocumento(e as any); }}
+              onClick={(e) => {
+                e.preventDefault();
+                subirDocumento(e as any);
+              }}
               disabled={subiendo || !archivo}
               className="h-12 px-5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow disabled:opacity-50 shrink-0"
             >
@@ -942,26 +1164,41 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
       </form>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tus archivos guardados</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Tus archivos guardados
+        </h4>
         {documentosQuery.isLoading ? (
           <Cargando texto="Cargando tus documentos..." />
         ) : documentosQuery.data?.length === 0 ? (
           <Cargando texto="No tienes documentos subidos todavía." />
         ) : (
           documentosQuery.data?.map((doc: any) => (
-            <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3">
+            <div
+              key={doc.id}
+              className="flex items-center justify-between rounded-2xl border border-border bg-secondary/50 p-3"
+            >
               <div className="flex items-center gap-2.5 min-w-0">
                 <FileText className="h-4 w-4 text-primary shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-foreground truncate">{doc.nombre}</p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(doc.created_at).toLocaleDateString("es-ES")}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(doc.created_at).toLocaleDateString("es-ES")}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <button type="button" onClick={() => abrirArchivo(doc)} className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer" title="Ver archivo">
+                <button
+                  type="button"
+                  onClick={() => abrirArchivo(doc)}
+                  className="h-8 px-2.5 rounded-xl bg-secondary text-foreground text-xs flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                  title="Ver archivo"
+                >
                   Ver <ExternalLink className="h-3 w-3" />
                 </button>
-                <button onClick={() => borrarDocumento(doc.id, doc.ruta)} className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors">
+                <button
+                  onClick={() => borrarDocumento(doc.id, doc.ruta)}
+                  className="h-8 w-8 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors"
+                >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -973,25 +1210,41 @@ function VentanaDocumentosModal({ onCerrar, currentUserId }: { onCerrar: () => v
   );
 }
 
-function VentanaTurnosModal({ totalesGenerales, turnosCerrados, onCerrar, onCerrarTurno }: any) {
+function VentanaTurnosModal({
+  totalesGenerales,
+  turnosCerrados,
+  onCerrar,
+  onCerrarTurno,
+}: any) {
   return (
     <ModalBase onCerrar={onCerrar}>
       <ModalHeader titulo="Turnos" onCerrar={onCerrar} />
       <div className="rounded-2xl bg-secondary p-4 mb-4 space-y-2 text-center">
-        <p className="text-xs text-muted-foreground uppercase tracking-wide">Importe Facturado (Neto del turno)</p>
-        <p className="font-display text-3xl font-bold text-foreground">{eur(totalesGenerales.neto)}</p>
+        <p className="text-xs text-muted-foreground uppercase tracking-wide">
+          Importe Facturado (Neto del turno)
+        </p>
+        <p className="font-display text-3xl font-bold text-foreground">
+          {eur(totalesGenerales.neto)}
+        </p>
         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
           <div>
             <p className="text-[10px] text-muted-foreground uppercase">Ingresos informativos</p>
-            <p className="text-sm font-semibold text-primary">{eur(totalesGenerales.ingresos)}</p>
+            <p className="text-sm font-semibold text-primary">
+              {eur(totalesGenerales.ingresos)}
+            </p>
           </div>
           <div>
             <p className="text-[10px] text-muted-foreground uppercase">Gastos informativos</p>
-            <p className="text-sm font-semibold text-destructive">{eur(totalesGenerales.gastos)}</p>
+            <p className="text-sm font-semibold text-destructive">
+              {eur(totalesGenerales.gastos)}
+            </p>
           </div>
         </div>
       </div>
-      <button onClick={onCerrarTurno} className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] hover:bg-emerald-700 mb-6">
+      <button
+        onClick={onCerrarTurno}
+        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] hover:bg-emerald-700 mb-6"
+      >
         <Lock className="h-5 w-5" /> Cerrar turno actual
       </button>
 
@@ -1004,24 +1257,47 @@ function VentanaTurnosModal({ totalesGenerales, turnosCerrados, onCerrar, onCerr
         ) : (
           <ul className="space-y-3">
             {turnosCerrados.map((turno: TurnoGuardado) => (
-              <li key={turno.id} className="rounded-2xl border border-border bg-secondary/50 p-3 shadow-sm space-y-2">
+              <li
+                key={turno.id}
+                className="rounded-2xl border border-border bg-secondary/50 p-3 shadow-sm space-y-2"
+              >
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground border-b border-border pb-1.5">
-                  <span>Inicio: {new Date(turno.fechaInicio).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
-                  <span>Fin: {new Date(turno.fechaFin).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</span>
+                  <span>
+                    Inicio:{" "}
+                    {new Date(turno.fechaInicio).toLocaleString("es-ES", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </span>
+                  <span>
+                    Fin:{" "}
+                    {new Date(turno.fechaFin).toLocaleString("es-ES", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between pt-0.5">
                   <div>
-                    <p className="text-[9px] text-muted-foreground uppercase">Importe Facturado</p>
-                    <p className="font-display text-base font-bold text-foreground">{eur(turno.neto)}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase">
+                      Importe Facturado
+                    </p>
+                    <p className="font-display text-base font-bold text-foreground">
+                      {eur(turno.neto)}
+                    </p>
                   </div>
                   <div className="text-right flex gap-2">
                     <div>
                       <p className="text-[9px] text-muted-foreground uppercase">Ingresos</p>
-                      <p className="text-xs font-semibold text-primary">+{eur(turno.ingresos)}</p>
+                      <p className="text-xs font-semibold text-primary">
+                        +{eur(turno.ingresos)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-[9px] text-muted-foreground uppercase">Gastos</p>
-                      <p className="text-xs font-semibold text-destructive">-{eur(turno.gastos)}</p>
+                      <p className="text-xs font-semibold text-destructive">
+                        -{eur(turno.gastos)}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1045,7 +1321,13 @@ function generarUUID() {
   });
 }
 
-function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+function FormularioIngreso({
+  onCerrar,
+  onGuardar,
+}: {
+  onCerrar: () => void;
+  onGuardar: (m: Movimiento) => void;
+}) {
   const [importe, setImporte] = useState("");
   const [metodo, setMetodo] = useState<"Efectivo" | "Tarjeta" | "Emisora" | "Bizum">("Efectivo");
   const [concepto, setConcepto] = useState("Carrera");
@@ -1058,14 +1340,16 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
     if (isNaN(num) || num <= 0) return alert("Introduce un importe válido");
     if (fecha > hoyMax) return alert("No se permiten fechas futuras.");
 
-    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
-    
-    onGuardar({ 
-      id: generarUUID(), 
-      tipo: "ingreso", 
-      importe: num, 
-      concepto: `${concepto.trim() || "Carrera"} (${metodo})`, 
-      fecha: fechaFinal 
+    const fechaFinal = fecha
+      ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString()
+      : new Date().toISOString();
+
+    onGuardar({
+      id: generarUUID(),
+      tipo: "ingreso",
+      importe: num,
+      concepto: `${concepto.trim() || "Carrera"} (${metodo})`,
+      fecha: fechaFinal,
     });
   }
 
@@ -1074,14 +1358,37 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
       <ModalHeader titulo="Nuevo ingreso" onCerrar={onCerrar} />
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold">Importe €</label>
-          <input type="text" inputMode="decimal" placeholder="0,00" autoFocus value={importe} onChange={(e) => setImporte(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-primary outline-none" />
+          <label className="text-xs text-muted-foreground uppercase font-semibold">
+            Importe €
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="0,00"
+            autoFocus
+            value={importe}
+            onChange={(e) => setImporte(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-primary outline-none"
+          />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">Forma de pago</label>
+          <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">
+            Forma de pago
+          </label>
           <div className="grid grid-cols-2 gap-2">
             {(["Efectivo", "Tarjeta", "Emisora", "Bizum"] as const).map((m) => (
-              <button type="button" key={m} onClick={() => setMetodo(m)} className={`h-11 rounded-2xl text-xs font-semibold border transition-colors ${metodo === m ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-secondary text-foreground border-input hover:bg-secondary/80"}`}>{m}</button>
+              <button
+                type="button"
+                key={m}
+                onClick={() => setMetodo(m)}
+                className={`h-11 rounded-2xl text-xs font-semibold border transition-colors ${
+                  metodo === m
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-secondary text-foreground border-input hover:bg-secondary/80"
+                }`}
+              >
+                {m}
+              </button>
             ))}
           </div>
         </div>
@@ -1089,24 +1396,53 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
           <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-primary" /> Fecha
           </label>
-          <input type="date" max={hoyMax} value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary" />
+          <input
+            type="date"
+            max={hoyMax}
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
+          />
         </div>
         <div>
           <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
-          <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary" />
+          <input
+            type="text"
+            value={concepto}
+            onChange={(e) => setConcepto(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
+          />
           <div className="flex flex-wrap gap-2 mt-2">
-            {["Carrera", "Aeropuerto", "Estación","Propina"].map((c) => (
-              <button type="button" key={c} onClick={() => setConcepto(c)} className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-primary/10 hover:border-primary transition-colors">{c}</button>
+            {["Carrera", "Aeropuerto", "Estación", "Propina"].map((c) => (
+              <button
+                type="button"
+                key={c}
+                onClick={() => setConcepto(c)}
+                className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-primary/10 hover:border-primary transition-colors"
+              >
+                {c}
+              </button>
             ))}
           </div>
         </div>
-        <button type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2">Guardar ingreso</button>
+        <button
+          type="submit"
+          className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2"
+        >
+          Guardar ingreso
+        </button>
       </form>
     </ModalBase>
   );
 }
 
-function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
+function FormularioGasto({
+  onCerrar,
+  onGuardar,
+}: {
+  onCerrar: () => void;
+  onGuardar: (m: Movimiento) => void;
+}) {
   const [importe, setImporte] = useState("");
   const [concepto, setConcepto] = useState("Combustible");
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
@@ -1118,14 +1454,16 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
     if (isNaN(num) || num <= 0) return alert("Introduce un importe válido");
     if (fecha > hoyMax) return alert("No se permiten fechas futuras.");
 
-    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
-    
-    onGuardar({ 
-      id: generarUUID(), 
-      tipo: "gasto", 
-      importe: num, 
-      concepto: concepto.trim() || "Gasto", 
-      fecha: fechaFinal 
+    const fechaFinal = fecha
+      ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString()
+      : new Date().toISOString();
+
+    onGuardar({
+      id: generarUUID(),
+      tipo: "gasto",
+      importe: num,
+      concepto: concepto.trim() || "Gasto",
+      fecha: fechaFinal,
     });
   }
 
@@ -1134,61 +1472,68 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
       <ModalHeader titulo="Nuevo gasto" onCerrar={onCerrar} />
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold">Importe €</label>
-          <input type="text" inputMode="decimal" placeholder="0,00" autoFocus value={importe} onChange={(e) => setImporte(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-red-500 outline-none" />
+          <label className="text-xs text-muted-foreground uppercase font-semibold">
+            Importe €
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="0,00"
+            autoFocus
+            value={importe}
+            onChange={(e) => setImporte(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-red-500 outline-none"
+          />
         </div>
         <div>
           <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-red-500" /> Fecha
           </label>
-          <input type="date" max={hoyMax} value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-red-500" />
+          <input
+            type="date"
+            max={hoyMax}
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-red-500"
+          />
         </div>
         <div>
           <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
-          <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-red-500" />
+          <input
+            type="text"
+            value={concepto}
+            onChange={(e) => setConcepto(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-red-500"
+          />
           <div className="flex flex-wrap gap-2 mt-2">
             {["Combustible", "Lavado", "Taller", "Parking", "Peaje"].map((c) => (
-              <button type="button" key={c} onClick={() => setConcepto(c)} className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-red-500/10 hover:border-red-500 transition-colors">{c}</button>
+              <button
+                type="button"
+                key={c}
+                onClick={() => setConcepto(c)}
+                className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-red-500/10 hover:border-red-500 transition-colors"
+              >
+                {c}
+              </button>
             ))}
           </div>
         </div>
-        <button type="submit" className="w-full h-14 rounded-2xl bg-red-600 text-white font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2">Guardar gasto</button>
+        <button
+          type="submit"
+          className="w-full h-14 rounded-2xl bg-red-600 text-white font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2"
+        >
+          Guardar gasto
+        </button>
       </form>
     </ModalBase>
   );
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
-
-  const modalActual = searchParams.get("modal") as ModalType | null;
-
-  const [periodo, setPeriodo] = useState<Periodo>("dia");
-  const [rangoFechas, setRangoFechas] = useState({ inicio: "", fin: "" });
-  const [filtroTipo, setFiltroTipo] = useState<"todos" | "ingresos" | "gastos">("todos");
-
-  const abrirModal = (tipo: ModalType) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("modal", tipo);
-    router.push(`${pathname}?${params.toString()}`);
-  };
-
-  const cerrarModal = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("modal");
-    const stringParams = params.toString();
-    router.push(stringParams ? `${pathname}?${stringParams}` : pathname);
-  };
-
-  // ... (aquí continúa todo el código actual de tu componente PanelPage) ...
 }
 
-// 2. Agrega este nuevo export default al FINAL del archivo
+// --- EXPORT DEFAULT CON SUSPENSE ---
 export default function Page() {
   return (
     <Suspense fallback={<div className="p-4 text-center">Cargando...</div>}>
       <PanelPage />
     </Suspense>
   );
-
 }
