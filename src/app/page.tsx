@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense } from 'react'; // <-- Añade esta línea
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-export const dynamic = 'force-dynamic';
 import {
   CarTaxiFront,
   FileDown,
@@ -24,6 +23,11 @@ import {
   FileText,
   Train,
   BookOpen,
+  Fuel,
+  Wrench,
+  Receipt,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import {
   cargarMovimientos,
