@@ -37,10 +37,20 @@ export const CATEGORIAS_GASTOS = [
   { id: "otros", nombre: "Otros", icon: MoreHorizontal },
 ];
 
-export function getIconoMovimiento(key?: string) {
-  if (!key) return Tag;
-  const k = key.toLowerCase();
+export function getIconoMovimiento(categoriaOrTexto?: string, formaPago?: string) {
+  // 1. Si se proporciona la forma de pago, tiene prioridad para mostrar su icono específico
+  if (formaPago) {
+    const p = formaPago.toLowerCase();
+    if (p.includes("efectivo")) return Banknote;
+    if (p.includes("tarjeta")) return CreditCard;
+    if (p.includes("emisora")) return Radio;
+    if (p.includes("bizum")) return Send;
+  }
 
+  if (!categoriaOrTexto) return Tag;
+  const k = categoriaOrTexto.toLowerCase();
+
+  // 2. Comprobaciones en el texto (concepto o categoría)
   if (k.includes("efectivo")) return Banknote;
   if (k.includes("tarjeta")) return CreditCard;
   if (k.includes("emisora")) return Radio;

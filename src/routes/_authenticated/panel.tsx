@@ -627,53 +627,67 @@ function Panel() {
           </div>
         ) : (
           <ul className="mt-3 space-y-3">
-  {movsFiltrados.map((m) => {
-    const IconoMov = getIconoMovimiento(m.categoria || m.concepto || m.formaPago);
+  // Dentro de tu componente donde listas los movimientos:
+{movsFiltrados.map((mov) => {
+  // 1. Icono principal según categoría o concepto
+  const IconoCategoria = getIconoMovimiento(mov.categoria || mov.concepto);
+  
+  // 2. Buscar datos de la forma de pago para su icono y color
+  const formaPagoObj = FORMAS_PAGO.find(
+    (f) => f.id.toLowerCase() === (mov.formaPago || "").toLowerCase()
+  );
+  const IconoPago = formaPagoObj ? formaPagoObj.icon : null;
 
-    return (
-      <li
-        key={m.id}
-        className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
-      >
+  return (
+    <div 
+      key={mov.id} 
+      className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border/50 hover:border-primary/50 transition-all duration-200 shadow-sm"
+    >
+      {/* Izquierda: Icono principal + Textos */}
+      <div className="flex items-center gap-3.5">
+        {/* Contenedor del Icono Principal (Categoría) */}
+        <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-inner">
+          <IconoCategoria className="w-6 h-6" />
+        </div>
+
+        <div>
+          <h4 className="font-semibold text-foreground text-base capitalize">
+            {mov.concepto}
+          </h4>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-muted-foreground">
+              {new Date(mov.fecha).toLocaleDateString("es-ES", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+
+            {/* Pastilla Interactiva / Badge de Forma de Pago con su Icono */}
+            {formaPagoObj && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-background border border-border text-foreground shadow-2xs">
+                {IconoPago && <IconoPago className="w-3 h-3 text-primary" />}
+                {formaPagoObj.nombre}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Derecha: Importe (Verde si es ingreso, rojo/normal si es gasto) */}
+      <div className="text-right">
         <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-            m.tipo === "ingreso"
-              ? "bg-emerald-500/10 text-emerald-500"
-              : "bg-destructive/10 text-destructive"
+          className={`text-lg font-bold ${
+            mov.tipo === "ingreso" ? "text-emerald-500 dark:text-emerald-400" : "text-foreground"
           }`}
         >
-          <IconoMov className="h-5 w-5" />
+          {mov.tipo === "ingreso" ? "+" : "-"}{eur(mov.importe)}
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-foreground">
-            {m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {new Date(m.fecha).toLocaleDateString("es-ES", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            })}{" "}
-            ·{" "}
-            {new Date(m.fecha).toLocaleTimeString("es-ES", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
-        </div>
-        <p className="font-display text-lg font-bold text-foreground">
-          {m.tipo === "gasto" ? "−" : "+"}
-          {eur(m.importe)}
-        </p>
-        <button
-          onClick={() => borrar(m.id)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-destructive transition-colors"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </li>
-    );
-  })}
+      </div>
+    </div>
+  );
+})}
 </ul>
         )}
       </section>
