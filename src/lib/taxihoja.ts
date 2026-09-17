@@ -199,3 +199,31 @@ export function guardarUltimoCorteTurno(fechaIso: string) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem("taxihoja:ultimo_corte", fechaIso);
 }
+
+// 🟢 FUNCIÓN REGISTRAR MOVIMIENTO AÑADIDA AQUÍ ABAJO
+export async function registrarMovimiento(turnoId: string, monto: number, tipo: "ingreso" | "gasto", concepto = "Turno") {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const payload = {
+    id: crypto.randomUUID(),
+    user_id: user?.id,
+    shift_id: turnoId, 
+    importe: monto,
+    tipo: tipo,
+    concepto: concepto,
+    fecha: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("movimientos")
+    .insert([payload])
+    .select();
+
+  if (error) {
+    console.error("Error al registrar movimiento:", error);
+    alert("Error al guardar. Comprueba tu conexión o si el turno sigue abierto.");
+    throw error;
+  }
+
+  return data;
+}

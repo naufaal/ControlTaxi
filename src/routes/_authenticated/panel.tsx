@@ -1,3 +1,4 @@
+import { useRefreshOnFocus } from '@/hooks/useRefreshOnFocus';
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -44,6 +45,16 @@ import { VentanaFacturaModal } from "@/components/factura";
 import { abrirInforme } from "@/lib/informe";
 import { Marca, PieMarca } from "@/components/marca";
 import { SelectorConIconos } from "@/components/SelectorConIconos";
+export default function PanelTurno() {
+  // Activa el refresco automático al minimizar/maximizar la app
+  useRefreshOnFocus();
+
+  return (
+    <div>
+      {/* Tu interfaz de ingresos y gastos */}
+    </div>
+  );
+}
 export function FormularioIngreso({
   onCerrar,
   onGuardar,
@@ -534,6 +545,33 @@ function Panel() {
     }
   }
 
+  // ... (tus otras funciones como guardarMovimiento, cargarMovimientos, etc.)
+
+export async function registrarMovimiento(turnoId: string, monto: number, tipo: "ingreso" | "gasto", concepto = "Turno") {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data, error } = await supabase
+    .from('movimientos')
+    .insert([
+      { 
+        user_id: user?.id,
+        // Ajusta estos nombres según los nombres reales de tus columnas en Supabase:
+        shift_id: turnoId, 
+        importe: monto, // o 'amount' si tu columna se llama así en la BD
+        tipo: tipo,     // o 'type' si tu columna se llama así en la BD
+        concepto: concepto
+      }
+    ])
+    .select();
+
+  if (error) {
+    console.error('Error al guardar movimiento:', error);
+    alert('Error al guardar. Comprueba tu conexión o si el turno sigue abierto.');
+    return { success: false, error };
+  }
+
+  return { success: true, data };
+}
   async function salir() {
     await supabase.auth.signOut();
     navigate({ to: "/auth", search: { modo: "acceso" }, replace: true });
