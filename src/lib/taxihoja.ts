@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type Movimiento = {
   id?: string;
+  user_id?: string;
   tipo: "ingreso" | "gasto";
   importe: number;
   concepto: string;
@@ -29,7 +30,7 @@ export function eur(valor: number): string {
 export async function cargarMovimientos() {
   const { data, error } = await supabase
     .from("movimientos")
-    .select("id, tipo, importe, concepto, categoria, forma_pago, fecha")
+    .select("id, user_id, tipo, importe, concepto, categoria, forma_pago, fecha")
     .order("fecha", { ascending: false });
 
   if (error) {
@@ -37,9 +38,9 @@ export async function cargarMovimientos() {
     throw error;
   }
 
-  // Mapeamos forma_pago (base de datos) a formaPago (frontend) por compatibilidad
   return (data || []).map((m: any) => ({
     id: m.id,
+    user_id: m.user_id,
     tipo: m.tipo,
     importe: Number(m.importe),
     concepto: m.concepto,
@@ -50,9 +51,11 @@ export async function cargarMovimientos() {
 }
 
 export async function guardarMovimiento(mov: any) {
+  const { data: { user } } = await supabase.auth.getUser();
+
   const payload = {
     id: mov.id || crypto.randomUUID(),
-    // Si viene 'type' por error del formulario o está vacío, por defecto será 'ingreso'
+    user_id: user?.id || mov.user_id || null,
     tipo: mov.tipo || mov.type || "ingreso",
     importe: Number(mov.importe) || 0,
     concepto: mov.concepto || "Sin concepto",
