@@ -131,8 +131,27 @@ export async function guardarMovimiento(arg1: any, arg2?: any, arg3?: any, arg4?
   return data;
 }
 
-// 🟢 CORregido: Ahora solo necesita el `id` y busca el usuario automáticamente
 export async function borrarMovimiento(id: string) {
+  // 🟢 Bloquear borrado si el movimiento pertenece a un turno ya cerrado
+  const ultimoCorte = obtenerUltimoCorteTurno();
+
+  if (ultimoCorte) {
+    const { data: mov, error: errFetch } = await supabase
+      .from("movimientos")
+      .select("fecha")
+      .eq("id", id)
+      .single();
+
+    if (!errFetch && mov) {
+      const fechaMovimiento = new Date(mov.fecha);
+      const fechaCorte = new Date(ultimoCorte);
+
+      if (fechaMovimiento <= fechaCorte) {
+        throw new Error("No se puede eliminar un movimiento que pertenece a un turno ya cerrado.");
+      }
+    }
+  }
+
   const { data: { user } } = await supabase.auth.getUser();
 
   let query = supabase
