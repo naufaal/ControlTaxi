@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type Movimiento = {
-  id: string;
+  id?: string;
   tipo: "ingreso" | "gasto";
   importe: number;
   concepto: string;
@@ -29,7 +29,7 @@ export function eur(valor: number): string {
 export async function cargarMovimientos() {
   const { data, error } = await supabase
     .from("movimientos")
-    .select("id, tipo, importe, concepto, fecha")
+    .select("id, tipo, importe, concepto, categoria, forma_pago, fecha")
     .order("fecha", { ascending: false });
 
   if (error) {
@@ -37,15 +37,27 @@ export async function cargarMovimientos() {
     throw error;
   }
 
-  return data;
+  // Mapeamos forma_pago (base de datos) a formaPago (frontend) por compatibilidad
+  return (data || []).map((m: any) => ({
+    id: m.id,
+    tipo: m.tipo,
+    importe: Number(m.importe),
+    concepto: m.concepto,
+    categoria: m.categoria,
+    formaPago: m.forma_pago,
+    fecha: m.fecha,
+  }));
 }
 
 export async function guardarMovimiento(mov: Movimiento) {
   const payload = {
-    id: mov.id,
+    // Si no tiene id, generamos uno único de forma segura para evitar el error 23502
+    id: mov.id || crypto.randomUUID(),
     tipo: mov.tipo,
     importe: mov.importe,
     concepto: mov.concepto,
+    categoria: mov.categoria || null,
+    forma_pago: mov.formaPago || null,
     fecha: mov.fecha,
   };
 
