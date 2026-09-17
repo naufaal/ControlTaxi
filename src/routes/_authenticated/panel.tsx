@@ -23,6 +23,12 @@ import {
   BookOpen,
 } from "lucide-react";
 import {
+  CATEGORIAS_INGRESOS,
+  CATEGORIAS_GASTOS,
+  FORMAS_PAGO,
+  getIconoMovimiento,
+} from "@/lib/constants";
+import {
   eur,
   cargarMovimientos,
   guardarMovimiento,
@@ -37,6 +43,216 @@ import { supabase } from "@/integrations/supabase/client";
 import { VentanaFacturaModal } from "@/components/factura";
 import { abrirInforme } from "@/lib/informe";
 import { Marca, PieMarca } from "@/components/marca";
+import { SelectorConIconos } from "@/components/SelectorConIconos";
+export function FormularioIngreso({
+  onCerrar,
+  onGuardar,
+}: {
+  onCerrar: () => void;
+  onGuardar: (m: Movimiento) => void;
+}) {
+  const [importe, setImporte] = useState("");
+  const [metodo, setMetodo] = useState<"Efectivo" | "Tarjeta" | "Emisora" | "Bizum">("Efectivo");
+  const [concepto, setConcepto] = useState("Carrera");
+  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
+  const hoyMax = new Date().toISOString().slice(0, 10);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const num = parseFloat(importe.replace(",", "."));
+    if (isNaN(num) || num <= 0) return alert("Introduce un importe válido");
+    if (fecha > hoyMax) return alert("No se permiten fechas futuras.");
+
+    const fechaFinal = fecha
+      ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString()
+      : new Date().toISOString();
+
+    onGuardar({
+      id: crypto.randomUUID(),
+      tipo: "ingreso",
+      importe: num,
+      concepto: `${concepto.trim() || "Carrera"} (${metodo})`,
+      categoria: concepto.toLowerCase(),
+      formaPago: metodo.toLowerCase(),
+      fecha: fechaFinal,
+    });
+  }
+
+  return (
+    <ModalBase onCerrar={onCerrar}>
+      <ModalHeader titulo="Nuevo ingreso" onCerrar={onCerrar} />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">
+            Importe €
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="0,00"
+            autoFocus
+            value={importe}
+            onChange={(e) => setImporte(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-primary outline-none"
+          />
+        </div>
+
+        <SelectorConIconos
+          label="Forma de pago"
+          opciones={FORMAS_PAGO}
+          seleccionado={metodo.toLowerCase()}
+          onSelect={(id) => {
+            const encontrado = FORMAS_PAGO.find((f) => f.id === id);
+            if (encontrado) setMetodo(encontrado.nombre as any);
+          }}
+        />
+
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-primary" /> Fecha
+          </label>
+          <input
+            type="date"
+            max={hoyMax}
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
+          <input
+            type="text"
+            value={concepto}
+            onChange={(e) => setConcepto(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
+          />
+          <div className="flex flex-wrap gap-2 mt-2">
+            {["Carrera", "Aeropuerto", "Estación", "Propina"].map((c) => (
+              <button
+                type="button"
+                key={c}
+                onClick={() => setConcepto(c)}
+                className={`h-9 px-3 rounded-2xl border text-xs font-medium transition-colors ${
+                  concepto === c
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-secondary border-input text-foreground hover:bg-primary/10"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2"
+        >
+          Guardar ingreso
+        </button>
+      </form>
+    </ModalBase>
+  );
+}
+
+export function FormularioGasto({
+  onCerrar,
+  onGuardar,
+}: {
+  onCerrar: () => void;
+  onGuardar: (m: Movimiento) => void;
+}) {
+  const [importe, setImporte] = useState("");
+  const [categoria, setCategoria] = useState("combustible");
+  const [concepto, setConcepto] = useState("Combustible");
+  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
+  const hoyMax = new Date().toISOString().slice(0, 10);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const num = parseFloat(importe.replace(",", "."));
+    if (isNaN(num) || num <= 0) return alert("Introduce un importe válido");
+    if (fecha > hoyMax) return alert("No se permiten fechas futuras.");
+
+    const fechaFinal = fecha
+      ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString()
+      : new Date().toISOString();
+
+    onGuardar({
+      id: crypto.randomUUID(),
+      tipo: "gasto",
+      importe: num,
+      concepto: concepto.trim() || "Gasto",
+      categoria,
+      fecha: fechaFinal,
+    });
+  }
+
+  return (
+    <ModalBase onCerrar={onCerrar}>
+      <ModalHeader titulo="Nuevo gasto" onCerrar={onCerrar} />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">
+            Importe €
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="0,00"
+            autoFocus
+            value={importe}
+            onChange={(e) => setImporte(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-primary outline-none"
+          />
+        </div>
+
+        <SelectorConIconos
+          label="Categoría del gasto"
+          opciones={CATEGORIAS_GASTOS}
+          seleccionado={categoria}
+          onSelect={(id) => {
+            setCategoria(id);
+            const catObj = CATEGORIAS_GASTOS.find((c) => c.id === id);
+            if (catObj) setConcepto(catObj.nombre);
+          }}
+        />
+
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-primary" /> Fecha
+          </label>
+          <input
+            type="date"
+            max={hoyMax}
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
+          <input
+            type="text"
+            value={concepto}
+            onChange={(e) => setConcepto(e.target.value)}
+            className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary"
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2"
+        >
+          Guardar gasto
+        </button>
+      </form>
+    </ModalBase>
+  );
+}
 
 // --- TIPOS ---
 type Periodo = "dia" | "semana" | "mes" | "personalizado";
@@ -370,7 +586,7 @@ function Panel() {
 
         <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
           <p className="text-xs tracking-wide text-white/70 uppercase">
-            Neto acumulado {periodo === "personalizado" ? "filtrado" : periodoLabel}
+            Facturado {periodo === "personalizado" ? "filtrado" : periodoLabel}
           </p>
           <p className="mt-1 font-display text-4xl font-bold text-white">{eur(totales.neto)}</p>
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -410,26 +626,54 @@ function Panel() {
           </div>
         ) : (
           <ul className="mt-3 space-y-3">
-            {movsFiltrados.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.tipo === "ingreso" ? "bg-primary/20 text-foreground" : "bg-secondary text-muted-foreground"}`}>
-                  {m.tipo === "ingreso" ? <Plus className="h-5 w-5" /> : <Minus className="h-5 w-5" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-foreground">{m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(m.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })} · {new Date(m.fecha).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-                <p className="font-display text-lg font-bold text-foreground">
-                  {m.tipo === "gasto" ? "−" : "+"}{eur(m.importe)}
-                </p>
-                <button onClick={() => borrar(m.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
+  {movsFiltrados.map((m) => {
+    const IconoMov = getIconoMovimiento(m.categoria || m.concepto || m.formaPago);
+
+    return (
+      <li
+        key={m.id}
+        className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
+      >
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+            m.tipo === "ingreso"
+              ? "bg-emerald-500/10 text-emerald-500"
+              : "bg-destructive/10 text-destructive"
+          }`}
+        >
+          <IconoMov className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold text-foreground">
+            {m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {new Date(m.fecha).toLocaleDateString("es-ES", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}{" "}
+            ·{" "}
+            {new Date(m.fecha).toLocaleTimeString("es-ES", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+        </div>
+        <p className="font-display text-lg font-bold text-foreground">
+          {m.tipo === "gasto" ? "−" : "+"}
+          {eur(m.importe)}
+        </p>
+        <button
+          onClick={() => borrar(m.id)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-destructive transition-colors"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </li>
+    );
+  })}
+</ul>
         )}
       </section>
 
@@ -883,101 +1127,6 @@ function VentanaTurnosModal({ totalesGenerales, turnosCerrados, onCerrar, onCerr
           </ul>
         )}
       </div>
-    </ModalBase>
-  );
-}
-
-function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
-  const [importe, setImporte] = useState("");
-  const [metodo, setMetodo] = useState<"Efectivo" | "Tarjeta" | "Emisora" | "Bizum">("Efectivo");
-  const [concepto, setConcepto] = useState("Carrera");
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
-  const hoyMax = new Date().toISOString().slice(0, 10);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const num = parseFloat(importe.replace(",", "."));
-    if (isNaN(num) || num <= 0) return alert("Introduce un importe válido");
-    if (fecha > hoyMax) return alert("No se permiten fechas futuras.");
-
-    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
-    onGuardar({ id: crypto.randomUUID(), tipo: "ingreso", importe: num, concepto: `${concepto.trim() || "Carrera"} (${metodo})`, fecha: fechaFinal });
-  }
-
-  return (
-    <ModalBase onCerrar={onCerrar}>
-      <ModalHeader titulo="Nuevo ingreso" onCerrar={onCerrar} />
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold">Importe €</label>
-          <input type="text" inputMode="decimal" placeholder="0,00" autoFocus value={importe} onChange={(e) => setImporte(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-primary outline-none" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold block mb-1.5">Forma de pago</label>
-          <div className="grid grid-cols-2 gap-2">
-            {(["Efectivo", "Tarjeta", "Emisora", "Bizum"] as const).map((m) => (
-              <button type="button" key={m} onClick={() => setMetodo(m)} className={`h-11 rounded-2xl text-xs font-semibold border transition-colors ${metodo === m ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-secondary text-foreground border-input hover:bg-secondary/80"}`}>{m}</button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-primary" /> Fecha</label>
-          <input type="date" max={hoyMax} value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
-          <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary" />
-          <div className="flex flex-wrap gap-2 mt-2">
-            {["Carrera", "Aeropuerto", "Estación"].map((c) => (
-              <button type="button" key={c} onClick={() => setConcepto(c)} className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-primary/10 hover:border-primary transition-colors">{c}</button>
-            ))}
-          </div>
-        </div>
-        <button type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2">Guardar ingreso</button>
-      </form>
-    </ModalBase>
-  );
-}
-
-function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuardar: (m: Movimiento) => void }) {
-  const [importe, setImporte] = useState("");
-  const [concepto, setConcepto] = useState("Combustible");
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
-  const hoyMax = new Date().toISOString().slice(0, 10);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const num = parseFloat(importe.replace(",", "."));
-    if (isNaN(num) || num <= 0) return alert("Introduce un importe válido");
-    if (fecha > hoyMax) return alert("No se permiten fechas futuras.");
-
-    const fechaFinal = fecha ? new Date(`${fecha}T${new Date().toTimeString().slice(0, 8)}`).toISOString() : new Date().toISOString();
-    onGuardar({ id: crypto.randomUUID(), tipo: "gasto", importe: num, concepto: concepto.trim() || "Gasto", fecha: fechaFinal });
-  }
-
-  return (
-    <ModalBase onCerrar={onCerrar}>
-      <ModalHeader titulo="Nuevo gasto" onCerrar={onCerrar} />
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold">Importe €</label>
-          <input type="text" inputMode="decimal" placeholder="0,00" autoFocus value={importe} onChange={(e) => setImporte(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-lg font-bold text-foreground mt-1.5 focus:border-primary outline-none" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-primary" /> Fecha</label>
-          <input type="date" max={hoyMax} value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
-          <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary" />
-          <div className="flex flex-wrap gap-2 mt-2">
-            {["Combustible", "Lavado", "Taller", "Parking", "Peaje"].map((c) => (
-              <button type="button" key={c} onClick={() => setConcepto(c)} className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-primary/10 hover:border-primary transition-colors">{c}</button>
-            ))}
-          </div>
-        </div>
-        <button type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-semibold text-base shadow-lg transition-transform active:scale-[0.98] mt-2">Guardar gasto</button>
-      </form>
     </ModalBase>
   );
 }

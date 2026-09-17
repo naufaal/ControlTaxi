@@ -5,6 +5,8 @@ export type Movimiento = {
   tipo: "ingreso" | "gasto";
   importe: number;
   concepto: string;
+  categoria?: string;
+  formaPago?: string;
   fecha: string;
 };
 
@@ -24,11 +26,10 @@ export function eur(valor: number): string {
   }).format(valor);
 }
 
-export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
-  const { data, error } = await (supabase as any)
+export async function cargarMovimientos() {
+  const { data, error } = await supabase
     .from("movimientos")
     .select("id, tipo, importe, concepto, fecha")
-    .eq("user_id", userId)
     .order("fecha", { ascending: false });
 
   if (error) {
@@ -36,31 +37,29 @@ export async function cargarMovimientos(userId: string): Promise<Movimiento[]> {
     throw error;
   }
 
-  return (data || []).map((m: any) => ({
-    id: m.id,
-    tipo: m.tipo,
-    importe: Number(m.importe),
-    concepto: m.concepto,
-    fecha: m.fecha,
-  }));
+  return data;
 }
 
-export async function guardarMovimiento(userId: string, m: Movimiento) {
-  const { error } = await (supabase as any).from("movimientos").insert([
-    {
-      id: m.id,
-      user_id: userId,
-      tipo: m.tipo,
-      importe: m.importe,
-      concepto: m.concepto,
-      fecha: m.fecha,
-    },
-  ]);
+export async function guardarMovimiento(mov: Movimiento) {
+  const payload = {
+    id: mov.id,
+    tipo: mov.tipo,
+    importe: mov.importe,
+    concepto: mov.concepto,
+    fecha: mov.fecha,
+  };
+
+  const { data, error } = await supabase
+    .from("movimientos")
+    .upsert(payload)
+    .select();
 
   if (error) {
-    console.error("Error al guardar movimiento:", error);
+    console.error("Error al guardar en Supabase:", error);
     throw error;
   }
+
+  return data;
 }
 
 export async function borrarMovimiento(userId: string, id: string) {
