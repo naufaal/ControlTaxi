@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react'; // <-- Añade esta línea
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
@@ -249,7 +249,9 @@ export default function PanelPage() {
   );
 
   const totales = useMemo(() => {
-    const ingresos = movsFiltrados.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + m.importe, 0);
+    const ingresos = movsFiltrados
+      .filter((m: Movimiento) => m.tipo === "ingreso")
+      .reduce((s: number, m: Movimiento) => s + m.importe, 0);
     const gastos = movsFiltrados.filter((m) => m.tipo === "gasto").reduce((s, m) => s + m.importe, 0);
     const filtroActivo = periodo === "personalizado" || filtroTipo !== "todos";
 
