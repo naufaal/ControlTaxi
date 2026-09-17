@@ -51,14 +51,14 @@ export async function cargarMovimientos() {
 
 export async function guardarMovimiento(mov: Movimiento) {
   const payload = {
-    // Si no tiene id, generamos uno único de forma segura para evitar el error 23502
     id: mov.id || crypto.randomUUID(),
     tipo: mov.tipo,
     importe: mov.importe,
     concepto: mov.concepto,
     categoria: mov.categoria || null,
     forma_pago: mov.formaPago || null,
-    fecha: mov.fecha,
+    // Si no viene fecha, ponemos la actual por defecto
+    fecha: mov.fecha || new Date().toISOString(),
   };
 
   const { data, error } = await supabase
