@@ -1,14 +1,17 @@
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function useRefreshOnFocus() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Refresca la página en Next.js para volver a consultar los datos frescos al servidor
-        router.refresh();
+        // Al volver a la app, actualizamos las consultas de Supabase y la ruta
+        queryClient.invalidateQueries();
+        router.invalidate();
       }
     };
 
@@ -16,5 +19,5 @@ export function useRefreshOnFocus() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [router]);
+  }, [router, queryClient]);
 }
