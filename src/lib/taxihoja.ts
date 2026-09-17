@@ -49,15 +49,15 @@ export async function cargarMovimientos() {
   }));
 }
 
-export async function guardarMovimiento(mov: Movimiento) {
+export async function guardarMovimiento(mov: any) {
   const payload = {
     id: mov.id || crypto.randomUUID(),
-    tipo: mov.tipo,
-    importe: mov.importe,
-    concepto: mov.concepto,
+    // Si viene 'type' por error del formulario o está vacío, por defecto será 'ingreso'
+    tipo: mov.tipo || mov.type || "ingreso",
+    importe: Number(mov.importe) || 0,
+    concepto: mov.concepto || "Sin concepto",
     categoria: mov.categoria || null,
-    forma_pago: mov.formaPago || null,
-    // Si no viene fecha, ponemos la actual por defecto
+    forma_pago: mov.formaPago || mov.forma_pago || null,
     fecha: mov.fecha || new Date().toISOString(),
   };
 
