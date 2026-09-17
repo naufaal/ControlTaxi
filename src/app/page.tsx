@@ -114,7 +114,7 @@ function perteneceAlPeriodo(
 }
 
 // --- COMPONENTE PRINCIPAL ---
-export default function PanelPage() {
+function PanelPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1031,4 +1031,39 @@ function FormularioGasto({ onCerrar, onGuardar }: { onCerrar: () => void; onGuar
       </form>
     </ModalBase>
   );
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+
+  const modalActual = searchParams.get("modal") as ModalType | null;
+
+  const [periodo, setPeriodo] = useState<Periodo>("dia");
+  const [rangoFechas, setRangoFechas] = useState({ inicio: "", fin: "" });
+  const [filtroTipo, setFiltroTipo] = useState<"todos" | "ingresos" | "gastos">("todos");
+
+  const abrirModal = (tipo: ModalType) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("modal", tipo);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const cerrarModal = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("modal");
+    const stringParams = params.toString();
+    router.push(stringParams ? `${pathname}?${stringParams}` : pathname);
+  };
+
+  // ... (aquí continúa todo el código actual de tu componente PanelPage) ...
+}
+
+// 2. Agrega este nuevo export default al FINAL del archivo
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="p-4 text-center">Cargando...</div>}>
+      <PanelPage />
+    </Suspense>
+  );
+
 }
