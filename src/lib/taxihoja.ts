@@ -27,6 +27,36 @@ export function eur(valor: number): string {
   }).format(valor);
 }
 
+// Función auxiliar para extraer texto o valores si el formulario pasa objetos
+function extractPrimitive(val: any, fallback: any = ""): any {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "object") {
+    // Busca propiedades comunes en objetos de selección (label, name, concepto, value, id)
+    return (
+      val.label ??
+      val.name ??
+      val.concepto ??
+      val.descripcion ??
+      val.value ??
+      val.id ??
+      fallback
+    );
+  }
+  return val;
+}
+
+// Función para limpiar y convertir el importe de forma segura
+function parseImporte(val: any): number {
+  const raw = extractPrimitive(val, 0);
+  if (typeof raw === "number") return isNaN(raw) ? 0 : raw;
+  if (typeof raw === "string") {
+    const cleaned = raw.replace(/[^\d.,-]/g, "").replace(",", ".");
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  }
+  return 0;
+}
+
 export async function cargarMovimientos() {
   const { data, error } = await supabase
     .from("movimientos")
@@ -53,74 +83,45 @@ export async function cargarMovimientos() {
 export async function guardarMovimiento(arg1: any, arg2?: any, arg3?: any, arg4?: any, arg5?: any, arg6?: any) {
   const { data: { user } } = await supabase.auth.getUser();
 
-  let tipoVal = "ingreso";
-  let importeVal = 0;
-  let conceptoVal = "Sin concepto";
-  let categoriaVal = null;
-  let formaPagoVal = null;
-  let fechaVal = new Date().toISOString();
-  let idVal = crypto.randomUUID();
-  let userIdVal = user?.id || null;
+  let datos: any = {};
 
-  // CASO 1: Si pasan un Evento de Formulario (onSubmit)
+  // Analizamos cómo vienen los datos (Evento de formulario, Objeto único o Argumentos separados)
   if (arg1 && (arg1.nativeEvent || arg1 instanceof Event || arg1?.target?.tagName === "FORM")) {
     const form = arg1.target?.tagName === "FORM" ? arg1.target : arg1.currentTarget;
     if (form) {
       const formData = new FormData(form);
-      const obj = Object.fromEntries(formData.entries());
-      importeVal = obj.importe ?? obj.monto ?? obj.amount ?? obj.valor ?? 0;
-      conceptoVal = obj.concepto ?? obj.descripcion ?? obj.title ?? obj.nombre ?? "Sin concepto";
-      tipoVal = obj.tipo ?? obj.type ?? "ingreso";
-      categoriaVal = obj.categoria ?? obj.category ?? null;
-      formaPagoVal = obj.formaPago ?? obj.forma_pago ?? obj.metodoPago ?? null;
-      fechaVal = obj.fecha ?? obj.date ?? new Date().toISOString();
-      if (obj.id) idVal = obj.id;
-      if (obj.user_id) userIdVal = obj.user_id;
+      datos = Object.fromEntries(formData.entries());
     }
-  } 
-  // CASO 2: Si pasan un Objeto único (ej: guardarMovimiento({ importe: 10, concepto: 'Gasolina' }))
-  else if (arg1 && typeof arg1 === "object" && !Array.isArray(arg1)) {
-    const obj = arg1;
-    importeVal = obj.importe ?? obj.monto ?? obj.amount ?? obj.valor ?? 0;
-    conceptoVal = obj.concepto ?? obj.descripcion ?? obj.title ?? obj.nombre ?? "Sin concepto";
-    tipoVal = obj.tipo ?? obj.type ?? "ingreso";
-    categoriaVal = obj.categoria ?? obj.category ?? null;
-    formaPagoVal = obj.formaPago ?? obj.forma_pago ?? obj.metodoPago ?? null;
-    fechaVal = obj.fecha ?? obj.date ?? new Date().toISOString();
-    if (obj.id) idVal = obj.id;
-    if (obj.user_id) userIdVal = obj.user_id;
-  } 
-  // CASO 3: Si pasan argumentos separados por comas (ej: guardarMovimiento('ingreso', 25, 'Carrera'))
-  else if (arg1 !== undefined || arg2 !== undefined) {
+  } else if (arg1 && typeof arg1 === "object" && !Array.isArray(arg1)) {
+    datos = arg1;
+  } else if (arg1 !== undefined || arg2 !== undefined) {
     if (typeof arg1 === "string" && (arg1 === "ingreso" || arg1 === "gasto")) {
-      tipoVal = arg1;
-      importeVal = arg2 ?? 0;
-      conceptoVal = arg3 ?? "Sin concepto";
-      categoriaVal = arg4 ?? null;
-      formaPagoVal = arg5 ?? null;
-      fechaVal = arg6 ?? new Date().toISOString();
+      datos = { tipo: arg1, importe: arg2, concepto: arg3, categoria: arg4, formaPago: arg5, fecha: arg6 };
     } else {
-      importeVal = arg1 ?? 0;
-      conceptoVal = arg2 ?? "Sin concepto";
-      tipoVal = arg3 ?? "ingreso";
-      categoriaVal = arg4 ?? null;
-      formaPagoVal = arg5 ?? null;
-      fechaVal = arg6 ?? new Date().toISOString();
+      datos = { importe: arg1, concepto: arg2, tipo: arg3, categoria: arg4, formaPago: arg5, fecha: arg6 };
     }
   }
 
+  // Extraemos y limpiamos cada campo de forma segura (desempaquetando objetos si los hubiera)
+  const importeVal = parseImporte(datos.importe ?? datos.monto ?? datos.amount ?? datos.valor);
+  const conceptoRaw = extractPrimitive(datos.concepto ?? datos.descripcion ?? datos.title ?? datos.nombre, "Sin concepto");
+  const tipoRaw = extractPrimitive(datos.tipo ?? datos.type, "ingreso");
+  const categoriaRaw = extractPrimitive(datos.categoria ?? datos.category, null);
+  const formaPagoRaw = extractPrimitive(datos.formaPago ?? datos.forma_pago ?? datos.metodoPago, null);
+  const fechaRaw = extractPrimitive(datos.fecha ?? datos.date, new Date().toISOString());
+
   const payload = {
-    id: idVal,
-    user_id: userIdVal,
-    tipo: tipoVal,
-    importe: Number(importeVal) || 0,
-    concepto: String(conceptoVal).trim() || "Sin concepto",
-    categoria: categoriaVal,
-    forma_pago: formaPagoVal,
-    fecha: fechaVal,
+    id: extractPrimitive(datos.id, crypto.randomUUID()),
+    user_id: user?.id || extractPrimitive(datos.user_id, null),
+    tipo: tipoRaw === "gasto" ? "gasto" : "ingreso",
+    importe: importeVal > 0 ? importeVal : 0,
+    concepto: String(conceptoRaw).trim() || "Sin concepto",
+    categoria: categoriaRaw ? String(categoriaRaw) : null,
+    forma_pago: formaPagoRaw ? String(formaPagoRaw) : null,
+    fecha: fechaRaw,
   };
 
-  console.log("🔥 [PAYLOAD DEFINITIVO] Enviando a Supabase:", payload);
+  console.log("🚀 [PAYLOAD LIMPIO] Enviando a Supabase:", payload);
 
   const { data, error } = await supabase
     .from("movimientos")
