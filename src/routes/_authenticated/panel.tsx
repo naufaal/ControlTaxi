@@ -559,13 +559,25 @@ function Panel() {
   async function guardar(m: Movimiento) {
     if (!currentUserId) return;
     try {
-      // ✅ Pasamos solo 'm' como objeto único, tal como lo espera guardarMovimiento
       await guardarMovimiento(m); 
       await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
       cerrarModal();
     } catch (error) {
       console.error("Error al guardar:", error);
       alert("No se pudo guardar en Supabase.");
+    }
+  }
+
+  async function borrar(id: string) {
+    if (!currentUserId) return;
+    try {
+      // 🟢 Pasamos únicamente el ID (la función detecta el usuario y valida el cierre de turno)
+      await borrarMovimiento(id);
+      await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
+    } catch (error: any) {
+      console.error("Error al borrar:", error);
+      // Muestra el mensaje exacto de bloqueo de turno cerrado o el genérico
+      alert(error.message || "Error al eliminar el registro.");
     }
   }
 
