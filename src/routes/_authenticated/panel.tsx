@@ -49,9 +49,80 @@ export default function PanelTurno() {
   // Activa el refresco automático al minimizar/maximizar la app
   useRefreshOnFocus();
 
+  const queryClient = useQueryClient();
+  const [modalActivo, setModalActivo] = useState<ModalType | null>(null);
+
+  // Cargar movimientos con TanStack Query
+  const { data: movimientos = [], isLoading } = useQuery({
+    queryKey: ["movimientos"],
+    queryFn: cargarMovimientos,
+  });
+
+  // Guardar ingreso o gasto
+  async function handleGuardar(nuevoMov: Movimiento) {
+    try {
+      await guardarMovimiento(nuevoMov);
+      queryClient.invalidateQueries({ queryKey: ["movimientos"] });
+      setModalActivo(null);
+    } catch (error) {
+      console.error("Error al guardar movimiento:", error);
+      alert("Hubo un error al guardar el movimiento.");
+    }
+  }
+
   return (
-    <div>
-      {/* Tu interfaz de ingresos y gastos */}
+    <div className="p-4 max-w-md mx-auto space-y-6">
+      {/* Cabecera del Panel */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CarTaxiFront className="h-6 w-6 text-primary" />
+          <h1 className="text-lg font-bold">Control de Turno</h1>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setModalActivo("ingreso")}
+            className="h-10 px-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm flex items-center gap-1 shadow"
+          >
+            <Plus className="h-4 w-4" /> Ingreso
+          </button>
+          <button
+            onClick={() => setModalActivo("gasto")}
+            className="h-10 px-4 rounded-2xl bg-secondary border text-secondary-foreground font-semibold text-sm flex items-center gap-1"
+          >
+            <Minus className="h-4 w-4" /> Gasto
+          </button>
+        </div>
+      </div>
+
+      {/* Listado rápido o resumen */}
+      <div className="space-y-3">
+        <h2 className="text-xs font-semibold uppercase text-muted-foreground">Últimos movimientos</h2>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Cargando...</p>
+        ) : movimientos.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No hay movimientos registrados.</p>
+        ) : (
+          movimientos.slice(0, 5).map((m) => (
+            <div key={m.id} className="flex justify-between items-center p-3 rounded-2xl bg-secondary border">
+              <div>
+                <p className="font-medium text-sm">{m.concepto}</p>
+                <span className="text-xs text-muted-foreground">{m.formaPago || m.categoria}</span>
+              </div>
+              <span className={`font-bold ${m.tipo === "ingreso" ? "text-emerald-500" : "text-rose-500"}`}>
+                {m.tipo === "ingreso" ? "+" : "-"}{eur(m.importe)}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Modales condicionales */}
+      {modalActivo === "ingreso" && (
+        <FormularioIngreso onCerrar={() => setModalActivo(null)} onGuardar={handleGuardar} />
+      )}
+      {modalActivo === "gasto" && (
+        <FormularioGasto onCerrar={() => setModalActivo(null)} onGuardar={handleGuardar} />
+      )}
     </div>
   );
 }
