@@ -28,6 +28,8 @@ import {
   Receipt,
   TrendingUp,
   TrendingDown,
+  LucideCarTaxiFront,
+  CarTaxiFrontIcon,
 } from "lucide-react";
 import {
   cargarMovimientos,
@@ -353,112 +355,134 @@ function PanelPage() {
   );
 
   return (
-    <main className="min-h-dvh bg-background pb-28">
-      <div className="relative overflow-hidden rounded-b-[2rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8">
-        <div className="pointer-events-none absolute -top-20 -right-10 h-52 w-52 rounded-full bg-primary/25 blur-3xl" />
-        <div className="relative flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <Marca oscuro />
-            <h1 className="mt-1 truncate font-display text-2xl font-bold text-white">
-              {currentCorreo || "Tu cuenta"}
-            </h1>
+  <main className="min-h-dvh bg-background pb-28">
+    <div className="relative overflow-hidden rounded-b-[2rem] bg-[image:var(--gradient-night)] px-6 pt-12 pb-8">
+      <div className="pointer-events-none absolute -top-20 -right-10 h-52 w-52 rounded-full bg-primary/25 blur-3xl" />
+      
+      {/* CABECERA CON LOGO Y CORREO */}
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-0.5">
+          {/* LOGO CONTROLTAXI */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-black shadow-md">
+              <CarTaxiFrontIcon className="h-5 w-5 fill-current" />
+            </div>
+            <span className="font-extrabold text-2xl tracking-tight text-white">
+              Control<span className="text-[#FFCC00]">Taxi</span>
+            </span>
           </div>
-          <button onClick={salir} aria-label="Cerrar sesión" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white">
-            <LogOut className="h-5 w-5" />
+
+          {/* EMAIL DEBAJO DEL LOGO */}
+          <p className="mt-1 truncate text-xs font-semibold text-white/90 pl-0.5">
+            {currentCorreo || "naufaal@outlook.com"}
+          </p>
+        </div>
+
+        {/* BOTÓN CERRAR SESIÓN */}
+        <button 
+          onClick={salir} 
+          aria-label="Cerrar sesión" 
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 transition-colors"
+        >
+          <LogOut className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* SELECTOR DÍA / SEMANA / MES */}
+      <div className="relative mt-7 flex justify-center gap-2" role="group">
+        {(["dia", "semana", "mes"] as const).map((opcion) => (
+          <button
+            key={opcion}
+            onClick={() => { setPeriodo(opcion); setRangoFechas({ inicio: "", fin: "" }); setFiltroTipo("todos"); }}
+            className={`h-10 min-w-20 rounded-xl px-4 text-sm font-semibold transition-colors ${
+              periodo === opcion
+                ? "bg-primary text-primary-foreground"
+                : "border border-white/20 bg-white/10 text-white"
+            }`}
+          >
+            {opcion === "dia" ? "Día" : opcion === "semana" ? "Semana" : "Mes"}
+          </button>
+        ))}
+      </div>
+
+      {/* TARJETA DE ACUMULADO FACTURADO */}
+      <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
+        <p className="text-xs tracking-wide text-white/70 uppercase">
+          Facturado {periodo === "personalizado" ? "filtrado" : periodoLabel}
+        </p>
+        <p className="mt-1 font-display text-4xl font-bold text-white">{eur(totales.neto)}</p>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-black/20 py-2.5 px-3">
+            <p className="text-[10px] tracking-wide text-white/60 uppercase">Ingresos</p>
+            <p className="text-sm font-semibold text-white mt-0.5">{eur(totales.ingresos)}</p>
+          </div>
+          <div className="rounded-2xl bg-black/20 py-2.5 px-3">
+            <p className="text-[10px] tracking-wide text-white/60 uppercase">Gastos</p>
+            <p className="text-sm font-semibold text-white mt-0.5">{eur(totales.gastos)}</p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <button onClick={() => abrirModal("ingreso")} className="flex h-14 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground shadow-md transition-transform active:scale-[0.97]">
+            <Plus className="h-5 w-5" /> Ingreso
+          </button>
+          <button onClick={() => abrirModal("gasto")} className="flex h-14 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 text-base font-semibold text-white shadow-md transition-transform active:scale-[0.97]">
+            <Minus className="h-5 w-5" /> Gasto
           </button>
         </div>
-
-        <div className="relative mt-7 flex justify-center gap-2" role="group">
-          {(["dia", "semana", "mes"] as const).map((opcion) => (
-            <button
-              key={opcion}
-              onClick={() => { setPeriodo(opcion); setRangoFechas({ inicio: "", fin: "" }); setFiltroTipo("todos"); }}
-              className={`h-10 min-w-20 rounded-xl px-4 text-sm font-semibold transition-colors ${
-                periodo === opcion
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-white/20 bg-white/10 text-white"
-              }`}
-            >
-              {opcion === "dia" ? "Día" : opcion === "semana" ? "Semana" : "Mes"}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative mx-auto mt-4 max-w-sm rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
-          <p className="text-xs tracking-wide text-white/70 uppercase">
-            Neto acumulado {periodo === "personalizado" ? "filtrado" : periodoLabel}
-          </p>
-          <p className="mt-1 font-display text-4xl font-bold text-white">{eur(totales.neto)}</p>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-black/20 py-2.5 px-3">
-              <p className="text-[10px] tracking-wide text-white/60 uppercase">Ingresos</p>
-              <p className="text-sm font-semibold text-white mt-0.5">{eur(totales.ingresos)}</p>
-            </div>
-            <div className="rounded-2xl bg-black/20 py-2.5 px-3">
-              <p className="text-[10px] tracking-wide text-white/60 uppercase">Gastos</p>
-              <p className="text-sm font-semibold text-white mt-0.5">{eur(totales.gastos)}</p>
-            </div>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <button onClick={() => abrirModal("ingreso")} className="flex h-14 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground shadow-md transition-transform active:scale-[0.97]">
-              <Plus className="h-5 w-5" /> Ingreso
-            </button>
-            <button onClick={() => abrirModal("gasto")} className="flex h-14 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 text-base font-semibold text-white shadow-md transition-transform active:scale-[0.97]">
-              <Minus className="h-5 w-5" /> Gasto
-            </button>
-          </div>
-        </div>
       </div>
+    </div>
 
-      <section className="px-5 pt-7">
-        <h2 className="font-display text-lg font-semibold text-foreground mb-3">Movimientos</h2>
-        <button onClick={() => abrirInforme(movsFiltrados, currentCorreo, periodoLabel)} className="mt-3 flex h-14 w-full items-center gap-3 rounded-2xl bg-foreground px-4 text-left text-base font-semibold text-background transition-transform active:scale-[0.98]">
-          <FileDown className="h-5 w-5 shrink-0" /> Exportar a PDF
-        </button>
+    {/* LISTADO DE MOVIMIENTOS */}
+    <section className="px-5 pt-7">
+      <h2 className="font-display text-lg font-semibold text-foreground mb-3">Movimientos</h2>
+      <button onClick={() => abrirInforme(movsFiltrados, currentCorreo, periodoLabel)} className="mt-3 flex h-14 w-full items-center gap-3 rounded-2xl bg-foreground px-4 text-left text-base font-semibold text-background transition-transform active:scale-[0.98]">
+        <FileDown className="h-5 w-5 shrink-0" /> Exportar a PDF
+      </button>
 
-        {movimientosQuery.isLoading ? (
-          <Cargando texto="Cargando movimientos..." />
-        ) : movsFiltrados.length === 0 ? (
-          <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center">
-            <CarTaxiFront className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="mt-3 text-sm text-muted-foreground">No hay movimientos en este periodo o filtro.</p>
-          </div>
-        ) : (
-          <ul className="mt-3 space-y-3">
-            {movsFiltrados.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.tipo === "ingreso" ? "bg-primary/20 text-foreground" : "bg-secondary text-muted-foreground"}`}>
-                  {m.tipo === "ingreso" ? <Plus className="h-5 w-5" /> : <Minus className="h-5 w-5" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-foreground">{m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(m.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })} · {new Date(m.fecha).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-                <p className="font-display text-lg font-bold text-foreground">
-                  {m.tipo === "gasto" ? "−" : "+"}{eur(m.importe)}
+      {movimientosQuery.isLoading ? (
+        <Cargando texto="Cargando movimientos..." />
+      ) : movsFiltrados.length === 0 ? (
+        <div className="mt-3 rounded-3xl border border-dashed border-border p-8 text-center">
+          <CarTaxiFront className="mx-auto h-8 w-8 text-muted-foreground" />
+          <p className="mt-3 text-sm text-muted-foreground">No hay movimientos en este periodo o filtro.</p>
+        </div>
+      ) : (
+        <ul className="mt-3 space-y-3">
+          {movsFiltrados.map((m) => (
+            <li key={m.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.tipo === "ingreso" ? "bg-primary/20 text-foreground" : "bg-secondary text-muted-foreground"}`}>
+                {m.tipo === "ingreso" ? <Plus className="h-5 w-5" /> : <Minus className="h-5 w-5" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-foreground">{m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(m.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })} · {new Date(m.fecha).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                 </p>
-                <button onClick={() => borrar(m.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+              </div>
+              <p className="font-display text-lg font-bold text-foreground">
+                {m.tipo === "gasto" ? "−" : "+"}{eur(m.importe)}
+              </p>
+              <button onClick={() => borrar(m.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-destructive transition-colors">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
 
-      <div className="px-5 pt-7">
-        <button onClick={() => abrirModal("documentos")} className="w-full text-left rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)] flex items-center gap-3 transition-transform active:scale-[0.98]">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-primary">
-            <Paperclip className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="font-display text-base font-bold text-foreground">Documentación a almacenar</h3>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">Guarda tus permisos, seguros o recibos.</p>
-          </div>
-        </button>
-      </div>
+    {/* DOCUMENTACIÓN A ALMACENAR */}
+    <div className="px-5 pt-7">
+      <button onClick={() => abrirModal("documentos")} className="w-full text-left rounded-3xl border border-border bg-card p-4 shadow-[var(--shadow-card)] flex items-center gap-3 transition-transform active:scale-[0.98]">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-primary">
+          <Paperclip className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="font-display text-base font-bold text-foreground">Documentación a almacenar</h3>
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">Guarda tus permisos, seguros o recibos.</p>
+        </div>
+      </button>
+    </div>
 
       <section className="px-5 pt-8">
         <div className="flex items-center justify-between">
@@ -970,7 +994,7 @@ function FormularioIngreso({ onCerrar, onGuardar }: { onCerrar: () => void; onGu
           <label className="text-xs text-muted-foreground uppercase font-semibold">Concepto</label>
           <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-full h-12 rounded-2xl bg-secondary border border-input px-4 text-sm text-foreground mt-1.5 outline-none focus:border-primary" />
           <div className="flex flex-wrap gap-2 mt-2">
-            {["Carrera", "Aeropuerto", "Estación"].map((c) => (
+            {["Carrera", "Aeropuerto", "Estación","Propina"].map((c) => (
               <button type="button" key={c} onClick={() => setConcepto(c)} className="h-9 px-3 rounded-2xl bg-secondary border border-input text-xs font-medium text-foreground hover:bg-primary/10 hover:border-primary transition-colors">{c}</button>
             ))}
           </div>
