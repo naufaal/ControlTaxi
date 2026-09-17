@@ -31,7 +31,6 @@ export function eur(valor: number): string {
 function extractPrimitive(val: any, fallback: any = ""): any {
   if (val === null || val === undefined) return fallback;
   if (typeof val === "object") {
-    // Busca propiedades comunes en objetos de selección (label, name, concepto, value, id)
     return (
       val.label ??
       val.name ??
@@ -85,7 +84,6 @@ export async function guardarMovimiento(arg1: any, arg2?: any, arg3?: any, arg4?
 
   let datos: any = {};
 
-  // Analizamos cómo vienen los datos (Evento de formulario, Objeto único o Argumentos separados)
   if (arg1 && (arg1.nativeEvent || arg1 instanceof Event || arg1?.target?.tagName === "FORM")) {
     const form = arg1.target?.tagName === "FORM" ? arg1.target : arg1.currentTarget;
     if (form) {
@@ -102,7 +100,6 @@ export async function guardarMovimiento(arg1: any, arg2?: any, arg3?: any, arg4?
     }
   }
 
-  // Extraemos y limpiamos cada campo de forma segura (desempaquetando objetos si los hubiera)
   const importeVal = parseImporte(datos.importe ?? datos.monto ?? datos.amount ?? datos.valor);
   const conceptoRaw = extractPrimitive(datos.concepto ?? datos.descripcion ?? datos.title ?? datos.nombre, "Sin concepto");
   const tipoRaw = extractPrimitive(datos.tipo ?? datos.type, "ingreso");
@@ -121,8 +118,6 @@ export async function guardarMovimiento(arg1: any, arg2?: any, arg3?: any, arg4?
     fecha: fechaRaw,
   };
 
-  console.log("🚀 [PAYLOAD LIMPIO] Enviando a Supabase:", payload);
-
   const { data, error } = await supabase
     .from("movimientos")
     .upsert(payload)
@@ -136,12 +131,20 @@ export async function guardarMovimiento(arg1: any, arg2?: any, arg3?: any, arg4?
   return data;
 }
 
-export async function borrarMovimiento(userId: string, id: string) {
-  const { error } = await (supabase as any)
+// 🟢 CORregido: Ahora solo necesita el `id` y busca el usuario automáticamente
+export async function borrarMovimiento(id: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let query = supabase
     .from("movimientos")
     .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
+    .eq("id", id);
+
+  if (user?.id) {
+    query = query.eq("user_id", user.id);
+  }
+
+  const { error } = await query;
 
   if (error) {
     console.error("Error al borrar movimiento:", error);
@@ -198,32 +201,4 @@ export function obtenerUltimoCorteTurno(): string | null {
 export function guardarUltimoCorteTurno(fechaIso: string) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem("taxihoja:ultimo_corte", fechaIso);
-}
-
-// 🟢 FUNCIÓN REGISTRAR MOVIMIENTO AÑADIDA AQUÍ ABAJO
-export async function registrarMovimiento(turnoId: string, monto: number, tipo: "ingreso" | "gasto", concepto = "Turno") {
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const payload = {
-    id: crypto.randomUUID(),
-    user_id: user?.id,
-    shift_id: turnoId, 
-    importe: monto,
-    tipo: tipo,
-    concepto: concepto,
-    fecha: new Date().toISOString(),
-  };
-
-  const { data, error } = await supabase
-    .from("movimientos")
-    .insert([payload])
-    .select();
-
-  if (error) {
-    console.error("Error al registrar movimiento:", error);
-    alert("Error al guardar. Comprueba tu conexión o si el turno sigue abierto.");
-    throw error;
-  }
-
-  return data;
 }
