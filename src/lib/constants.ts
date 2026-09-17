@@ -9,9 +9,10 @@ import {
   ParkingMeter,
   Receipt,
   MoreHorizontal,
-  CircleDollarSign,
+  Car,
+  Plane,
+  Train,
   Gift,
-  Tag,
 } from "lucide-react";
 
 export const FORMAS_PAGO = [
@@ -22,9 +23,9 @@ export const FORMAS_PAGO = [
 ];
 
 export const CATEGORIAS_INGRESOS = [
-  { id: "carrera", nombre: "Carrera", icon: CircleDollarSign },
-  { id: "aeropuerto", nombre: "Aeropuerto", icon: CircleDollarSign },
-  { id: "estacion", nombre: "Estación", icon: CircleDollarSign },
+  { id: "carrera", nombre: "Carrera", icon: Car },
+  { id: "aeropuerto", nombre: "Aeropuerto", icon: Plane },
+  { id: "estacion", nombre: "Estación", icon: Train },
   { id: "propina", nombre: "Propina", icon: Gift },
 ];
 
@@ -37,31 +38,21 @@ export const CATEGORIAS_GASTOS = [
   { id: "otros", nombre: "Otros", icon: MoreHorizontal },
 ];
 
-export function getIconoMovimiento(categoriaOrTexto?: string, formaPago?: string) {
-  // 1. Si se proporciona la forma de pago, tiene prioridad para mostrar su icono específico
-  if (formaPago) {
-    const p = formaPago.toLowerCase();
-    if (p.includes("efectivo")) return Banknote;
-    if (p.includes("tarjeta")) return CreditCard;
-    if (p.includes("emisora")) return Radio;
-    if (p.includes("bizum")) return Send;
-  }
+// Función enfocada exclusivamente en el concepto/categoría para el icono principal de la izquierda
+export function getIconoMovimiento(key?: string) {
+  if (!key) return Car;
+  const k = key.toLowerCase();
 
-  if (!categoriaOrTexto) return Tag;
-  const k = categoriaOrTexto.toLowerCase();
-
-  // 2. Comprobaciones en el texto (concepto o categoría)
-  if (k.includes("efectivo")) return Banknote;
-  if (k.includes("tarjeta")) return CreditCard;
-  if (k.includes("emisora")) return Radio;
-  if (k.includes("bizum")) return Send;
-  if (k.includes("combustible")) return Fuel;
+  if (k.includes("aeropuerto")) return Plane;
+  if (k.includes("estacion") || k.includes("estación") || k.includes("tren")) return Train;
+  if (k.includes("propina")) return Gift;
+  if (k.includes("combustible") || k.includes("gasolina")) return Fuel;
   if (k.includes("lavado")) return Sparkles;
-  if (k.includes("taller")) return Wrench;
+  if (k.includes("taller") || k.includes("reparación")) return Wrench;
   if (k.includes("parking")) return ParkingMeter;
   if (k.includes("peaje")) return Receipt;
   if (k.includes("otros")) return MoreHorizontal;
-  if (k.includes("propina")) return Gift;
+  if (k.includes("carrera")) return Car;
 
-  return CircleDollarSign;
+  return Car; // Icono por defecto (coche) para cualquier otro concepto personalizado
 }

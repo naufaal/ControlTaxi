@@ -71,7 +71,7 @@ export function FormularioIngreso({
       id: crypto.randomUUID(),
       tipo: "ingreso",
       importe: num,
-      concepto: `${concepto.trim() || "Carrera"} (${metodo})`,
+      concepto: concepto.trim() || "Carrera", // ✅ Limpio, sin el (${metodo})
       categoria: concepto.toLowerCase(),
       formaPago: metodo.toLowerCase(),
       fecha: fechaFinal,
@@ -627,7 +627,6 @@ function Panel() {
           </div>
         ) : (
           <ul className="mt-3 space-y-3">
-  // Dentro de tu componente donde listas los movimientos:
 {movsFiltrados.map((mov) => {
   // 1. Icono principal según categoría o concepto
   const IconoCategoria = getIconoMovimiento(mov.categoria || mov.concepto);
