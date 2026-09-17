@@ -718,23 +718,26 @@ function Panel() {
   );
   const IconoPago = formaPagoObj ? formaPagoObj.icon : null;
 
+  // 3. Comprobar si este movimiento pertenece a un turno ya cerrado
+  const esCerrado = ultimoCorte && mov.fecha <= ultimoCorte;
+
   return (
     <div 
       key={mov.id} 
-      className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border/50 hover:border-primary/50 transition-all duration-200 shadow-sm"
+      className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border/50 hover:border-primary/50 transition-all duration-200 shadow-sm gap-2"
     >
       {/* Izquierda: Icono principal + Textos */}
-      <div className="flex items-center gap-3.5">
+      <div className="flex items-center gap-3.5 min-w-0">
         {/* Contenedor del Icono Principal (Categoría) */}
         <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-inner">
           <IconoCategoria className="w-6 h-6" />
         </div>
 
-        <div>
-          <h4 className="font-semibold text-foreground text-base capitalize">
+        <div className="min-w-0">
+          <h4 className="font-semibold text-foreground text-base capitalize truncate">
             {mov.concepto}
           </h4>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-muted-foreground">
               {new Date(mov.fecha).toLocaleDateString("es-ES", {
                 day: "numeric",
@@ -755,8 +758,8 @@ function Panel() {
         </div>
       </div>
 
-      {/* Derecha: Importe (Verde si es ingreso, rojo/normal si es gasto) */}
-      <div className="text-right">
+      {/* Derecha: Importe + Botón de Borrar (Papelera) o Candado */}
+      <div className="flex items-center gap-3 shrink-0">
         <span
           className={`text-lg font-bold ${
             mov.tipo === "ingreso" ? "text-emerald-500 dark:text-emerald-400" : "text-foreground"
@@ -764,6 +767,26 @@ function Panel() {
         >
           {mov.tipo === "ingreso" ? "+" : "-"}{eur(mov.importe)}
         </span>
+
+        {/* Botón de borrar o icono de candado si el turno está cerrado */}
+        {!esCerrado ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("¿Estás seguro de que quieres eliminar este movimiento?")) {
+                borrar(mov.id!);
+              }
+            }}
+            className="p-2 text-muted-foreground hover:text-rose-500 transition-colors"
+            title="Eliminar movimiento"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        ) : (
+          <span className="p-2 text-muted-foreground/40" title="Turno cerrado: movimiento bloqueado">
+            <Lock className="w-4 h-4" />
+          </span>
+        )}
       </div>
     </div>
   );
