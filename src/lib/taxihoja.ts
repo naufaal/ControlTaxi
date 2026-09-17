@@ -50,39 +50,77 @@ export async function cargarMovimientos() {
   }));
 }
 
-export async function guardarMovimiento(mov: any) {
+export async function guardarMovimiento(arg1: any, arg2?: any, arg3?: any, arg4?: any, arg5?: any, arg6?: any) {
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Si por error pasas un evento de formulario (onSubmit), extraemos los datos automáticamente con FormData
-  let datos = mov;
-  if (mov && (mov.nativeEvent || mov instanceof Event || mov?.target?.tagName === "FORM")) {
-    const form = mov.target?.tagName === "FORM" ? mov.target : mov.currentTarget;
+  let tipoVal = "ingreso";
+  let importeVal = 0;
+  let conceptoVal = "Sin concepto";
+  let categoriaVal = null;
+  let formaPagoVal = null;
+  let fechaVal = new Date().toISOString();
+  let idVal = crypto.randomUUID();
+  let userIdVal = user?.id || null;
+
+  // CASO 1: Si pasan un Evento de Formulario (onSubmit)
+  if (arg1 && (arg1.nativeEvent || arg1 instanceof Event || arg1?.target?.tagName === "FORM")) {
+    const form = arg1.target?.tagName === "FORM" ? arg1.target : arg1.currentTarget;
     if (form) {
       const formData = new FormData(form);
-      datos = Object.fromEntries(formData.entries());
+      const obj = Object.fromEntries(formData.entries());
+      importeVal = obj.importe ?? obj.monto ?? obj.amount ?? obj.valor ?? 0;
+      conceptoVal = obj.concepto ?? obj.descripcion ?? obj.title ?? obj.nombre ?? "Sin concepto";
+      tipoVal = obj.tipo ?? obj.type ?? "ingreso";
+      categoriaVal = obj.categoria ?? obj.category ?? null;
+      formaPagoVal = obj.formaPago ?? obj.forma_pago ?? obj.metodoPago ?? null;
+      fechaVal = obj.fecha ?? obj.date ?? new Date().toISOString();
+      if (obj.id) idVal = obj.id;
+      if (obj.user_id) userIdVal = obj.user_id;
+    }
+  } 
+  // CASO 2: Si pasan un Objeto único (ej: guardarMovimiento({ importe: 10, concepto: 'Gasolina' }))
+  else if (arg1 && typeof arg1 === "object" && !Array.isArray(arg1)) {
+    const obj = arg1;
+    importeVal = obj.importe ?? obj.monto ?? obj.amount ?? obj.valor ?? 0;
+    conceptoVal = obj.concepto ?? obj.descripcion ?? obj.title ?? obj.nombre ?? "Sin concepto";
+    tipoVal = obj.tipo ?? obj.type ?? "ingreso";
+    categoriaVal = obj.categoria ?? obj.category ?? null;
+    formaPagoVal = obj.formaPago ?? obj.forma_pago ?? obj.metodoPago ?? null;
+    fechaVal = obj.fecha ?? obj.date ?? new Date().toISOString();
+    if (obj.id) idVal = obj.id;
+    if (obj.user_id) userIdVal = obj.user_id;
+  } 
+  // CASO 3: Si pasan argumentos separados por comas (ej: guardarMovimiento('ingreso', 25, 'Carrera'))
+  else if (arg1 !== undefined || arg2 !== undefined) {
+    if (typeof arg1 === "string" && (arg1 === "ingreso" || arg1 === "gasto")) {
+      tipoVal = arg1;
+      importeVal = arg2 ?? 0;
+      conceptoVal = arg3 ?? "Sin concepto";
+      categoriaVal = arg4 ?? null;
+      formaPagoVal = arg5 ?? null;
+      fechaVal = arg6 ?? new Date().toISOString();
+    } else {
+      importeVal = arg1 ?? 0;
+      conceptoVal = arg2 ?? "Sin concepto";
+      tipoVal = arg3 ?? "ingreso";
+      categoriaVal = arg4 ?? null;
+      formaPagoVal = arg5 ?? null;
+      fechaVal = arg6 ?? new Date().toISOString();
     }
   }
 
-  // Buscamos las propiedades sin importar cómo las llame el formulario o el objeto
-  const importeRaw = datos?.importe ?? datos?.monto ?? datos?.amount ?? datos?.valor ?? 0;
-  const conceptoRaw = datos?.concepto ?? datos?.descripcion ?? datos?.title ?? datos?.nombre ?? "Sin concepto";
-  const tipoRaw = datos?.tipo ?? datos?.type ?? "ingreso";
-  const categoriaRaw = datos?.categoria ?? datos?.category ?? null;
-  const formaPagoRaw = datos?.formaPago ?? datos?.forma_pago ?? datos?.metodoPago ?? null;
-  const fechaRaw = datos?.fecha ?? datos?.date ?? new Date().toISOString();
-
   const payload = {
-    id: datos?.id || crypto.randomUUID(),
-    user_id: user?.id || datos?.user_id || null,
-    tipo: tipoRaw,
-    importe: Number(importeRaw) || 0,
-    concepto: String(conceptoRaw).trim() || "Sin concepto",
-    categoria: categoriaRaw,
-    forma_pago: formaPagoRaw,
-    fecha: fechaRaw,
+    id: idVal,
+    user_id: userIdVal,
+    tipo: tipoVal,
+    importe: Number(importeVal) || 0,
+    concepto: String(conceptoVal).trim() || "Sin concepto",
+    categoria: categoriaVal,
+    forma_pago: formaPagoVal,
+    fecha: fechaVal,
   };
 
-  console.log("🚀 Payload final enviado a Supabase:", payload);
+  console.log("🔥 [PAYLOAD DEFINITIVO] Enviando a Supabase:", payload);
 
   const { data, error } = await supabase
     .from("movimientos")
@@ -90,7 +128,7 @@ export async function guardarMovimiento(mov: any) {
     .select();
 
   if (error) {
-    console.error("❌ Error detallado de Supabase:", error);
+    console.error("❌ Error de Supabase:", error);
     throw error;
   }
 
