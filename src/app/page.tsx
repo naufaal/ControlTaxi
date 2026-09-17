@@ -1,5 +1,93 @@
 'use client';
 
+function getIconoMovimiento(concepto: string, tipo: "ingreso" | "gasto", metodoPago?: string) {
+  const m = (metodoPago || "").toLowerCase().trim();
+  const c = (concepto || "").toLowerCase().trim();
+
+  // 1. EVALUAR MÉTODO DE PAGO (EFECTIVO, TARJETA, EMISORA, BIZUM)
+  if (m === "efectivo" || c.includes("efectivo") || c.includes("cash")) {
+    return <Banknote className="h-4 w-4 text-emerald-500" />;
+  }
+  if (m === "tarjeta" || c.includes("tarjeta") || c.includes("tpv") || c.includes("pos")) {
+    return <CreditCard className="h-4 w-4 text-blue-400" />;
+  }
+  if (m === "emisora" || c.includes("emisora") || c.includes("app") || c.includes("freenow") || c.includes("uber") || c.includes("cabify") || c.includes("bolt")) {
+    return <Radio className="h-4 w-4 text-amber-400" />;
+  }
+  if (m === "bizum" || c.includes("bizum")) {
+    return <Smartphone className="h-4 w-4 text-cyan-400" />;
+  }
+
+  // 2. SI ES GASTO POR CONCEPTO
+  if (tipo === "gasto") {
+    if (/gasolina|diesel|diésel|repostaje|combustible|gas|gasolinera|glp/i.test(c)) {
+      return <Fuel className="h-4 w-4 text-amber-500" />;
+    }
+    if (/taller|mecanico|mecánico|averia|avería|rueda|neumatico|neumático|mantenimiento/i.test(c)) {
+      return <Wrench className="h-4 w-4 text-rose-500" />;
+    }
+    if (/lavado|limpieza|lavar|túnel|tunel/i.test(c)) {
+      return <CarTaxiFront className="h-4 w-4 text-blue-500" />;
+    }
+    if (/comida|cafe|café|almuerzo|menu|menú|desayuno|restaurante/i.test(c)) {
+      return <Utensils className="h-4 w-4 text-orange-500" />;
+    }
+    if (/parking|aparcamiento|estacionamiento|zona verde|zona azul/i.test(c)) {
+      return <ParkingCircle className="h-4 w-4 text-indigo-500" />;
+    }
+    if (/seguro|itv|licencia|impuesto|gestoria|gestoría/i.test(c)) {
+      return <ShieldCheck className="h-4 w-4 text-emerald-500" />;
+    }
+    return <Receipt className="h-4 w-4 text-rose-400" />;
+  }
+
+  // 3. SI ES INGRESO POR DESTINO/CONCEPTO
+  if (/aeropuerto|barajas|vuelo|t1|t2|t3|t4|t4s/i.test(c)) {
+    return <Plane className="h-4 w-4 text-cyan-400" />;
+  }
+  if (/estacion|estación|atocha|chamartin|chamartín|renfe|adif|tren/i.test(c)) {
+    return <Train className="h-4 w-4 text-purple-400" />;
+  }
+
+  return <Plus className="h-4 w-4 text-primary" />;
+}
+
+function getIconoConcepto(concepto: string, tipo: "ingreso" | "gasto") {
+  const c = (concepto || "").toLowerCase().trim();
+
+  // SI ES UN GASTO
+  if (tipo === "gasto") {
+    if (/gasolina|diesel|diésel|repostaje|combustible|gas|gasolinera|glp/i.test(c)) {
+      return <Fuel className="h-4 w-4 text-amber-500" />;
+    }
+    if (/taller|mecanico|mecánico|averia|avería|rueda|neumatico|neumático|mantenimiento/i.test(c)) {
+      return <Wrench className="h-4 w-4 text-rose-500" />;
+    }
+    if (/lavado|limpieza|lavar|túnel|tunel/i.test(c)) {
+      return <CarTaxiFront className="h-4 w-4 text-blue-500" />;
+    }
+    if (/comida|cafe|café|almuerzo|menu|menú|desayuno|restaurante/i.test(c)) {
+      return <Utensils className="h-4 w-4 text-orange-500" />;
+    }
+    if (/parking|aparcamiento|estacionamiento|zona verde|zona azul/i.test(c)) {
+      return <ParkingCircle className="h-4 w-4 text-indigo-500" />;
+    }
+    if (/seguro|itv|licencia|impuesto|gestoria|gestoría/i.test(c)) {
+      return <ShieldCheck className="h-4 w-4 text-emerald-500" />;
+    }
+    return <Receipt className="h-4 w-4 text-rose-400" />;
+  }
+
+  // SI ES UN INGRESO
+  if (/aeropuerto|barajas|vuelo|t1|t2|t3|t4|t4s/i.test(c)) {
+    return <Plane className="h-4 w-4 text-cyan-400" />;
+  }
+  if (/estacion|estación|atocha|chamartin|chamartín|renfe|adif|tren/i.test(c)) {
+    return <Train className="h-4 w-4 text-purple-400" />;
+  }
+
+  return <Plus className="h-4 w-4 text-primary" />;
+}
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -25,11 +113,14 @@ import {
   BookOpen,
   Fuel,
   Wrench,
+  Utensils,
   Receipt,
-  TrendingUp,
-  TrendingDown,
-  LucideCarTaxiFront,
-  CarTaxiFrontIcon,
+  ParkingCircle,
+  ShieldCheck,
+  Banknote,
+  CreditCard,
+  Radio,
+  Smartphone,
 } from "lucide-react";
 import {
   cargarMovimientos,
@@ -360,33 +451,36 @@ function PanelPage() {
       <div className="pointer-events-none absolute -top-20 -right-10 h-52 w-52 rounded-full bg-primary/25 blur-3xl" />
       
       {/* CABECERA CON LOGO Y CORREO */}
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-0.5">
-          {/* LOGO CONTROLTAXI */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-black shadow-md">
-              <CarTaxiFrontIcon className="h-5 w-5 fill-current" />
-            </div>
-            <span className="font-extrabold text-2xl tracking-tight text-white">
-              Control<span className="text-[#FFCC00]">Taxi</span>
-            </span>
-          </div>
-
-          {/* EMAIL DEBAJO DEL LOGO */}
-          <p className="mt-1 truncate text-xs font-semibold text-white/90 pl-0.5">
-            {currentCorreo || "naufaal@outlook.com"}
-          </p>
-        </div>
-
-        {/* BOTÓN CERRAR SESIÓN */}
-        <button 
-          onClick={salir} 
-          aria-label="Cerrar sesión" 
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 transition-colors"
-        >
-          <LogOut className="h-5 w-5" />
-        </button>
+      {/* CABECERA EXACTA A LA IMAGEN */}
+{/* CABECERA CON EMAIL MÁS GRANDE */}
+{/* CABECERA CON FUENTE Y ESTILO REFINADO */}
+<div className="relative flex items-start justify-between gap-3">
+  <div className="space-y-1">
+    {/* LOGO CONTROLTAXI */}
+    <div className="flex items-center gap-2.5">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-black shadow-md">
+        <CarTaxiFront className="h-5 w-5 stroke-[2.5]" />
       </div>
+      <span className="font-black text-2xl tracking-tight text-white font-sans">
+        Control<span className="text-[#FFCC00]">Taxi</span>
+      </span>
+    </div>
+
+    {/* EMAIL CON FUENTE MODERNA, ESTILIZADA Y ELEGANTE */}
+    <p className="text-lg font-semibold tracking-wide text-slate-100/90 font-mono sm:font-sans">
+      {currentCorreo || "naufaal@outlook.com"}
+    </p>
+  </div>
+
+  {/* BOTÓN CERRAR SESIÓN */}
+  <button 
+    onClick={salir} 
+    aria-label="Cerrar sesión" 
+    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 transition-colors"
+  >
+    <LogOut className="h-5 w-5" />
+  </button>
+</div>
 
       {/* SELECTOR DÍA / SEMANA / MES */}
       <div className="relative mt-7 flex justify-center gap-2" role="group">
@@ -447,27 +541,34 @@ function PanelPage() {
           <p className="mt-3 text-sm text-muted-foreground">No hay movimientos en este periodo o filtro.</p>
         </div>
       ) : (
-        <ul className="mt-3 space-y-3">
-          {movsFiltrados.map((m) => (
-            <li key={m.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.tipo === "ingreso" ? "bg-primary/20 text-foreground" : "bg-secondary text-muted-foreground"}`}>
-                {m.tipo === "ingreso" ? <Plus className="h-5 w-5" /> : <Minus className="h-5 w-5" />}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-foreground">{m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}</p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(m.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })} · {new Date(m.fecha).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-              <p className="font-display text-lg font-bold text-foreground">
-                {m.tipo === "gasto" ? "−" : "+"}{eur(m.importe)}
-              </p>
-              <button onClick={() => borrar(m.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-destructive transition-colors">
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
+      <ul className="mt-3 space-y-3">
+  {movsFiltrados.map((m) => (
+    <li key={m.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+      
+      {/* ICONO DINÁMICO SEGÚN MÉTODO DE PAGO O CONCEPTO */}
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary border border-border">
+        {getIconoMovimiento(m.concepto, m.tipo, (m as any).metodoPago || (m as any).metodo_pago)}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-semibold text-foreground text-sm">
+          {m.concepto || (m.tipo === "ingreso" ? "Carrera" : "Gasto")}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {new Date(m.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })} · {new Date(m.fecha).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+        </p>
+      </div>
+
+      <p className={`font-display text-base font-bold ${m.tipo === "gasto" ? "text-destructive" : "text-emerald-500"}`}>
+        {m.tipo === "gasto" ? "−" : "+"}{eur(m.importe)}
+      </p>
+
+      <button onClick={() => borrar(m.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-destructive transition-colors">
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </li>
+  ))}
+</ul>
       )}
     </section>
 
