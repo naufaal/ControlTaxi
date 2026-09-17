@@ -39,18 +39,28 @@ export function VentanaFacturaModal({ onCerrar }: { onCerrar: () => void }) {
   // Estado del Historial
   const [historial, setHistorial] = useState<Factura[]>([]);
 
-  // Cargar historial desde Supabase
+  // Cargar historial desde Supabase (Corregido para evitar error de TypeScript con PromiseLike / .finally)
   useEffect(() => {
     if (pestana === 'historial') {
-      setCargandoHistorial(true);
-      supabase
-        .from("facturas")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .then(({ data, error }) => {
-          if (!error && data) setHistorial(data as unknown as Factura[]);
-        })
-        .finally(() => setCargandoHistorial(false));
+      const cargarHistorial = async () => {
+        setCargandoHistorial(true);
+        try {
+          const { data, error } = await supabase
+            .from("facturas")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+          if (!error && data) {
+            setHistorial(data as unknown as Factura[]);
+          }
+        } catch (error) {
+          console.error("Error al cargar historial:", error);
+        } finally {
+          setCargandoHistorial(false);
+        }
+      };
+
+      cargarHistorial();
     }
   }, [pestana]);
 
