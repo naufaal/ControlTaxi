@@ -571,24 +571,11 @@ function Panel() {
   async function borrar(id: string) {
     if (!currentUserId) return;
     try {
-      // 🟢 Pasamos únicamente el ID (la función detecta el usuario y valida el cierre de turno)
       await borrarMovimiento(id);
       await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
     } catch (error: any) {
       console.error("Error al borrar:", error);
-      // Muestra el mensaje exacto de bloqueo de turno cerrado o el genérico
       alert(error.message || "Error al eliminar el registro.");
-    }
-  }
-
-  async function borrar(id: string) {
-    if (!currentUserId) return;
-    try {
-      await borrarMovimiento(currentUserId, id);
-      await queryClient.invalidateQueries({ queryKey: ["movimientos", currentUserId] });
-    } catch (error) {
-      console.error("Error al borrar:", error);
-      alert("Error al eliminar el registro.");
     }
   }
 
